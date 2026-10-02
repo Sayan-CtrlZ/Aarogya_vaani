@@ -15,7 +15,6 @@ import {
   MapPin,
   Menu,
   Mic2,
-  Mountain,
   ShieldCheck,
   Sparkles,
   Stethoscope,
@@ -61,19 +60,22 @@ const languages = [
   {
     script: "বাংলা",
     name: "Bengali",
-    description: "Bengali is the most widely spoken language in Tripura",
+    description:
+      "Bengali is the most widely spoken language in Tripura.",
     icon: "01",
   },
   {
     script: "हिन्दी",
     name: "Hindi",
-    description: "While not an official state language, Hindi is spoken as a first language by a small minority",
+    description:
+      "Hindi is spoken by a smaller section of Tripura's population.",
     icon: "02",
   },
   {
     script: "Kokborok",
     name: "Kokborok",
-    description: "Kokborok is the primary indigenous official language of Tripura so Voice support is planned",
+    description:
+      "Kokborok is an important indigenous language of Tripura, with voice support planned for the roadmap.",
     icon: "03",
   },
 ];
@@ -154,7 +156,12 @@ function Logo() {
   );
 }
 
-function SectionHeading({ eyebrow, title, description, centered = false }) {
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  centered = false,
+}) {
   return (
     <div className={`section-heading ${centered ? "centered" : ""}`}>
       <span className="section-eyebrow">
@@ -176,7 +183,9 @@ function App() {
   const showToast = (message) => {
     setToast(message);
 
-    window.clearTimeout(window.__aarogyaToastTimer);
+    if (window.__aarogyaToastTimer) {
+      window.clearTimeout(window.__aarogyaToastTimer);
+    }
 
     window.__aarogyaToastTimer = window.setTimeout(() => {
       setToast("");
@@ -192,16 +201,27 @@ function App() {
         behavior: "smooth",
       });
 
-      showToast("Welcome to AarogyaVaani • Built with Tripura in focus");
+      showToast(
+        "Welcome to AarogyaVaani • Built with Tripura in focus"
+      );
+
       return;
     }
 
-    document.getElementById(id)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const target = document.getElementById(id);
+
+    if (target) {
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
 
     showToast(`${label} • AarogyaVaani`);
+  };
+
+  const goToLogin = () => {
+    window.location.href = "/login";
   };
 
   return (
@@ -212,6 +232,7 @@ function App() {
       <header className="navbar">
         <div className="nav-inner">
           <button
+            type="button"
             className="brand-button"
             onClick={() => navigateTo("home", "Home")}
             aria-label="AarogyaVaani Home"
@@ -219,7 +240,10 @@ function App() {
             <Logo />
           </button>
 
-          <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
+          <nav
+            className={`nav-links ${menuOpen ? "open" : ""}`}
+            aria-label="Main navigation"
+          >
             {[
               ["home", "Home"],
               ["about", "About"],
@@ -227,6 +251,7 @@ function App() {
               ["how-it-works", "How It Works"],
             ].map(([id, label]) => (
               <button
+                type="button"
                 key={id}
                 className="nav-link"
                 onClick={() => navigateTo(id, label)}
@@ -236,8 +261,9 @@ function App() {
             ))}
 
             <button
+              type="button"
               className="nav-cta"
-              onClick={() => navigateTo("how-it-works", "Get Started")}
+              onClick={goToLogin}
             >
               Get Started
               <ArrowRight size={17} />
@@ -245,9 +271,11 @@ function App() {
           </nav>
 
           <button
+            type="button"
             className="mobile-menu"
             onClick={() => setMenuOpen((value) => !value)}
-            aria-label="Toggle menu"
+            aria-label="Toggle navigation menu"
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X size={23} /> : <Menu size={23} />}
           </button>
@@ -273,7 +301,7 @@ function App() {
 
             <div className="map-label">
               <MapPin size={13} />
-              Tripura, India
+              <span>Tripura, India</span>
             </div>
 
             <div className="ambient-orb orb-one" />
@@ -282,18 +310,30 @@ function App() {
             <div className="heritage-card heritage-one">
               <img
                 src={heritagePlaces[0].image}
-                alt="Ujjayanta Palace"
+                alt="Ujjayanta Palace in Agartala, Tripura"
+                loading="eager"
+                decoding="async"
               />
               <span>Ujjayanta Palace</span>
             </div>
 
             <div className="heritage-card heritage-two">
-              <img src={heritagePlaces[1].image} alt="Neermahal" />
+              <img
+                src={heritagePlaces[1].image}
+                alt="Neermahal in Tripura"
+                loading="eager"
+                decoding="async"
+              />
               <span>Neermahal</span>
             </div>
 
             <div className="heritage-card heritage-three">
-              <img src={heritagePlaces[2].image} alt="Unakoti" />
+              <img
+                src={heritagePlaces[2].image}
+                alt="Unakoti in Tripura"
+                loading="eager"
+                decoding="async"
+              />
               <span>Unakoti</span>
             </div>
           </div>
@@ -338,8 +378,9 @@ function App() {
                 transition={{ duration: 0.7, delay: 0.3 }}
               >
                 <button
+                  type="button"
                   className="primary-button"
-                  onClick={() => navigateTo("how-it-works", "Get Started")}
+                  onClick={goToLogin}
                 >
                   <Mic2 size={18} />
                   Start with your voice
@@ -347,8 +388,11 @@ function App() {
                 </button>
 
                 <button
+                  type="button"
                   className="secondary-button"
-                  onClick={() => navigateTo("how-it-works", "How It Works")}
+                  onClick={() =>
+                    navigateTo("how-it-works", "How It Works")
+                  }
                 >
                   <Activity size={18} />
                   See how it works
@@ -378,9 +422,7 @@ function App() {
               </motion.div>
             </div>
 
-            {/* =====================================================
-                HERO PHONE / PERSON VISUAL
-            ====================================================== */}
+            {/* HERO PHONE / PERSON VISUAL */}
             <motion.div
               className="hero-visual"
               initial={{ opacity: 0, x: 70, scale: 0.92 }}
@@ -463,7 +505,9 @@ function App() {
                   <div className="phone-mic">
                     <motion.div
                       className="mic-ring"
-                      animate={{ scale: [1, 1.12, 1] }}
+                      animate={{
+                        scale: [1, 1.12, 1],
+                      }}
                       transition={{
                         duration: 1.8,
                         repeat: Infinity,
@@ -494,6 +538,7 @@ function App() {
                 }}
               >
                 <WifiOff size={18} />
+
                 <div>
                   <strong>Offline Ready</strong>
                   <span>Works without internet</span>
@@ -510,6 +555,7 @@ function App() {
                 }}
               >
                 <Languages size={18} />
+
                 <div>
                   <strong>Local Language</strong>
                   <span>বাংলা • हिन्दी • Kokborok</span>
@@ -547,6 +593,7 @@ function App() {
 
                 <div className="map-panel-label">
                   <Map size={17} />
+
                   <div>
                     <strong>Tripura</strong>
                     <span>State-focused healthcare solution</span>
@@ -581,9 +628,14 @@ function App() {
                 </h3>
 
                 <p>
-                  AarogyaVaani is a voice-first, offline healthcare platform connecting patients from the remote hills and communities of Tripura with doctors.
-                  It helps patients share their health concerns easily through voice and simple interactions, even where connectivity is limited.
-                  From a patient’s voice at a local health centre to a doctor’s screen, AarogyaVaani turns distance into a bridge for better care.
+                  AarogyaVaani is a voice-first, offline healthcare
+                  platform connecting patients from the remote hills and
+                  communities of Tripura with doctors. It helps patients
+                  share their health concerns easily through voice and
+                  simple interactions, even where connectivity is limited.
+                  From a patient&apos;s voice at a local health centre to a
+                  doctor&apos;s screen, AarogyaVaani turns distance into a
+                  bridge for better care.
                 </p>
 
                 <div className="language-grid">
@@ -591,9 +643,17 @@ function App() {
                     <motion.div
                       className="language-card"
                       key={language.name}
-                      initial={{ opacity: 0, y: 25 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
+                      initial={{
+                        opacity: 0,
+                        y: 25,
+                      }}
+                      whileInView={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      viewport={{
+                        once: true,
+                      }}
                       transition={{
                         duration: 0.5,
                         delay: index * 0.1,
@@ -636,7 +696,9 @@ function App() {
               </div>
 
               <p>
-                Tripura is a beautiful, green state in Northeast India, famous for its rich tribal heritage, dense forests, and beautiful bamboo handicrafts.
+                Tripura is a beautiful, green state in Northeast India,
+                famous for its rich tribal heritage, dense forests, and
+                beautiful bamboo handicrafts.
               </p>
             </div>
 
@@ -653,7 +715,10 @@ function App() {
                     opacity: 1,
                     y: 0,
                   }}
-                  viewport={{ once: true, amount: 0.2 }}
+                  viewport={{
+                    once: true,
+                    amount: 0.2,
+                  }}
                   transition={{
                     duration: 0.6,
                     delay: index * 0.1,
@@ -663,12 +728,18 @@ function App() {
                     scale: 1.015,
                   }}
                 >
-                  <img src={place.image} alt={place.name} />
+                  <img
+                    src={place.image}
+                    alt={`${place.name}, ${place.location}, Tripura`}
+                    loading="lazy"
+                    decoding="async"
+                  />
 
                   <div className="heritage-overlay" />
 
                   <div className="heritage-place-info">
                     <MapPin size={15} />
+
                     <div>
                       <strong>{place.name}</strong>
                       <span>{place.location}, Tripura</span>
@@ -721,7 +792,10 @@ function App() {
                     }}
                   >
                     <div className="feature-icon">
-                      <Icon size={22} strokeWidth={2} />
+                      <Icon
+                        size={22}
+                        strokeWidth={2}
+                      />
                     </div>
 
                     <span className="feature-number">
@@ -745,7 +819,10 @@ function App() {
         {/* =========================================================
             HOW IT WORKS
         ========================================================== */}
-        <section className="how-section" id="how-it-works">
+        <section
+          className="how-section"
+          id="how-it-works"
+        >
           <div className="how-background">
             <div className="sound-line line-one" />
             <div className="sound-line line-two" />
@@ -776,7 +853,9 @@ function App() {
                       opacity: 1,
                       scale: 1,
                     }}
-                    viewport={{ once: true }}
+                    viewport={{
+                      once: true,
+                    }}
                     transition={{
                       duration: 0.55,
                       delay: index * 0.12,
@@ -795,7 +874,10 @@ function App() {
                     <p>{step.text}</p>
 
                     {index < howItWorks.length - 1 && (
-                      <ArrowRight className="step-arrow" size={20} />
+                      <ArrowRight
+                        className="step-arrow"
+                        size={20}
+                      />
                     )}
                   </motion.div>
                 );
@@ -804,19 +886,30 @@ function App() {
 
             <motion.div
               className="safety-banner"
-              initial={{ opacity: 0, y: 25 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              initial={{
+                opacity: 0,
+                y: 25,
+              }}
+              whileInView={{
+                opacity: 1,
+                y: 0,
+              }}
+              viewport={{
+                once: true,
+              }}
             >
               <div className="safety-icon">
                 <ShieldCheck size={23} />
               </div>
 
               <div>
-                <strong>Safety remains human-reviewed.</strong>
+                <strong>
+                  Safety remains human-reviewed.
+                </strong>
+
                 <span>
-                  AarogyaVaani does not diagnose. The doctor reviews, edits
-                  and approves the generated summary.
+                  AarogyaVaani does not diagnose. The doctor reviews,
+                  edits and approves the generated summary.
                 </span>
               </div>
 
@@ -830,16 +923,30 @@ function App() {
         ========================================================== */}
         <section className="cta-section">
           <div className="cta-map">
-            <img src={TRIPURA_MAP_URL} alt="" aria-hidden="true" />
+            <img
+              src={TRIPURA_MAP_URL}
+              alt=""
+              aria-hidden="true"
+            />
           </div>
 
           <div className="container">
             <motion.div
               className="cta-card"
-              initial={{ opacity: 0, scale: 0.96 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
+              initial={{
+                opacity: 0,
+                scale: 0.96,
+              }}
+              whileInView={{
+                opacity: 1,
+                scale: 1,
+              }}
+              viewport={{
+                once: true,
+              }}
+              transition={{
+                duration: 0.7,
+              }}
             >
               <div className="cta-icon">
                 <HeartPulse size={28} />
@@ -853,13 +960,14 @@ function App() {
               <h2>Let every patient be heard.</h2>
 
               <p>
-                Voice-first. Offline-ready. Designed around the patient,
-                health worker and doctor.
+                Voice-first. Offline-ready. Designed around the
+                patient, health worker and doctor.
               </p>
 
               <button
+                type="button"
                 className="primary-button large"
-                onClick={() => navigateTo("how-it-works", "Get Started")}
+                onClick={goToLogin}
               >
                 <Mic2 size={19} />
                 Explore AarogyaVaani
@@ -879,8 +987,8 @@ function App() {
             <Logo />
 
             <p>
-              A voice-first, offline patient intake tool for primary health
-              centres.
+              A voice-first, offline patient intake tool for primary
+              health centres.
             </p>
 
             <span className="footer-state">
@@ -890,19 +998,29 @@ function App() {
           </div>
 
           <div className="footer-links">
-            <button onClick={() => navigateTo("home", "Home")}>
+            <button
+              type="button"
+              onClick={() => navigateTo("home", "Home")}
+            >
               Home
             </button>
 
-            <button onClick={() => navigateTo("about", "About")}>
+            <button
+              type="button"
+              onClick={() => navigateTo("about", "About")}
+            >
               About
             </button>
 
-            <button onClick={() => navigateTo("features", "Features")}>
+            <button
+              type="button"
+              onClick={() => navigateTo("features", "Features")}
+            >
               Features
             </button>
 
             <button
+              type="button"
               onClick={() =>
                 navigateTo("how-it-works", "How It Works")
               }
@@ -912,9 +1030,12 @@ function App() {
           </div>
 
           <div className="footer-credit">
-            <span>AarogyaVaani • Hack for Social Cause</span>
+            <span>
+              AarogyaVaani • Hack for Social Cause
+            </span>
+
             <small>
-              Tripura-focused healthcare accessibility 
+              Tripura-focused healthcare accessibility
             </small>
           </div>
         </div>
@@ -923,8 +1044,7 @@ function App() {
           <span>© 2026 AarogyaVaani</span>
 
           <span>
-            Tripura’s Voice-First Healthcare Platform
-           
+            Tripura&apos;s Voice-First Healthcare Platform
           </span>
         </div>
       </footer>
@@ -961,7 +1081,11 @@ function App() {
               <span>{toast}</span>
             </div>
 
-            <button onClick={() => setToast("")} aria-label="Close">
+            <button
+              type="button"
+              onClick={() => setToast("")}
+              aria-label="Close notification"
+            >
               <X size={16} />
             </button>
           </motion.div>
