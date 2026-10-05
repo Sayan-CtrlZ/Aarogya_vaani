@@ -1,0 +1,386 @@
+* {
+  box-sizing: border-box;
+}
+
+.doctor-review-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(246, 250, 248, 0.96), rgba(246, 250, 248, 0.98)),
+    url("https://upload.wikimedia.org/wikipedia/commons/3/36/Tripura_in_India.svg")
+      center / 520px no-repeat;
+  color: #103f32;
+}
+
+.doctor-review-header {
+  height: 76px;
+  background: #103f32;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6%;
+}
+
+.doctor-brand h1 {
+  margin: 0;
+  font-size: 25px;
+}
+
+.doctor-brand span {
+  display: block;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.doctor-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.doctor-review-main {
+  width: min(1050px, 92%);
+  margin: auto;
+  padding: 30px 0 65px;
+}
+
+.doctor-breadcrumb {
+  color: #71847b;
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+
+.doctor-breadcrumb span {
+  margin: 0 8px;
+}
+
+.doctor-breadcrumb strong {
+  color: #103f32;
+}
+
+.doctor-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.doctor-title p {
+  color: #2f8f69;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin: 0 0 7px;
+}
+
+.doctor-title h2 {
+  margin: 0 0 7px;
+  font-size: clamp(28px, 5vw, 42px);
+}
+
+.doctor-title span {
+  color: #71847c;
+}
+
+.approved-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #ddf2e6;
+  color: #176944;
+  border: 1px solid #b9dec8;
+  border-radius: 99px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.patient-overview {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: white;
+  border: 1px solid #d7e8df;
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 28px rgba(16, 63, 50, 0.05);
+}
+
+.patient-avatar {
+  width: 56px;
+  height: 56px;
+  background: #e5f3eb;
+  color: #2f8f69;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+}
+
+.patient-overview small {
+  color: #82938c;
+  font-size: 11px;
+}
+
+.patient-overview h3 {
+  margin: 2px 0 3px;
+  font-size: 19px;
+}
+
+.patient-overview p {
+  margin: 0;
+  color: #70827a;
+  font-size: 13px;
+}
+
+.doctor-danger {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 17px;
+  background: #fff1f0;
+  border: 1px solid #efc8c4;
+  border-radius: 15px;
+  margin-bottom: 18px;
+  color: #a5261c;
+}
+
+.doctor-danger strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.doctor-danger p {
+  margin: 0;
+  color: #806c68;
+  font-size: 13px;
+}
+
+.review-card {
+  background: white;
+  border: 1px solid #d7e8df;
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 8px 28px rgba(16, 63, 50, 0.05);
+}
+
+.review-card-heading {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+
+.review-card-heading > svg {
+  color: #2f8f69;
+}
+
+.review-card-heading h3 {
+  margin: 0 0 4px;
+}
+
+.review-card-heading p {
+  margin: 0;
+  color: #7a8c84;
+  font-size: 13px;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.review-full {
+  grid-column: 1 / -1;
+}
+
+.review-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 750;
+  margin-bottom: 8px;
+}
+
+.review-field textarea {
+  width: 100%;
+  min-height: 105px;
+  resize: vertical;
+  border: 1px solid #cbded5;
+  border-radius: 12px;
+  padding: 13px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+}
+
+.review-field textarea:focus {
+  border-color: #2f8f69;
+  box-shadow: 0 0 0 3px rgba(47, 143, 105, 0.11);
+}
+
+.doctor-evidence {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.doctor-evidence > div {
+  background: white;
+  border: 1px solid #d7e8df;
+  border-radius: 16px;
+  padding: 19px;
+}
+
+.doctor-evidence h3 {
+  margin: 0 0 9px;
+  font-size: 15px;
+}
+
+.doctor-evidence p {
+  margin: 0;
+  color: #71847c;
+  font-size: 13px;
+}
+
+.doctor-evidence ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #8c2a21;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.doctor-safeguard {
+  display: flex;
+  gap: 12px;
+  background: #eaf5ef;
+  border: 1px solid #cde3d7;
+  border-radius: 15px;
+  padding: 17px;
+  margin-top: 18px;
+}
+
+.doctor-safeguard svg {
+  color: #2f8f69;
+  flex-shrink: 0;
+}
+
+.doctor-safeguard strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.doctor-safeguard p {
+  margin: 0;
+  color: #61766d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.doctor-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.doctor-back,
+.doctor-approve {
+  min-height: 53px;
+  border-radius: 12px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.doctor-back {
+  background: white;
+  border: 1px solid #cbded5;
+  color: #103f32;
+}
+
+.doctor-approve {
+  background: #0f5c45;
+  border: 0;
+  color: white;
+}
+
+.doctor-approve:hover {
+  background: #103f32;
+}
+
+.approval-success {
+  margin-top: 18px;
+  background: #e8f6ee;
+  border: 1px solid #bfe0cc;
+  border-radius: 15px;
+  padding: 16px;
+  display: flex;
+  gap: 11px;
+  color: #176944;
+}
+
+.approval-success svg {
+  flex-shrink: 0;
+}
+
+.approval-success strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.approval-success p {
+  margin: 0;
+  font-size: 12px;
+  color: #637a6f;
+}
+
+@media (max-width: 700px) {
+  .doctor-review-header {
+    padding: 0 5%;
+  }
+
+  .doctor-role {
+    display: none;
+  }
+
+  .doctor-review-main {
+    width: 94%;
+    padding-top: 20px;
+  }
+
+  .doctor-title {
+    flex-direction: column;
+  }
+
+  .review-grid,
+  .doctor-evidence {
+    grid-template-columns: 1fr;
+  }
+
+  .review-full {
+    grid-column: auto;
+  }
+
+  .review-card {
+    padding: 18px;
+  }
+
+  .doctor-actions {
+    flex-direction: column-reverse;
+  }
+
+  .doctor-back,
+  .doctor-approve {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -5,26 +5,21 @@ import {
   Activity,
   AlertTriangle,
   ArrowRight,
-  AudioLines,
   Bell,
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Cloud,
   FileCheck2,
   Home,
   Languages,
-  Leaf,
   LogOut,
   Menu,
   Mic,
-  Moon,
   Network,
-  PauseCircle,
   PlayCircle,
   RefreshCw,
   Search,
-  Settings,
+  Settings as SettingsIcon,
   ShieldCheck,
   Stethoscope,
   UserRound,
@@ -39,24 +34,9 @@ import "./Dashboard.css";
 const TRIPURA_MAP_URL =
   "https://upload.wikimedia.org/wikipedia/commons/7/7c/Tripura_map_for_WLM-IN.svg";
 
-function Logo() {
-  return (
-    <div className="dashboard-logo">
-      <div className="dashboard-logo-mark">
-        <Leaf size={21} strokeWidth={2.4} />
-        <AudioLines size={18} strokeWidth={2.5} />
-      </div>
-
-      <div className="dashboard-logo-text">
-        <strong>AarogyaVaani</strong>
-        <span>Tripura Health</span>
-      </div>
-    </div>
-  );
-}
-
 const healthWorkerPatients = [
   {
+    id: "patient-1",
     name: "Mamta Debbarma",
     age: "27",
     gender: "F",
@@ -64,8 +44,10 @@ const healthWorkerPatients = [
     language: "Bengali",
     status: "Completed",
     time: "10:32 AM",
+    details: "Routine antenatal intake completed.",
   },
   {
+    id: "patient-2",
     name: "Rani Tripura",
     age: "24",
     gender: "F",
@@ -73,8 +55,10 @@ const healthWorkerPatients = [
     language: "Hindi",
     status: "In Progress",
     time: "10:15 AM",
+    details: "Interview currently in progress.",
   },
   {
+    id: "patient-3",
     name: "Sukanta Das",
     age: "42",
     gender: "M",
@@ -82,8 +66,10 @@ const healthWorkerPatients = [
     language: "Bengali",
     status: "Awaiting Review",
     time: "09:48 AM",
+    details: "General health history awaiting review.",
   },
   {
+    id: "patient-4",
     name: "Bimala Reang",
     age: "31",
     gender: "F",
@@ -91,11 +77,14 @@ const healthWorkerPatients = [
     language: "Bengali",
     status: "Urgent",
     time: "09:21 AM",
+    details: "Severe headache detected during intake.",
+    dangerSigns: ["Severe headache / blurred vision"],
   },
 ];
 
 const doctorPatients = [
   {
+    id: "patient-4",
     name: "Bimala Reang",
     age: "31",
     gender: "F",
@@ -105,6 +94,7 @@ const doctorPatients = [
     time: "09:21 AM",
   },
   {
+    id: "patient-2",
     name: "Rani Tripura",
     age: "24",
     gender: "F",
@@ -114,6 +104,7 @@ const doctorPatients = [
     time: "10:15 AM",
   },
   {
+    id: "patient-1",
     name: "Mamta Debbarma",
     age: "27",
     gender: "F",
@@ -123,6 +114,7 @@ const doctorPatients = [
     time: "10:32 AM",
   },
   {
+    id: "patient-3",
     name: "Sukanta Das",
     age: "42",
     gender: "M",
@@ -142,6 +134,17 @@ const weeklyData = [
   { day: "Sat", value: 19 },
   { day: "Sun", value: 13 },
 ];
+
+function Logo() {
+  return (
+    <div className="dashboard-logo">
+      <div className="dashboard-logo-text">
+        <strong>AarogyaVaani</strong>
+        <span>Tripura Health</span>
+      </div>
+    </div>
+  );
+}
 
 function StatusBadge({ status }) {
   const className = status
@@ -163,6 +166,7 @@ function StatusBadge({ status }) {
 
 function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const role =
     sessionStorage.getItem("aarogyaVaaniRole") || "health-worker";
@@ -175,6 +179,52 @@ function Dashboard() {
 
   const patients = isDoctor ? doctorPatients : healthWorkerPatients;
 
+  /*
+   * ============================================================
+   * SIDEBAR NAVIGATION
+   * ============================================================
+   *
+   * Every sidebar option uses this function.
+   *
+   * It closes the mobile sidebar first and then changes the page.
+   */
+  const goTo = (path) => {
+    setSidebarOpen(false);
+    window.location.href = path;
+  };
+
+  const goToNewPatient = () => {
+    goTo("/new-patient");
+  };
+
+  const handlePrimaryAction = () => {
+    if (isDoctor) {
+      goTo("/doctor-review");
+    } else {
+      goToNewPatient();
+    }
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+
+    const value = searchText.trim();
+
+    if (!value) {
+      goTo("/patients");
+      return;
+    }
+
+    goTo(`/patients?search=${encodeURIComponent(value)}`);
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem("aarogyaVaaniRole");
+    sessionStorage.removeItem("aarogyaVaaniUserName");
+
+    window.location.href = "/login";
+  };
+
   const stats = useMemo(() => {
     if (isDoctor) {
       return [
@@ -184,6 +234,7 @@ function Dashboard() {
           helper: "Need your attention",
           icon: FileCheck2,
           type: "blue",
+          route: "/doctor-review",
         },
         {
           label: "Urgent Cases",
@@ -191,6 +242,7 @@ function Dashboard() {
           helper: "Danger signs detected",
           icon: AlertTriangle,
           type: "red",
+          route: "/danger-alerts",
         },
         {
           label: "Approved Today",
@@ -198,6 +250,7 @@ function Dashboard() {
           helper: "Summaries approved",
           icon: CheckCircle2,
           type: "green",
+          route: "/patients?status=approved",
         },
         {
           label: "Waiting to Sync",
@@ -205,6 +258,7 @@ function Dashboard() {
           helper: "Stored on device",
           icon: RefreshCw,
           type: "orange",
+          route: "/sync-status",
         },
       ];
     }
@@ -216,6 +270,7 @@ function Dashboard() {
         helper: "Patient sessions today",
         icon: UsersRound,
         type: "green",
+        route: "/patients",
       },
       {
         label: "In Progress",
@@ -223,6 +278,7 @@ function Dashboard() {
         helper: "Sessions on this device",
         icon: Activity,
         type: "blue",
+        route: "/active-sessions",
       },
       {
         label: "Awaiting Review",
@@ -230,6 +286,7 @@ function Dashboard() {
         helper: "Doctor review required",
         icon: FileCheck2,
         type: "purple",
+        route: "/patients?status=review",
       },
       {
         label: "Urgent Alerts",
@@ -237,27 +294,16 @@ function Dashboard() {
         helper: "Danger sign detected",
         icon: AlertTriangle,
         type: "red",
+        route: "/danger-alerts",
       },
     ];
   }, [isDoctor]);
 
-  const logout = () => {
-    sessionStorage.removeItem("aarogyaVaaniRole");
-    sessionStorage.removeItem("aarogyaVaaniUserName");
-
-    window.location.href = "/login";
-  };
-
-  const handlePrimaryAction = () => {
-    if (isDoctor) {
-      alert("Doctor review screen will be connected next.");
-    } else {
-      alert("New Patient Intake screen will be connected next.");
-    }
-  };
-
   return (
     <div className="dashboard-page">
+      {/* ======================================================
+          MOBILE SIDEBAR OVERLAY
+      ======================================================= */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -270,6 +316,9 @@ function Dashboard() {
         )}
       </AnimatePresence>
 
+      {/* ======================================================
+          LEFT SIDEBAR
+      ======================================================= */}
       <aside className={`dashboard-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-top">
           <Logo />
@@ -278,6 +327,7 @@ function Dashboard() {
             className="mobile-close-button"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"
+            type="button"
           >
             <X size={20} />
           </button>
@@ -295,16 +345,28 @@ function Dashboard() {
           </span>
         </div>
 
+        {/* ====================================================
+            SIDEBAR NAVIGATION
+
+            All buttons below now have explicit navigation.
+        ===================================================== */}
         <nav className="dashboard-nav">
-          <button className="dashboard-nav-item active">
+          {/* Dashboard */}
+          <button
+            type="button"
+            className="dashboard-nav-item active"
+            onClick={() => goTo("/dashboard")}
+          >
             <Home size={18} />
             <span>Dashboard</span>
           </button>
 
+          {/* New Patient / Pending Reviews */}
           {!isDoctor && (
             <button
+              type="button"
               className="dashboard-nav-item primary-nav"
-              onClick={handlePrimaryAction}
+              onClick={goToNewPatient}
             >
               <Mic size={18} />
               <span>New Patient Intake</span>
@@ -313,52 +375,97 @@ function Dashboard() {
 
           {isDoctor && (
             <button
+              type="button"
               className="dashboard-nav-item primary-nav"
-              onClick={handlePrimaryAction}
+              onClick={() => goTo("/doctor-review")}
             >
               <FileCheck2 size={18} />
               <span>Pending Reviews</span>
             </button>
           )}
 
-          <button className="dashboard-nav-item">
+          {/* Patients */}
+          <button
+            type="button"
+            className="dashboard-nav-item"
+            onClick={() => goTo("/patients")}
+          >
             <UsersRound size={18} />
             <span>Patients</span>
           </button>
 
+          {/* Active Sessions */}
           {!isDoctor && (
-            <button className="dashboard-nav-item">
+            <button
+              type="button"
+              className="dashboard-nav-item"
+              onClick={() => goTo("/active-sessions")}
+            >
               <Activity size={18} />
               <span>Active Sessions</span>
             </button>
           )}
 
-          <button className="dashboard-nav-item">
+          {/* Danger Alerts */}
+          <button
+            type="button"
+            className="dashboard-nav-item"
+            onClick={() => goTo("/danger-alerts")}
+          >
             <AlertTriangle size={18} />
             <span>Danger Alerts</span>
 
-            {!isDoctor && <span className="nav-count">1</span>}
-            {isDoctor && <span className="nav-count">2</span>}
+            <span className="nav-count">
+              {isDoctor ? "2" : "1"}
+            </span>
           </button>
 
+          {/* Approved Summaries - Doctor only */}
           {isDoctor && (
-            <button className="dashboard-nav-item">
+            <button
+              type="button"
+              className="dashboard-nav-item"
+              onClick={() => goTo("/patients?status=approved")}
+            >
               <CheckCircle2 size={18} />
               <span>Approved Summaries</span>
             </button>
           )}
 
-          <button className="dashboard-nav-item">
+          {/* Sync Status */}
+          <button
+            type="button"
+            className="dashboard-nav-item"
+            onClick={() => goTo("/sync-status")}
+          >
             <RefreshCw size={18} />
             <span>Sync Status</span>
           </button>
 
-          <button className="dashboard-nav-item">
-            <Settings size={18} />
+          {/* Signup Status */}
+          <button
+            type="button"
+            className="dashboard-nav-item"
+            onClick={() => goTo("/signup-status")}
+          >
+            <ShieldCheck size={18} />
+            <span>Signup Status</span>
+          </button>
+
+          {/* Settings */}
+          <button
+            type="button"
+            className="dashboard-nav-item"
+            onClick={() => goTo("/settings")}
+          >
+            <SettingsIcon size={18} />
             <span>Settings</span>
           </button>
         </nav>
 
+        {/* ======================================================
+            SIDEBAR BOTTOM
+        ======================================================= */}
         <div className="sidebar-bottom">
           <div className="offline-card">
             <div className="offline-icon">
@@ -376,17 +483,25 @@ function Dashboard() {
             <span>Stronger Tripura</span>
           </div>
 
-          <button className="logout-button" onClick={logout}>
+          <button
+            type="button"
+            className="logout-button"
+            onClick={logout}
+          >
             <LogOut size={17} />
             <span>Sign out</span>
           </button>
         </div>
       </aside>
 
+      {/* ======================================================
+          MAIN DASHBOARD
+      ======================================================= */}
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div className="mobile-header-left">
             <button
+              type="button"
               className="mobile-menu-button"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
@@ -399,39 +514,72 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="dashboard-search">
+          {/* Search */}
+          <form
+            className="dashboard-search"
+            onSubmit={handleSearch}
+          >
             <Search size={18} />
 
             <input
               type="text"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
               placeholder="Search patients, ID, or mobile number..."
+              aria-label="Search patients"
             />
-          </div>
+          </form>
 
+          {/* Header actions */}
           <div className="header-actions">
-            <button className="header-icon-button">
+            <button
+              type="button"
+              className="header-icon-button"
+              onClick={() => goTo("/danger-alerts")}
+              aria-label="Open notifications"
+            >
               <Bell size={19} />
-              <span className="notification-dot">2</span>
+
+              <span className="notification-dot">
+                {isDoctor ? "2" : "1"}
+              </span>
             </button>
 
             <div className="header-divider" />
 
-            <div className="user-profile">
+            <button
+              type="button"
+              className="user-profile"
+              onClick={() => goTo("/settings")}
+              aria-label="Open profile settings"
+            >
               <div className="user-avatar">
-                {isDoctor ? <Stethoscope size={18} /> : <UserRound size={18} />}
+                {isDoctor ? (
+                  <Stethoscope size={18} />
+                ) : (
+                  <UserRound size={18} />
+                )}
               </div>
 
               <div className="user-profile-text">
                 <strong>{userName}</strong>
-                <span>{isDoctor ? "Doctor" : "ASHA / ANM"}</span>
+                <span>
+                  {isDoctor ? "Doctor" : "ASHA / ANM"}
+                </span>
               </div>
 
-              <ChevronRight size={16} className="profile-arrow" />
-            </div>
+              <ChevronRight
+                size={16}
+                className="profile-arrow"
+              />
+            </button>
           </div>
         </header>
 
         <div className="dashboard-content">
+          {/* ====================================================
+              TRIPURA BANNER
+          ===================================================== */}
           <motion.section
             className="tripura-banner"
             initial={{ opacity: 0, y: 18 }}
@@ -446,7 +594,9 @@ function Dashboard() {
 
               <h1>
                 Good morning,{" "}
-                {isDoctor ? `Dr. ${userName.replace("Dr. ", "")}` : userName}
+                {isDoctor
+                  ? `Dr. ${userName.replace("Dr. ", "")}`
+                  : userName}
                 !
               </h1>
 
@@ -463,7 +613,10 @@ function Dashboard() {
             </div>
 
             <div className="tripura-banner-map">
-              <img src={TRIPURA_MAP_URL} alt="Tripura map" />
+              <img
+                src={TRIPURA_MAP_URL}
+                alt="Tripura map"
+              />
               <span>TRIPURA</span>
             </div>
 
@@ -473,16 +626,24 @@ function Dashboard() {
             </div>
           </motion.section>
 
+          {/* ====================================================
+              DASHBOARD GRID
+          ===================================================== */}
           <div className="dashboard-grid">
             <section className="dashboard-left">
+              {/* ==================================================
+                  STAT CARDS
+              =================================================== */}
               <div className="stat-grid">
                 {stats.map((stat, index) => {
                   const Icon = stat.icon;
 
                   return (
-                    <motion.div
+                    <motion.button
+                      type="button"
                       className={`stat-card ${stat.type}`}
                       key={stat.label}
+                      onClick={() => goTo(stat.route)}
                       initial={{ opacity: 0, y: 18 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
@@ -494,22 +655,34 @@ function Dashboard() {
                         <Icon size={20} />
                       </div>
 
-                      <div className="stat-label">{stat.label}</div>
+                      <div className="stat-label">
+                        {stat.label}
+                      </div>
 
-                      <div className="stat-value">{stat.value}</div>
+                      <div className="stat-value">
+                        {stat.value}
+                      </div>
 
-                      <div className="stat-helper">{stat.helper}</div>
-                    </motion.div>
+                      <div className="stat-helper">
+                        {stat.helper}
+                      </div>
+                    </motion.button>
                   );
                 })}
               </div>
 
+              {/* ==================================================
+                  PATIENT FLOW
+              =================================================== */}
               <section className="panel patient-flow-panel">
                 <div className="panel-heading">
                   <div>
                     <span className="panel-eyebrow">
                       <Activity size={14} />
-                      {isDoctor ? "Review Activity" : "Patient Intake Activity"}
+
+                      {isDoctor
+                        ? "Review Activity"
+                        : "Patient Intake Activity"}
                     </span>
 
                     <h2>
@@ -525,7 +698,13 @@ function Dashboard() {
                     </p>
                   </div>
 
-                  <button className="text-button">
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      goTo("/patients?view=activity")
+                    }
+                  >
                     View all
                     <ArrowRight size={15} />
                   </button>
@@ -535,9 +714,14 @@ function Dashboard() {
                   <div className="flow-ring-wrapper">
                     <div className="flow-ring">
                       <div className="flow-ring-inner">
-                        <strong>{isDoctor ? "13" : "24"}</strong>
+                        <strong>
+                          {isDoctor ? "13" : "24"}
+                        </strong>
+
                         <span>
-                          {isDoctor ? "Summaries" : "Today's Intakes"}
+                          {isDoctor
+                            ? "Summaries"
+                            : "Today's Intakes"}
                         </span>
                       </div>
                     </div>
@@ -546,19 +730,25 @@ function Dashboard() {
                       <div>
                         <span className="legend-dot completed" />
                         Completed
-                        <strong>{isDoctor ? "08" : "18"}</strong>
+                        <strong>
+                          {isDoctor ? "08" : "18"}
+                        </strong>
                       </div>
 
                       <div>
                         <span className="legend-dot progress" />
                         In Progress
-                        <strong>{isDoctor ? "03" : "04"}</strong>
+                        <strong>
+                          {isDoctor ? "03" : "04"}
+                        </strong>
                       </div>
 
                       <div>
                         <span className="legend-dot pending" />
                         Pending
-                        <strong>{isDoctor ? "02" : "02"}</strong>
+                        <strong>
+                          {isDoctor ? "02" : "02"}
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -571,17 +761,26 @@ function Dashboard() {
 
                     <div className="chart">
                       {weeklyData.map((item) => (
-                        <div className="chart-column" key={item.day}>
-                          <div className="chart-value">{item.value}</div>
+                        <div
+                          className="chart-column"
+                          key={item.day}
+                        >
+                          <div className="chart-value">
+                            {item.value}
+                          </div>
 
                           <div className="chart-bar-wrapper">
                             <motion.div
                               className="chart-bar"
                               initial={{ height: 0 }}
                               animate={{
-                                height: `${(item.value / 20) * 100}%`,
+                                height: `${
+                                  (item.value / 20) * 100
+                                }%`,
                               }}
-                              transition={{ duration: 0.7 }}
+                              transition={{
+                                duration: 0.7,
+                              }}
                             />
                           </div>
 
@@ -593,12 +792,18 @@ function Dashboard() {
                 </div>
               </section>
 
+              {/* ==================================================
+                  PATIENTS TABLE
+              =================================================== */}
               <section className="panel patients-panel">
                 <div className="panel-heading">
                   <div>
                     <span className="panel-eyebrow">
                       <UsersRound size={14} />
-                      {isDoctor ? "Doctor Review Queue" : "Patient Sessions"}
+
+                      {isDoctor
+                        ? "Doctor Review Queue"
+                        : "Patient Sessions"}
                     </span>
 
                     <h2>
@@ -614,7 +819,11 @@ function Dashboard() {
                     </p>
                   </div>
 
-                  <button className="text-button">
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => goTo("/patients")}
+                  >
                     View all
                     <ArrowRight size={15} />
                   </button>
@@ -637,7 +846,7 @@ function Dashboard() {
 
                     <tbody>
                       {patients.map((patient) => (
-                        <tr key={patient.name}>
+                        <tr key={patient.id}>
                           <td>
                             <div className="patient-name-cell">
                               <div className="patient-avatar">
@@ -645,9 +854,13 @@ function Dashboard() {
                               </div>
 
                               <div>
-                                <strong>{patient.name}</strong>
+                                <strong>
+                                  {patient.name}
+                                </strong>
+
                                 <span>
-                                  {patient.age} years • {patient.gender}
+                                  {patient.age} years •{" "}
+                                  {patient.gender}
                                 </span>
                               </div>
                             </div>
@@ -662,13 +875,26 @@ function Dashboard() {
                           </td>
 
                           <td>
-                            <StatusBadge status={patient.status} />
+                            <StatusBadge
+                              status={patient.status}
+                            />
                           </td>
 
                           <td>{patient.time}</td>
 
                           <td>
-                            <button className="row-action">
+                            <button
+                              type="button"
+                              className="row-action"
+                              onClick={() =>
+                                goTo(
+                                  `/patient-details?id=${encodeURIComponent(
+                                    patient.id
+                                  )}`
+                                )
+                              }
+                              aria-label={`Open ${patient.name}`}
+                            >
                               <ChevronRight size={16} />
                             </button>
                           </td>
@@ -679,6 +905,9 @@ function Dashboard() {
                 </div>
               </section>
 
+              {/* ==================================================
+                  HEALTH WORKER WORKFLOW
+              =================================================== */}
               {!isDoctor && (
                 <section className="panel progress-panel">
                   <div className="panel-heading">
@@ -688,14 +917,19 @@ function Dashboard() {
                         Intake Workflow
                       </span>
 
-                      <h2>Maternal & Antenatal MVP</h2>
+                      <h2>
+                        Maternal & Antenatal MVP
+                      </h2>
 
                       <p>
-                        The core AarogyaVaani use case for the hackathon demo.
+                        The core AarogyaVaani use case for the
+                        hackathon demo.
                       </p>
                     </div>
 
-                    <span className="mvp-badge">MVP</span>
+                    <span className="mvp-badge">
+                      MVP
+                    </span>
                   </div>
 
                   <div className="workflow-steps">
@@ -703,8 +937,11 @@ function Dashboard() {
                       <div className="workflow-icon">
                         <CheckCircle2 size={17} />
                       </div>
+
                       <div>
-                        <strong>Language & Consent</strong>
+                        <strong>
+                          Language & Consent
+                        </strong>
                         <span>Bengali / Hindi</span>
                       </div>
                     </div>
@@ -715,9 +952,14 @@ function Dashboard() {
                       <div className="workflow-icon">
                         <Mic size={17} />
                       </div>
+
                       <div>
-                        <strong>Voice / Touch Intake</strong>
-                        <span>One question at a time</span>
+                        <strong>
+                          Voice / Touch Intake
+                        </strong>
+                        <span>
+                          One question at a time
+                        </span>
                       </div>
                     </div>
 
@@ -727,9 +969,14 @@ function Dashboard() {
                       <div className="workflow-icon">
                         <AlertTriangle size={17} />
                       </div>
+
                       <div>
-                        <strong>Danger Sign Check</strong>
-                        <span>Rule-based safety check</span>
+                        <strong>
+                          Danger Sign Check
+                        </strong>
+                        <span>
+                          Rule-based safety check
+                        </span>
                       </div>
                     </div>
 
@@ -739,15 +986,23 @@ function Dashboard() {
                       <div className="workflow-icon">
                         <FileCheck2 size={17} />
                       </div>
+
                       <div>
-                        <strong>Doctor Review</strong>
-                        <span>Review, edit & approve</span>
+                        <strong>
+                          Doctor Review
+                        </strong>
+                        <span>
+                          Review, edit & approve
+                        </span>
                       </div>
                     </div>
                   </div>
                 </section>
               )}
 
+              {/* ==================================================
+                  DOCTOR APPROVED SUMMARIES
+              =================================================== */}
               {isDoctor && (
                 <section className="panel approved-panel">
                   <div className="panel-heading">
@@ -757,14 +1012,25 @@ function Dashboard() {
                         Doctor Approval
                       </span>
 
-                      <h2>Recently Approved Summaries</h2>
+                      <h2>
+                        Recently Approved Summaries
+                      </h2>
 
                       <p>
-                        Summaries that have completed doctor review.
+                        Summaries that have completed doctor
+                        review.
                       </p>
                     </div>
 
-                    <button className="text-button">
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() =>
+                        goTo(
+                          "/patients?status=approved"
+                        )
+                      }
+                    >
                       View all
                       <ArrowRight size={15} />
                     </button>
@@ -777,8 +1043,14 @@ function Dashboard() {
                       </div>
 
                       <div>
-                        <strong>Mamta Debbarma</strong>
-                        <span>Maternal intake • Approved 10:48 AM</span>
+                        <strong>
+                          Mamta Debbarma
+                        </strong>
+
+                        <span>
+                          Maternal intake • Approved
+                          10:48 AM
+                        </span>
                       </div>
 
                       <CheckCircle2 size={17} />
@@ -790,8 +1062,14 @@ function Dashboard() {
                       </div>
 
                       <div>
-                        <strong>Ratan Debbarma</strong>
-                        <span>Follow-up history • Approved 09:42 AM</span>
+                        <strong>
+                          Ratan Debbarma
+                        </strong>
+
+                        <span>
+                          Follow-up history • Approved
+                          09:42 AM
+                        </span>
                       </div>
 
                       <CheckCircle2 size={17} />
@@ -801,7 +1079,11 @@ function Dashboard() {
               )}
             </section>
 
+            {/* ====================================================
+                RIGHT DASHBOARD COLUMN
+            ===================================================== */}
             <aside className="dashboard-right">
+              {/* Quick Actions */}
               <section className="panel quick-actions-panel">
                 <div className="panel-heading compact">
                   <div>
@@ -816,6 +1098,7 @@ function Dashboard() {
 
                 <div className="quick-actions">
                   <button
+                    type="button"
                     className="quick-action primary"
                     onClick={handlePrimaryAction}
                   >
@@ -843,24 +1126,43 @@ function Dashboard() {
                   </button>
 
                   {!isDoctor && (
-                    <button className="quick-action">
+                    <button
+                      type="button"
+                      className="quick-action"
+                      onClick={() =>
+                        goTo("/active-sessions")
+                      }
+                    >
                       <PlayCircle size={21} />
 
                       <span>
-                        <strong>Resume Intake</strong>
-                        <small>Continue saved session</small>
+                        <strong>
+                          Resume Intake
+                        </strong>
+
+                        <small>
+                          Continue saved session
+                        </small>
                       </span>
 
                       <ArrowRight size={16} />
                     </button>
                   )}
 
-                  <button className="quick-action">
+                  <button
+                    type="button"
+                    className="quick-action"
+                    onClick={() =>
+                      goTo("/danger-alerts")
+                    }
+                  >
                     <AlertTriangle size={21} />
 
                     <span>
                       <strong>
-                        {isDoctor ? "Urgent Cases" : "Danger Alerts"}
+                        {isDoctor
+                          ? "Urgent Cases"
+                          : "Danger Alerts"}
                       </strong>
 
                       <small>
@@ -875,6 +1177,7 @@ function Dashboard() {
                 </div>
               </section>
 
+              {/* System Status */}
               <section className="panel system-panel">
                 <div className="panel-heading compact">
                   <div>
@@ -908,7 +1211,9 @@ function Dashboard() {
 
                     <div>
                       <strong>Local Sync</strong>
-                      <span>3 records waiting</span>
+                      <span>
+                        3 records waiting
+                      </span>
                     </div>
 
                     <i className="status-light orange-light" />
@@ -921,19 +1226,28 @@ function Dashboard() {
 
                     <div>
                       <strong>Privacy</strong>
-                      <span>Consent protected</span>
+                      <span>
+                        Consent protected
+                      </span>
                     </div>
 
                     <i className="status-light green-light" />
                   </div>
                 </div>
 
-                <button className="sync-button">
+                <button
+                  type="button"
+                  className="sync-button"
+                  onClick={() =>
+                    goTo("/sync-status")
+                  }
+                >
                   <RefreshCw size={16} />
                   Check Sync Status
                 </button>
               </section>
 
+              {/* Danger Alert */}
               <section className="panel alert-panel">
                 <div className="alert-panel-header">
                   <div>
@@ -945,7 +1259,9 @@ function Dashboard() {
                     <h2>Danger Sign Alert</h2>
                   </div>
 
-                  <span className="urgent-pill">URGENT</span>
+                  <span className="urgent-pill">
+                    URGENT
+                  </span>
                 </div>
 
                 <div className="danger-alert-card">
@@ -955,23 +1271,42 @@ function Dashboard() {
                     </div>
 
                     <div>
-                      <strong>Bimala Reang</strong>
-                      <span>Maternal intake • 31 years</span>
+                      <strong>
+                        Bimala Reang
+                      </strong>
+
+                      <span>
+                        Maternal intake • 31 years
+                      </span>
                     </div>
                   </div>
 
                   <div className="danger-sign">
                     <AlertTriangle size={16} />
-                    <span>Severe headache detected</span>
+                    <span>
+                      Severe headache detected
+                    </span>
                   </div>
 
-                  <button className="danger-action">
-                    {isDoctor ? "Review Case" : "Notify Doctor"}
+                  <button
+                    type="button"
+                    className="danger-action"
+                    onClick={() =>
+                      goTo(
+                        "/patient-details?id=patient-4"
+                      )
+                    }
+                  >
+                    {isDoctor
+                      ? "Review Case"
+                      : "Notify Doctor"}
+
                     <ArrowRight size={15} />
                   </button>
                 </div>
               </section>
 
+              {/* Consent */}
               <section className="panel consent-panel">
                 <div className="consent-icon">
                   <ShieldCheck size={20} />
@@ -981,12 +1316,14 @@ function Dashboard() {
                   <h3>Consent-first care</h3>
 
                   <p>
-                    Audio or touch consent is required before patient
-                    information is recorded.
+                    Audio or touch consent is required
+                    before patient information is
+                    recorded.
                   </p>
                 </div>
               </section>
 
+              {/* Languages */}
               <section className="panel language-panel">
                 <div className="language-header">
                   <div className="language-icon">
@@ -994,7 +1331,10 @@ function Dashboard() {
                   </div>
 
                   <div>
-                    <h3>Supported Languages</h3>
+                    <h3>
+                      Supported Languages
+                    </h3>
+
                     <p>MVP language packs</p>
                   </div>
                 </div>
@@ -1002,20 +1342,31 @@ function Dashboard() {
                 <div className="language-tags">
                   <span>Bengali</span>
                   <span>Hindi</span>
-                  <span className="roadmap-language">Kokborok • Roadmap</span>
+
+                  <span className="roadmap-language">
+                    Kokborok • Roadmap
+                  </span>
                 </div>
               </section>
             </aside>
           </div>
 
+          {/* ====================================================
+              FOOTER
+          ===================================================== */}
           <footer className="dashboard-footer">
             <div>
               <strong>AarogyaVaani</strong>
-              <span>Voice-first • Offline • Consent-first</span>
+              <span>
+                Voice-first • Offline • Consent-first
+              </span>
             </div>
 
             <div>
-              <span>Healthcare • Wellbeing • Service Delivery</span>
+              <span>
+                Healthcare • Wellbeing • Service Delivery
+              </span>
+
               <span>Tripura</span>
             </div>
           </footer>

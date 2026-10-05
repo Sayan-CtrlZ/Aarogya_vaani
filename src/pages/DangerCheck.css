@@ -1,0 +1,315 @@
+* {
+  box-sizing: border-box;
+}
+
+.danger-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(247, 251, 249, 0.95), rgba(247, 251, 249, 0.98)),
+    url("https://upload.wikimedia.org/wikipedia/commons/3/36/Tripura_in_India.svg")
+      center / 520px no-repeat;
+  color: #103f32;
+}
+
+.danger-header {
+  height: 76px;
+  background: #103f32;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6%;
+}
+
+.danger-brand h1 {
+  margin: 0;
+  font-size: 25px;
+}
+
+.danger-brand span {
+  display: block;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.danger-header-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.danger-main {
+  width: min(1000px, 92%);
+  margin: auto;
+  padding: 30px 0 60px;
+}
+
+.danger-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #71847c;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 28px;
+}
+
+.progress-track {
+  height: 6px;
+  flex: 1;
+  background: #dceae4;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  width: 83%;
+  height: 100%;
+  background: #2f8f69;
+  border-radius: inherit;
+}
+
+.danger-result {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  border-radius: 22px;
+  padding: 30px;
+  margin-bottom: 22px;
+  border: 1px solid;
+}
+
+.danger-result.urgent {
+  background: #fff1f0;
+  border-color: #f0c9c5;
+}
+
+.danger-result.safe {
+  background: #eaf7f0;
+  border-color: #c7e5d4;
+}
+
+.danger-main-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.urgent .danger-main-icon {
+  background: #f8d9d5;
+  color: #b42318;
+}
+
+.safe .danger-main-icon {
+  background: #d5efdf;
+  color: #19704d;
+}
+
+.danger-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin: 0 0 6px;
+}
+
+.danger-result h2 {
+  font-size: clamp(26px, 5vw, 38px);
+  margin: 0 0 9px;
+}
+
+.danger-result p:last-child {
+  margin: 0;
+  line-height: 1.6;
+  color: #667a72;
+}
+
+.danger-alert {
+  background: white;
+  border: 1px solid #efc6c2;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(180, 35, 24, 0.07);
+  margin-bottom: 20px;
+}
+
+.alert-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  color: #b42318;
+  margin-bottom: 18px;
+}
+
+.alert-heading strong {
+  display: block;
+  font-size: 17px;
+  color: #8d2118;
+}
+
+.alert-heading p {
+  margin: 4px 0 0;
+  color: #876e6a;
+  font-size: 13px;
+}
+
+.danger-list {
+  display: grid;
+  gap: 10px;
+}
+
+.danger-item {
+  display: flex;
+  gap: 12px;
+  padding: 15px;
+  background: #fff8f7;
+  border: 1px solid #f3d9d6;
+  border-radius: 13px;
+}
+
+.danger-item-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #f8dfdc;
+  color: #b42318;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.danger-item strong {
+  font-size: 14px;
+}
+
+.danger-item p {
+  margin: 4px 0 0;
+  color: #786f6c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.no-danger-card {
+  background: white;
+  border: 1px solid #d7e8df;
+  border-radius: 20px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 30px rgba(16, 63, 50, 0.05);
+}
+
+.no-danger-card svg {
+  color: #2f8f69;
+  flex-shrink: 0;
+}
+
+.no-danger-card h3 {
+  margin: 0 0 5px;
+}
+
+.no-danger-card p {
+  margin: 0;
+  color: #697e75;
+  line-height: 1.6;
+}
+
+.danger-disclaimer {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #f0f5f2;
+  border: 1px solid #d6e2dc;
+  border-radius: 15px;
+  padding: 16px;
+  color: #536d62;
+}
+
+.danger-disclaimer svg {
+  flex-shrink: 0;
+}
+
+.danger-disclaimer strong {
+  display: block;
+  color: #35574b;
+  margin-bottom: 4px;
+}
+
+.danger-disclaimer p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.danger-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 25px;
+}
+
+.danger-continue {
+  border: 0;
+  min-height: 54px;
+  padding: 0 22px;
+  background: #0f5c45;
+  color: white;
+  border-radius: 12px;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.danger-continue:hover {
+  background: #103f32;
+}
+
+@media (max-width: 600px) {
+  .danger-header {
+    padding: 0 5%;
+  }
+
+  .danger-header-label {
+    display: none;
+  }
+
+  .danger-main {
+    width: 94%;
+    padding-top: 20px;
+  }
+
+  .danger-result {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px;
+  }
+
+  .danger-main-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .danger-alert,
+  .no-danger-card {
+    padding: 18px;
+  }
+
+  .no-danger-card {
+    align-items: flex-start;
+  }
+
+  .danger-action,
+  .danger-continue {
+    width: 100%;
+  }
+
+  .danger-continue {
+    justify-content: center;
+  }
+}
