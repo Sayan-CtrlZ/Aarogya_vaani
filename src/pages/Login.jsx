@@ -71,9 +71,16 @@ function Login() {
       return;
     }
 
-    setMessage(
-      "Demo login submitted. Connect this form to your authentication backend next."
+    sessionStorage.setItem("aarogyaVaaniRole", selectedRole);
+
+    sessionStorage.setItem(
+      "aarogyaVaaniUserName",
+      selectedRole === "doctor"
+        ? "Dr. Aarogya"
+        : "Health Worker"
     );
+
+    window.location.href = "/dashboard";
   };
 
   const handleBack = () => {
