@@ -1,0 +1,586 @@
+/* =========================================
+   AAROGYAVAANI SETTINGS
+   ========================================= */
+
+.settings-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 34px 120px;
+  box-sizing: border-box;
+  color: #173c32;
+}
+
+
+/* =========================================
+   HEADER
+   ========================================= */
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  margin-bottom: 28px;
+}
+
+.settings-eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: #258a68;
+}
+
+.settings-header h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #173c32;
+}
+
+.settings-header p {
+  margin: 9px 0 0;
+  max-width: 650px;
+  color: #6d7f78;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.settings-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #dcebe5;
+  border-radius: 12px;
+  background: #f8fcfa;
+  color: #60766e;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2caf76;
+}
+
+
+/* =========================================
+   SETTINGS CARD
+   ========================================= */
+
+.settings-card {
+  margin-bottom: 20px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e4eee9;
+  border-radius: 18px;
+  box-shadow: 0 5px 18px rgba(26, 76, 59, 0.04);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.settings-section-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 13px;
+  background: #eaf7f1;
+  font-size: 20px;
+}
+
+.language-icon {
+  background: #e9f7f1;
+}
+
+.offline-icon {
+  background: #eef8f5;
+}
+
+.accessibility-icon {
+  background: #f0f7f5;
+}
+
+.privacy-icon {
+  background: #eef7f2;
+}
+
+.settings-card-header h2 {
+  margin: 1px 0 5px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #193e33;
+}
+
+.settings-card-header p {
+  margin: 0;
+  color: #788983;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-divider {
+  height: 1px;
+  margin: 22px 0 0;
+  background: #edf2ef;
+}
+
+
+/* =========================================
+   SETTING ROW
+   ========================================= */
+
+.setting-row {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 19px 0;
+  border-bottom: 1px solid #edf2ef;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-information {
+  flex: 1;
+}
+
+.setting-information h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 750;
+  color: #24483d;
+}
+
+.setting-information p {
+  max-width: 690px;
+  margin: 0;
+  color: #7a8984;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.setting-title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 6px;
+}
+
+.setting-title-line h3 {
+  margin-bottom: 0;
+}
+
+.recommended-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: #e8f7ef;
+  color: #218259;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+
+/* =========================================
+   LANGUAGE SELECT
+   ========================================= */
+
+.language-row {
+  align-items: center;
+}
+
+.language-select {
+  width: 230px;
+  padding: 11px 13px;
+  border: 1px solid #cfe2da;
+  border-radius: 10px;
+  background: #fbfefd;
+  color: #234a3f;
+  font-size: 13px;
+  font-weight: 650;
+  outline: none;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.language-select:hover {
+  border-color: #83bea8;
+}
+
+.language-select:focus {
+  border-color: #319a73;
+  box-shadow: 0 0 0 3px rgba(49, 154, 115, 0.1);
+}
+
+
+/* =========================================
+   LANGUAGE PREVIEW
+   ========================================= */
+
+.language-preview {
+  margin-top: 18px;
+  padding: 15px 17px;
+  border-radius: 13px;
+  border: 1px solid #dcece5;
+  background: #f7fcfa;
+}
+
+.preview-label {
+  margin-bottom: 10px;
+  color: #7b8c86;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.preview-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-language-code {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: #dff3e9;
+  color: #207b57;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.preview-content strong {
+  color: #234b40;
+  font-size: 14px;
+}
+
+.preview-content p {
+  margin: 3px 0 0;
+  color: #7a8984;
+  font-size: 11.5px;
+}
+
+
+/* =========================================
+   TOGGLE
+   ========================================= */
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 46px;
+  cursor: pointer;
+}
+
+.toggle input {
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 50px;
+  background: #d6e1dd;
+  transition: 0.25s ease;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  transition: 0.25s ease;
+}
+
+.toggle input:checked + .toggle-slider {
+  background: #29966e;
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+
+/* =========================================
+   PRIVACY
+   ========================================= */
+
+.privacy-information {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #f8fbfa;
+}
+
+.privacy-check {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 50%;
+  background: #dff3e8;
+  color: #23825a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.privacy-information strong {
+  color: #244a3f;
+  font-size: 13px;
+}
+
+.privacy-information p {
+  margin: 4px 0 0;
+  color: #788983;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.clear-data-button {
+  margin-top: 17px;
+  padding: 10px 14px;
+  border: 1px solid #e2cfcf;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #a14d4d;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.clear-data-button:hover {
+  background: #fff7f7;
+  border-color: #dcaeae;
+}
+
+
+/* =========================================
+   SAVE BAR
+   ========================================= */
+
+.settings-save-bar {
+  position: sticky;
+  bottom: 18px;
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  margin-top: 24px;
+  padding: 14px 16px;
+
+  border: 1px solid #dceae4;
+  border-radius: 15px;
+
+  background: rgba(255, 255, 255, 0.94);
+
+  box-shadow: 0 8px 25px rgba(25, 74, 57, 0.09);
+
+  backdrop-filter: blur(12px);
+
+  color: #788983;
+  font-size: 12px;
+}
+
+.save-settings-button {
+  min-width: 135px;
+  padding: 11px 18px;
+
+  border: none;
+  border-radius: 9px;
+
+  background: #278f68;
+  color: #ffffff;
+
+  font-size: 12.5px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.save-settings-button:hover {
+  background: #217b59;
+  transform: translateY(-1px);
+}
+
+.save-success {
+  color: #218259;
+  font-weight: 700;
+}
+
+
+/* =========================================
+   RESPONSIVE — TABLET
+   ========================================= */
+
+@media (max-width: 900px) {
+
+  .settings-page {
+    padding: 25px 22px 110px;
+  }
+
+  .settings-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .settings-status {
+    width: fit-content;
+  }
+
+  .setting-row {
+    gap: 20px;
+  }
+}
+
+
+/* =========================================
+   RESPONSIVE — MOBILE
+   ========================================= */
+
+@media (max-width: 620px) {
+
+  .settings-page {
+    padding: 20px 14px 100px;
+  }
+
+  .settings-header h1 {
+    font-size: 27px;
+  }
+
+  .settings-header p {
+    font-size: 13px;
+  }
+
+  .settings-card {
+    padding: 18px;
+    border-radius: 15px;
+  }
+
+  .settings-card-header {
+    gap: 11px;
+  }
+
+  .settings-section-icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    border-radius: 10px;
+    font-size: 17px;
+  }
+
+  .settings-card-header h2 {
+    font-size: 15px;
+  }
+
+  .setting-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 13px;
+    padding: 17px 0;
+  }
+
+  .toggle {
+    align-self: flex-end;
+  }
+
+  .language-row {
+    align-items: flex-start;
+  }
+
+  .language-select {
+    width: 100%;
+  }
+
+  .settings-save-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .save-settings-button {
+    width: 100%;
+  }
+
+  .settings-status {
+    width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+  }
+
+}
+
+
+/* =========================================
+   LARGE TEXT ACCESSIBILITY
+   ========================================= */
+
+.settings-page.large-text .setting-information h3 {
+  font-size: 16px;
+}
+
+.settings-page.large-text .setting-information p {
+  font-size: 14px;
+}
+
+.settings-page.large-text .settings-card-header p {
+  font-size: 14px;
+}
+
+
+/* =========================================
+   HIGH CONTRAST
+   ========================================= */
+
+.settings-page.high-contrast {
+  color: #102d24;
+}
+
+.settings-page.high-contrast .settings-card {
+  border-color: #b9ccc4;
+}
+
+.settings-page.high-contrast .setting-information p {
+  color: #4e625b;
+}

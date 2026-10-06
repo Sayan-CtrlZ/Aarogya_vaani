@@ -1,0 +1,204 @@
+.danger-alerts-page {
+  min-height: 100vh;
+  background: #f5f9f8;
+  color: #12322f;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.danger-alerts-header {
+  min-height: 72px;
+  background: white;
+  border-bottom: 1px solid #e2ece9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 35px;
+}
+
+.danger-alerts-header h1 {
+  margin: 0;
+  color: #087f6a;
+  font-size: 18px;
+}
+
+.danger-alerts-header span {
+  color: #81918e;
+  font-size: 10px;
+}
+
+.danger-alerts-header button {
+  border: 1px solid #dce9e5;
+  background: white;
+  color: #087f6a;
+  border-radius: 9px;
+  height: 38px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.danger-alerts-content {
+  max-width: 1100px;
+  margin: auto;
+  padding: 30px;
+}
+
+.danger-breadcrumb {
+  color: #8a9c98;
+  font-size: 11px;
+  margin-bottom: 18px;
+}
+
+.danger-breadcrumb span {
+  margin: 0 7px;
+}
+
+.danger-page-hero {
+  background: #fff1f1;
+  border: 1px solid #f0d1d1;
+  color: #cf5151;
+  border-radius: 15px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.danger-page-hero h2 {
+  color: #12322f;
+  margin: 0 0 4px;
+  font-size: 23px;
+}
+
+.danger-page-hero p {
+  margin: 0;
+  color: #718582;
+  font-size: 11px;
+}
+
+.danger-warning {
+  margin-top: 18px;
+  background: #fffaf0;
+  border: 1px solid #f1e1bd;
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  gap: 10px;
+  color: #b27620;
+}
+
+.danger-warning strong {
+  font-size: 11px;
+}
+
+.danger-warning p {
+  margin: 4px 0 0;
+  color: #8c806c;
+  font-size: 9px;
+}
+
+.danger-list {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.danger-alert-item {
+  background: white;
+  border: 1px solid #ecdada;
+  border-radius: 13px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1.3fr 1.5fr 90px auto;
+  gap: 15px;
+  align-items: center;
+}
+
+.danger-alert-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.danger-alert-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #fde7e7;
+  color: #d45555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.danger-alert-person div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.danger-alert-person strong {
+  font-size: 11px;
+}
+
+.danger-alert-person span {
+  font-size: 8px;
+  color: #91a19d;
+}
+
+.danger-alert-sign {
+  background: #fff2f2;
+  border-radius: 8px;
+  padding: 9px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: #cc5050;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.danger-alert-time {
+  color: #879995;
+  font-size: 9px;
+}
+
+.danger-alert-item button {
+  border: 0;
+  background: #d95858;
+  color: white;
+  border-radius: 8px;
+  height: 34px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+@media (max-width: 800px) {
+  .danger-alerts-header {
+    padding: 0 16px;
+  }
+
+  .danger-alerts-content {
+    padding: 18px 14px;
+  }
+
+  .danger-alert-item {
+    grid-template-columns: 1fr;
+  }
+
+  .danger-alert-item button {
+    justify-content: center;
+  }
+}
