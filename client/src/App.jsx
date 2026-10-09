@@ -1,43 +1,53 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import Landing from "./pages/Landing/Landing";
-import Login from "./pages/Login/Login";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import NewPatient from "./pages/NewPatient/NewPatient";
-import Consent from "./pages/Consent/Consent";
-import Interview from "./pages/Interview/Interview";
-import DangerCheck from "./pages/DangerCheck/DangerCheck";
-import Summary from "./pages/Summary/Summary";
-import ActiveSessions from "./pages/ActiveSessions/ActiveSessions";
-import Patients from "./pages/Patients/Patients";
-import PatientDetails from "./pages/PatientDetails/PatientDetails";
-import DangerAlerts from "./pages/DangerAlerts/DangerAlerts";
-import DoctorReview from "./pages/DoctorReview/DoctorReview";
-import Reports from "./pages/Reports/Reports";
-import SyncStatus from "./pages/SyncStatus/SyncStatus";
-import SignupStatus from "./pages/SignupStatus/SignupStatus";
-import Settings from "./pages/Settings/Settings";
+
+const Landing = lazy(() => import("./pages/Landing/Landing"));
+const Login = lazy(() => import("./pages/Login/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const NewPatient = lazy(() => import("./pages/NewPatient/NewPatient"));
+const Consent = lazy(() => import("./pages/Consent/Consent"));
+const Interview = lazy(() => import("./pages/Interview/Interview"));
+const DangerCheck = lazy(() => import("./pages/DangerCheck/DangerCheck"));
+const Summary = lazy(() => import("./pages/Summary/Summary"));
+const ActiveSessions = lazy(() => import("./pages/ActiveSessions/ActiveSessions"));
+const Patients = lazy(() => import("./pages/Patients/Patients"));
+const PatientDetails = lazy(() => import("./pages/PatientDetails/PatientDetails"));
+const DangerAlerts = lazy(() => import("./pages/DangerAlerts/DangerAlerts"));
+const DoctorReview = lazy(() => import("./pages/DoctorReview/DoctorReview"));
+const Reports = lazy(() => import("./pages/Reports/Reports"));
+const SyncStatus = lazy(() => import("./pages/SyncStatus/SyncStatus"));
+const SignupStatus = lazy(() => import("./pages/SignupStatus/SignupStatus"));
+const Settings = lazy(() => import("./pages/Settings/Settings"));
+
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#f5f9f8]">
+    <div className="w-[40px] h-[40px] border-4 border-[#e2ece9] border-t-[#159b80] rounded-full animate-spin"></div>
+  </div>
+);
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/new-patient" element={<NewPatient />} />
-      <Route path="/consent" element={<Consent />} />
-      <Route path="/interview" element={<Interview />} />
-      <Route path="/danger-check" element={<DangerCheck />} />
-      <Route path="/summary" element={<Summary />} />
-      <Route path="/active-sessions" element={<ActiveSessions />} />
-      <Route path="/patients" element={<Patients />} />
-      <Route path="/patient-details" element={<PatientDetails />} />
-      <Route path="/danger-alerts" element={<DangerAlerts />} />
-      <Route path="/doctor-review" element={<DoctorReview />} />
-      <Route path="/reports" element={<Reports />} />
-      <Route path="/sync-status" element={<SyncStatus />} />
-      <Route path="/signup-status" element={<SignupStatus />} />
-      <Route path="/settings" element={<Settings />} />
-    </Routes>
+    <Suspense fallback={<LoadingFallback />}>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/new-patient" element={<NewPatient />} />
+        <Route path="/consent" element={<Consent />} />
+        <Route path="/interview" element={<Interview />} />
+        <Route path="/danger-check" element={<DangerCheck />} />
+        <Route path="/summary" element={<Summary />} />
+        <Route path="/active-sessions" element={<ActiveSessions />} />
+        <Route path="/patients" element={<Patients />} />
+        <Route path="/patient-details" element={<PatientDetails />} />
+        <Route path="/danger-alerts" element={<DangerAlerts />} />
+        <Route path="/doctor-review" element={<DoctorReview />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/sync-status" element={<SyncStatus />} />
+        <Route path="/signup-status" element={<SignupStatus />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
+    </Suspense>
   );
 }
 
