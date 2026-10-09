@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import DoctorGuard from "./pages/DoctorDashboard/DoctorGuard";
 
 const Landing = lazy(() => import("./pages/Landing/Landing"));
 const Login = lazy(() => import("./pages/Login/Login"));
@@ -13,11 +14,18 @@ const ActiveSessions = lazy(() => import("./pages/ActiveSessions/ActiveSessions"
 const Patients = lazy(() => import("./pages/Patients/Patients"));
 const PatientDetails = lazy(() => import("./pages/PatientDetails/PatientDetails"));
 const DangerAlerts = lazy(() => import("./pages/DangerAlerts/DangerAlerts"));
-const DoctorReview = lazy(() => import("./pages/DoctorReview/DoctorReview"));
 const Reports = lazy(() => import("./pages/Reports/Reports"));
 const SyncStatus = lazy(() => import("./pages/SyncStatus/SyncStatus"));
 const SignupStatus = lazy(() => import("./pages/SignupStatus/SignupStatus"));
 const Settings = lazy(() => import("./pages/Settings/Settings"));
+const RoutesDirectory = lazy(() => import("./pages/RoutesDirectory/RoutesDirectory"));
+
+// Doctor Portal Layout & Subpages
+const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard/DoctorDashboard"));
+const DoctorReviewTab = lazy(() => import("./pages/DoctorDashboard/DoctorReviewTab"));
+const DoctorEmergencyTab = lazy(() => import("./pages/DoctorDashboard/DoctorEmergencyTab"));
+const DoctorPatientsTab = lazy(() => import("./pages/DoctorDashboard/DoctorPatientsTab"));
+const DoctorAnalyticsTab = lazy(() => import("./pages/DoctorDashboard/DoctorAnalyticsTab"));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#f5f9f8]">
@@ -31,6 +39,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/routes" element={<RoutesDirectory />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/new-patient" element={<NewPatient />} />
         <Route path="/consent" element={<Consent />} />
@@ -41,7 +50,27 @@ function App() {
         <Route path="/patients" element={<Patients />} />
         <Route path="/patient-details" element={<PatientDetails />} />
         <Route path="/danger-alerts" element={<DangerAlerts />} />
-        <Route path="/doctor-review" element={<DoctorReview />} />
+
+        {/* Doctor Portal: Role-guarded at parent route, with nested subpages */}
+        <Route
+          path="/doctor"
+          element={
+            <DoctorGuard>
+              <DoctorDashboard />
+            </DoctorGuard>
+          }
+        >
+          <Route index element={<Navigate to="review" replace />} />
+          <Route path="review" element={<DoctorReviewTab />} />
+          <Route path="emergency" element={<DoctorEmergencyTab />} />
+          <Route path="patients" element={<DoctorPatientsTab />} />
+          <Route path="analytics" element={<DoctorAnalyticsTab />} />
+        </Route>
+
+        {/* Doctor route aliases / backward-compatibility */}
+        <Route path="/doctor-review" element={<Navigate to="/doctor/review" replace />} />
+        <Route path="/doctor-dashboard" element={<Navigate to="/doctor/review" replace />} />
+
         <Route path="/reports" element={<Reports />} />
         <Route path="/sync-status" element={<SyncStatus />} />
         <Route path="/signup-status" element={<SignupStatus />} />

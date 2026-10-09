@@ -54,8 +54,9 @@ export default function GovHeader({
           </div>
         ) : (
           <div
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/")}
             className="flex items-center gap-2.5 cursor-pointer group"
+            title="AarogyaVaani Home (Landing Page)"
           >
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
               <Activity className="w-5 h-5 text-white" />
@@ -66,8 +67,21 @@ export default function GovHeader({
           </div>
         )}
 
-        {/* Right Side: Language Toggle + Bell + Settings (HealthHub Style) */}
-        <div className="flex items-center gap-2">
+        {/* Right Side: Routes Button + Language Toggle + Bell + Settings */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Quick Route Directory Button */}
+          <button
+            onClick={() => navigate("/routes")}
+            className={`px-2.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              location.pathname === "/routes"
+                ? "bg-emerald-700 text-white shadow-xs"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            }`}
+            title="View All Application Routes & Sitemap"
+          >
+            <span className="text-[11px]">Routes</span>
+          </button>
+
           {/* Compact Single-Language Switcher */}
           <div className="flex items-center bg-slate-100 rounded-full p-0.5 text-xs font-bold">
             <button
@@ -100,22 +114,12 @@ export default function GovHeader({
             >
               हिं
             </button>
-            <button
-              onClick={() => setLanguage("kok")}
-              className={`px-2 py-1 rounded-full transition-all cursor-pointer ${
-                language === "kok"
-                  ? "bg-emerald-700 text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Kok
-            </button>
           </div>
 
           {/* Bell Icon with Red Badge */}
           <button
             onClick={() => navigate("/danger-alerts")}
-            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center transition-all cursor-pointer relative"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center transition-all cursor-pointer relative"
             title={t("alerts")}
           >
             <Bell className="w-4 h-4" />
@@ -129,7 +133,7 @@ export default function GovHeader({
           {/* Settings Icon */}
           <button
             onClick={() => navigate("/settings")}
-            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center transition-all cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 flex items-center justify-center transition-all cursor-pointer"
             title={t("settingsTitle")}
           >
             <SettingsIcon className="w-4 h-4" />

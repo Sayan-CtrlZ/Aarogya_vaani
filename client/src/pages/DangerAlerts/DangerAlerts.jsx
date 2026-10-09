@@ -79,7 +79,7 @@ export default function DangerAlerts() {
         title="Red-Flag Triage"
         subtitle={`${pendingCount} urgent maternal cases`}
         showBack={true}
-        backPath="/dashboard"
+        backPath="/"
       />
 
       <main className="w-full max-w-md sm:max-w-lg mx-auto px-4 py-3 space-y-4">
@@ -191,7 +191,7 @@ export default function DangerAlerts() {
                 </button>
 
                 <button
-                  onClick={() => navigate(`/doctor-review?id=${item.patientId}`)}
+                  onClick={() => navigate(`/doctor/review?id=${item.patientId}`)}
                   className="bg-[#0b6651] hover:bg-[#074738] text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer ml-auto"
                 >
                   <Stethoscope className="w-3.5 h-3.5" />

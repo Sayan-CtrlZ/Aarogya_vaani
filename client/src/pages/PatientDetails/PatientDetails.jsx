@@ -198,7 +198,7 @@ export default function PatientDetails() {
             {/* Quick Actions */}
             <div className="flex gap-2.5 mt-4 pt-3 border-t border-slate-100">
               <button
-                onClick={() => navigate("/doctor-review")}
+                onClick={() => navigate(`/doctor/review?id=${patient.id}`)}
                 className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
               >
                 <span>{t("openChart")}</span>

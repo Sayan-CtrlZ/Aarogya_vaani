@@ -28,11 +28,6 @@ const AUDIO_SCRIPTS = {
     sampleText:
       "नमस्ते। आपकी स्वास्थ्य जांच और डॉक्टर की सुविधा के लिए जानकारी दर्ज की जा रही है। यह जानकारी पूरी तरह सुरक्षित रहेगी। क्या आप सहमत हैं?",
   },
-  kok: {
-    speechLang: "en-IN",
-    sampleText:
-      "Khulumkha. Nini saimung doctor no rina bagwi kiphiljaknai. Bini sawari pora boro tongo. Nini raida tongo?",
-  },
 };
 
 export default function Consent() {
@@ -82,8 +77,8 @@ export default function Consent() {
 
   const handleConsentSubmit = (consentGranted) => {
     if (!consentGranted) {
-      alert("Consent was not given. Returning to dashboard.");
-      navigate("/dashboard");
+      alert("Consent was not given. Returning to patient intake form.");
+      navigate("/new-patient");
       return;
     }
 

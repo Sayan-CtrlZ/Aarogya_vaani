@@ -49,7 +49,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-slate-50/50 pb-10">
-      <GovHeader title="AarogyaVaani" showBack={false} />
+      <GovHeader title="Staff Dashboard" showBack={true} backPath="/" />
 
       <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
         {/* User Greeting Bar */}
@@ -64,7 +64,7 @@ export default function Dashboard() {
           </div>
 
           <button
-            onClick={() => navigate("/doctor-review")}
+            onClick={() => navigate("/doctor/review")}
             className="glass-card hover:bg-white text-emerald-900 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
             <Stethoscope className="w-3.5 h-3.5 text-emerald-700" />
@@ -143,7 +143,7 @@ export default function Dashboard() {
           </div>
 
           <div
-            onClick={() => navigate("/doctor-review")}
+            onClick={() => navigate("/doctor/review")}
             className="glass-card-emerald p-3 rounded-2xl text-center cursor-pointer hover:opacity-90 transition-opacity"
           >
             <span className="text-[10px] font-bold text-emerald-800 block uppercase">Reviewed</span>

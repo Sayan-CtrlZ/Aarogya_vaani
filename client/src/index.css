@@ -23,6 +23,7 @@ body {
   margin: 0;
   min-width: 320px;
   font-family:
+    "Figtree",
     "Noto Sans",
     Inter,
     system-ui,
@@ -126,6 +127,64 @@ body {
   );
 }
 
+/* ========================================================
+   RESPONSIVE MEDIA QUERIES: MOBILE COMPACT VS DESKTOP FULL
+   ======================================================== */
+
+/* Mobile Devices: Cards are smaller, compact to fit within the viewport */
+@media (max-width: 640px) {
+  .front-card-compact {
+    padding: 0.65rem !important;
+    border-radius: 0.875rem !important;
+  }
+  .front-card-compact h3,
+  .front-card-compact h4 {
+    font-size: 0.8rem !important;
+    line-height: 1.15 !important;
+  }
+  .front-card-compact p {
+    font-size: 0.68rem !important;
+    line-height: 1.2 !important;
+  }
+  .front-card-compact .card-icon {
+    width: 2rem !important;
+    height: 2rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  /* The 4 Assessment Option Cards: Sized to fit on screen without vertical overflow */
+  .four-cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+  }
+  .option-card-compact {
+    padding: 0.55rem 0.65rem !important;
+    min-height: 4rem !important;
+    border-radius: 0.75rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+  }
+}
+
+/* Desktop & Large Screens: Take full length, height and breadth */
+@media (min-width: 1024px) {
+  .desktop-full-layout {
+    max-width: 100% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+  .desktop-card-expanded {
+    padding: 1.5rem !important;
+    border-radius: 1.25rem !important;
+  }
+  .four-cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+}
+
 button,
 input,
 textarea,
@@ -135,4 +194,29 @@ select {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Accessible focus ring */
+.focus-accessible:focus-visible {
+  outline: 3px solid #0b6651;
+  outline-offset: 2px;
 }

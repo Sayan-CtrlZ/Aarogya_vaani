@@ -7,21 +7,35 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies and Builds
+node_modules/
+dist/
+dist-ssr/
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Agent, AI tooling & local assistant skills
+.agent/
+.agents/
+.planning/
+.gemini/
+.claude/
+
+# Documents and binaries not intended for repo
+*.pdf
 
 # Python
 .venv/
@@ -31,6 +45,9 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Environment variables & secrets
 *.env
 .env
-
+.env.local
+.env.*.local

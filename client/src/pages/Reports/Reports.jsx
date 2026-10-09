@@ -81,7 +81,7 @@ export default function Reports() {
     localStorage.setItem("aarogyaVaaniDocuments", JSON.stringify(savedDocs));
 
     alert("Document OCR attached to patient chart.");
-    navigate("/doctor-review");
+    navigate("/doctor/review");
   };
 
   return (

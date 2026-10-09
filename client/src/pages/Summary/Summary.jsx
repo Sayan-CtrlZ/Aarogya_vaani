@@ -51,7 +51,7 @@ export default function Summary() {
   if (!patient) {
     return (
       <div className="min-h-screen flex flex-col font-sans bg-slate-50/50">
-        <GovHeader title="Health Summary" showBack={true} backPath="/dashboard" />
+        <GovHeader title="Health Summary" showBack={true} backPath="/" />
         <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 text-center py-12">
           <p className="text-slate-600 font-bold">No patient summary found.</p>
           <button
@@ -82,7 +82,7 @@ export default function Summary() {
       <GovHeader
         title="Patient Health Summary"
         showBack={true}
-        backPath="/dashboard"
+        backPath="/"
       />
 
       <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
@@ -251,7 +251,7 @@ export default function Summary() {
         <div className="space-y-2.5 pt-2">
           {/* Primary Action: Open in Doctor's Dashboard */}
           <button
-            onClick={() => navigate(`/doctor-review?id=${patient.id}`)}
+            onClick={() => navigate(`/doctor/review?id=${patient.id}`)}
             className="w-full bg-[#0b6651] hover:bg-[#074738] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer hover:shadow-lg"
           >
             <Stethoscope className="w-5 h-5" />

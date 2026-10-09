@@ -56,7 +56,7 @@ export default function Patients() {
       <GovHeader
         title="Patient Directory"
         showBack={true}
-        backPath="/dashboard"
+        backPath="/"
       />
 
       <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">

@@ -18,7 +18,6 @@ const LANGUAGE_OPTIONS = [
   { id: "en", name: "English" },
   { id: "bn", name: "বাংলা (Bengali)" },
   { id: "hi", name: "हिन्दी (Hindi)" },
-  { id: "kok", name: "Kokborok" },
 ];
 
 export default function Settings() {

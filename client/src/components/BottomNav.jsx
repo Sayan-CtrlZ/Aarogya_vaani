@@ -25,7 +25,7 @@ export default function BottomNav() {
     {
       id: "home",
       label: "Home",
-      path: "/dashboard",
+      path: "/",
       icon: Home,
     },
     {
@@ -44,7 +44,7 @@ export default function BottomNav() {
     {
       id: "doctor",
       label: "Doctor",
-      path: "/doctor-review",
+      path: "/doctor/review",
       icon: Stethoscope,
     },
     {
@@ -63,7 +63,6 @@ export default function BottomNav() {
           const Icon = item.icon;
           const isActive =
             currentPath === item.path ||
-            (item.path === "/dashboard" && currentPath === "/") ||
             (item.id === "patients" && currentPath.startsWith("/patient"));
 
           if (item.isCenter) {
@@ -98,13 +97,7 @@ export default function BottomNav() {
                 <Icon className="w-5 h-5" />
               </div>
               <span className="text-[10px] tracking-tight leading-none truncate max-w-[64px]">
-                {item.id === "home"
-                  ? "Home"
-                  : item.id === "patients"
-                  ? "Profiles"
-                  : item.id === "alerts"
-                  ? "Alerts"
-                  : "Settings"}
+                {item.label}
               </span>
 
               {item.badge && !isActive && (
