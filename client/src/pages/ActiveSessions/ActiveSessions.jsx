@@ -1,112 +1,138 @@
+import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
-  ArrowLeft,
   ArrowRight,
   Mic,
-  PauseCircle,
-  UserRound,
+  Trash2,
+  User,
+  Clock,
+  Plus,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import GovHeader from "../../components/GovHeader";
+import { useLanguage } from "../../context/LanguageContext";
 
-function ActiveSessions() {
+export default function ActiveSessions() {
   const navigate = useNavigate();
-  const currentPatient = JSON.parse(
-    localStorage.getItem("aarogyaVaaniCurrentPatient") || "null"
-  );
+  const { t } = useLanguage();
 
-  const hasSession = Boolean(currentPatient?.patient);
+  const currentPatientRecord = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("aarogyaVaaniCurrentPatient") || "null");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const hasCurrentSession = Boolean(currentPatientRecord?.patient?.name);
+
+  const handleClearSession = () => {
+    if (confirm("Clear this active session?")) {
+      localStorage.removeItem("aarogyaVaaniCurrentPatient");
+      localStorage.removeItem("aarogyaVaaniInterview");
+      localStorage.removeItem("aarogyaVaaniDangerCheck");
+      window.location.reload();
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#f5f9f8] text-[#12322f] font-sans">
-      <header className="min-h-[72px] bg-white border-b border-[#e2ece9] flex justify-between items-center px-[35px] max-md:px-4">
-        <div>
-          <h1 className="m-0 text-[#087f6a] text-[18px]">AarogyaVaani</h1>
-          <span className="text-[10px] text-[#81918e]">Tripura Health</span>
-        </div>
+    <div className="min-h-screen flex flex-col font-sans">
+      <GovHeader
+        title={t("activeSessionsTitle")}
+        subtitle={t("activeSessionsSubtitle")}
+        showBack={true}
+        backPath="/dashboard"
+      />
 
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="border border-[#dce9e5] bg-white text-[#087f6a] rounded-[9px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer"
-        >
-          <ArrowLeft size={17} />
-          Dashboard
-        </button>
-      </header>
-
-      <main className="max-w-[1000px] mx-auto p-[30px] max-md:px-[14px] max-md:py-[18px]">
-        <div className="text-[#8a9c98] text-[11px] mb-[18px]">
-          Dashboard <span className="mx-[7px]">›</span> Active Sessions
-        </div>
-
-        <section className="bg-[#e8f7f2] border border-[#d4ebe4] rounded-[15px] p-[25px] flex items-center gap-[14px] text-[#087f6a]">
-          <Activity size={25} />
-
-          <div>
-            <h2 className="text-[#12322f] mb-1 text-[23px] mt-0">Active Sessions</h2>
-            <p className="m-0 text-[#718582] text-[11px]">
-              Patient interviews currently stored or active on this
-              device.
-            </p>
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Banner Card */}
+        <div className="glass-panel p-6 sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shrink-0 shadow-md">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">
+                {t("activeSessionsTitle")}
+              </h2>
+              <p className="text-sm text-slate-600 mt-1 font-medium">
+                {t("activeSessionsSubtitle")}
+              </p>
+            </div>
           </div>
-        </section>
+        </div>
 
-        {hasSession ? (
-          <section className="bg-white border border-[#e2ece9] rounded-[15px] mt-[18px] p-[22px]">
-            <div className="text-[#168b6d] text-[9px] font-extrabold flex items-center gap-[6px]">
-              <span className="w-[8px] h-[8px] rounded-full bg-[#25b583] shadow-[0_0_0_5px_#e5f8f1]" />
-              ACTIVE
+        {hasCurrentSession ? (
+          <div className="glass-panel p-6 sm:p-8 border-l-8 border-l-emerald-600">
+            <div className="flex items-center justify-between pb-3 border-b border-emerald-900/10">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
+                  {t("activeNow")}
+                </span>
+              </div>
+              <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Today</span>
+              </span>
             </div>
 
-            <div className="mt-[20px] flex items-center gap-[13px]">
-              <div className="w-[55px] h-[55px] rounded-[15px] bg-[#e7f7f2] text-[#087f6a] flex items-center justify-center">
-                <UserRound size={24} />
+            <div className="flex items-start gap-4 my-5">
+              <div className="w-14 h-14 rounded-2xl bg-white/80 border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-xl shrink-0 shadow-2xs">
+                <User className="w-7 h-7" />
               </div>
-
               <div>
-                <span className="text-[9px] text-[#8d9d99]">Current Patient</span>
-                <h3 className="my-[3px] text-[17px]">{currentPatient.patient.name}</h3>
-                <p className="m-0 text-[#758984] text-[10px]">
-                  {currentPatient.patientType === "maternal"
-                    ? "Maternal & Antenatal"
-                    : "General Patient"}
-                </p>
+                <h3 className="text-xl font-bold text-slate-900">
+                  {currentPatientRecord.patient.name}
+                </h3>
+                <div className="flex items-center gap-2 text-sm text-slate-600 font-medium mt-0.5">
+                  <span>{currentPatientRecord.patient.age} {t("age")}</span>
+                  <span>•</span>
+                  <span>{currentPatientRecord.patient.village || "Sepahijala"}</span>
+                </div>
+                <div className="mt-2 inline-block glass-card-emerald text-emerald-950 text-xs px-3 py-1 font-bold">
+                  {currentPatientRecord.patientType === "maternal"
+                    ? t("maternalModule")
+                    : t("generalModule")}
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-[10px] mt-[25px] max-md:flex-col">
+            {/* Actions */}
+            <div className="pt-4 border-t border-emerald-900/10 flex flex-wrap items-center justify-between gap-3">
               <button
-                className="border-0 bg-[#087f6a] text-white rounded-[8px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer text-[10px] font-bold max-md:justify-center"
-                onClick={() => navigate("/interview")}
+                onClick={handleClearSession}
+                className="glass-card-red text-red-900 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer hover:shadow-xs"
               >
-                <Mic size={17} />
-                Resume Intake
-                <ArrowRight size={15} />
+                <Trash2 className="w-4 h-4 text-red-600" />
+                <span>{t("discardSession")}</span>
               </button>
 
               <button
-                className="border border-[#dce9e5] bg-white text-[#687d78] rounded-[8px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer text-[10px] font-bold max-md:justify-center"
-                onClick={() => {
-                  alert(
-                    "This session remains safely stored on the device."
-                  );
-                }}
+                onClick={() => navigate("/interview")}
+                className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold text-base px-6 py-3 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
-                <PauseCircle size={17} />
-                Keep Session Saved
+                <Mic className="w-5 h-5" />
+                <span>{t("resumeIntake")}</span>
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
-          </section>
+          </div>
         ) : (
-          <div className="mt-[20px] bg-white border border-[#e2ece9] rounded-[15px] px-[20px] py-[70px] text-center text-[#8a9b97] flex flex-col items-center justify-center">
-            <Activity size={38} />
-            <h3 className="text-[#12322f] my-2">No active session</h3>
-            <p className="m-0">Start a new patient intake to begin a session.</p>
-
+          <div className="glass-panel p-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
+              <Activity className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">{t("noActiveSessions")}</h3>
+            <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto font-medium">
+              There are no paused intakes on this tablet right now.
+            </p>
             <button
               onClick={() => navigate("/new-patient")}
-              className="border-0 bg-[#087f6a] text-white rounded-[8px] px-[15px] py-[10px] cursor-pointer mt-4"
+              className="mt-6 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold text-base px-6 py-3 rounded-xl shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
             >
-              Start New Intake
+              <Plus className="w-5 h-5" />
+              <span>{t("startNewIntake")}</span>
             </button>
           </div>
         )}
@@ -114,5 +140,3 @@ function ActiveSessions() {
     </div>
   );
 }
-
-export default ActiveSessions;

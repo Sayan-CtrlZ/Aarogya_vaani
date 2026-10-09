@@ -1,394 +1,464 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
-  ArrowLeft,
+  Search,
+  Stethoscope,
   CheckCircle2,
-  ShieldCheck,
   AlertTriangle,
-  Save,
-  UserRound,
+  Volume2,
+  VolumeX,
+  Printer,
+  User,
+  Heart,
   FileText,
+  Clock,
+  ArrowRight,
+  ShieldCheck,
+  Send,
+  Pill,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-function getAnswerValue(answers, key) {
-  return answers?.[key] || "";
-}
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
+import {
+  getAllPatients,
+  getPatientById,
+  updatePatientReview,
+} from "../../utils/patientStore";
 
 export default function DoctorReview() {
   const navigate = useNavigate();
-  const patientData = useMemo(() => {
-    return JSON.parse(
-      localStorage.getItem("aarogyaVaaniCurrentPatient") || "{}"
-    );
-  }, []);
+  const location = useLocation();
+  const { language } = useLanguage();
 
-  const interviewData = useMemo(() => {
-    return JSON.parse(
-      localStorage.getItem("aarogyaVaaniInterview") || "{}"
-    );
-  }, []);
+  const searchParams = new URLSearchParams(location.search);
+  const paramId = searchParams.get("id");
 
-  const dangerData = useMemo(() => {
-    return JSON.parse(
-      localStorage.getItem("aarogyaVaaniDangerCheck") || "{}"
-    );
-  }, []);
+  const [patientsList, setPatientsList] = useState(() => getAllPatients());
+  const [searchQuery, setSearchQuery] = useState(paramId || "");
+  const [selectedPatientId, setSelectedPatientId] = useState(
+    paramId || (patientsList[0] ? patientsList[0].id : "AV-8921")
+  );
 
-  const reports = useMemo(() => {
-    return JSON.parse(
-      localStorage.getItem("aarogyaVaaniReports") || "[]"
-    );
-  }, []);
+  const [doctorNotes, setDoctorNotes] = useState("");
+  const [prescription, setPrescription] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  const answers = interviewData.answers || {};
-
-  const patient = patientData.patient || {};
-
-  const patientType =
-    patientData.patientType || "maternal";
-
-  const [summary, setSummary] = useState({
-    mainComplaint: "",
-    history: "",
-    medicalConditions: "",
-    medicines: "",
-    allergies: "",
-    additionalNotes: "",
-  });
-
-  const [approved, setApproved] = useState(false);
-
+  // Reload patients list on mount
   useEffect(() => {
-    const savedSummary = JSON.parse(
-      localStorage.getItem("aarogyaVaaniDoctorSummary") || "null"
-    );
-
-    if (savedSummary) {
-      setSummary(savedSummary);
-      setApproved(Boolean(savedSummary.approved));
-    } else {
-      const mainComplaint =
-        patientType === "maternal"
-          ? "Antenatal / pregnancy intake"
-          : getAnswerValue(answers, "mainProblem");
-
-      const medicalConditions =
-        getAnswerValue(answers, "medicalConditions") ||
-        getAnswerValue(answers, "conditions");
-
-      const medicines =
-        getAnswerValue(answers, "medicines");
-
-      const allergies =
-        getAnswerValue(answers, "allergies");
-
-      setSummary({
-        mainComplaint,
-        history:
-          patientType === "maternal"
-            ? `Pregnancy duration: ${
-                getAnswerValue(answers, "pregnancyMonths") ||
-                "Not recorded"
-              } months.`
-            : `Duration: ${
-                getAnswerValue(answers, "duration") ||
-                "Not recorded"
-              }.`,
-        medicalConditions,
-        medicines,
-        allergies,
-        additionalNotes: "",
-      });
+    const list = getAllPatients();
+    setPatientsList(list);
+    if (paramId) {
+      setSelectedPatientId(paramId);
+      setSearchQuery(paramId);
     }
-  }, [answers, patientType]);
+  }, [paramId]);
 
-  const handleChange = (field, value) => {
-    setSummary((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+  // Selected Patient Record
+  const currentPatient = useMemo(() => {
+    return getPatientById(selectedPatientId) || patientsList[0] || null;
+  }, [selectedPatientId, patientsList]);
+
+  // Populate doctor inputs if patient was already reviewed
+  useEffect(() => {
+    if (currentPatient) {
+      if (currentPatient.doctorReview) {
+        setDoctorNotes(currentPatient.doctorReview.notes || "");
+        setPrescription(currentPatient.doctorReview.prescription || "");
+      } else {
+        // Pre-fill smart doctor defaults based on symptoms
+        if (currentPatient.triage === "Critical Red Flag") {
+          setDoctorNotes("High suspicion of preeclampsia. Immediate BP monitoring, USG scan, and urgent obstetrician consultation.");
+          setPrescription("Tab Methyldopa 250mg TDS (if BP > 150/100), Inj Labetalol SOS. Repeat BP in 30 mins.");
+        } else if (currentPatient.triage === "Moderate") {
+          setDoctorNotes("Acute febrile illness. Order RDT Malaria and Complete Blood Count (CBC). Advise bed rest and oral fluids.");
+          setPrescription("Tab Paracetamol 650mg SOS for fever, ORS sachets x 2 packets.");
+        } else {
+          setDoctorNotes("Routine antenatal checkup. Fetal heart rate and movements normal. Advise balanced nutrition.");
+          setPrescription("Tab Iron Folic Acid (IFA) 1 tab daily, Tab Calcium 500mg twice daily x 30 days.");
+        }
+      }
+    }
+  }, [currentPatient]);
+
+  // Search handler by Patient ID
+  const handleSearch = (e) => {
+    e?.preventDefault();
+    const query = searchQuery.trim().toUpperCase();
+    if (!query) return;
+
+    const match = getPatientById(query);
+    if (match) {
+      setSelectedPatientId(match.id);
+      setToastMessage(`Patient ${match.id} loaded.`);
+      setTimeout(() => setToastMessage(""), 2500);
+    } else {
+      alert(`No patient found with ID: "${searchQuery}". Please check the ID.`);
+    }
   };
 
-  const handleApprove = () => {
-    const approvedSummary = {
-      ...summary,
-      approved: true,
-      approvedAt: new Date().toISOString(),
-      patientName: patient.name || "Patient",
-      patientType,
-      dangerSigns: dangerData.dangerSigns || [],
-      reports,
-    };
+  // Audio summary read-back to the doctor
+  const toggleDoctorAudio = () => {
+    if (!("speechSynthesis" in window) || !currentPatient) return;
 
-    localStorage.setItem(
-      "aarogyaVaaniDoctorSummary",
-      JSON.stringify(approvedSummary)
-    );
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
 
-    setSummary(approvedSummary);
-    setApproved(true);
+    const assistedDetail = currentPatient.assistedMode
+      ? `Intake recorded by ASHA Worker Kalpana Reang as patient was unable to use the app directly. Reason: ${currentPatient.assistedReason || "Assisted intake"}.`
+      : "Direct patient intake.";
+
+    const brief = `Patient ID: ${currentPatient.id}. Name: ${currentPatient.name}, ${currentPatient.age} years old. ${assistedDetail} Chief complaint: ${currentPatient.chiefComplaint}. AI Triage level: ${currentPatient.triage}. ${currentPatient.clinicalSummary}`;
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(brief);
+    utterance.lang = "en-IN";
+    utterance.rate = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
   };
 
-  const handleBack = () => {
-    navigate("/summary");
+  // Save Doctor's review and prescription
+  const handleSaveReview = () => {
+    if (!currentPatient) return;
+
+    updatePatientReview(currentPatient.id, {
+      doctorName: "Dr. S. Roy (Medical Officer)",
+      notes: doctorNotes,
+      prescription: prescription,
+    });
+
+    const refreshed = getAllPatients();
+    setPatientsList(refreshed);
+
+    setToastMessage(`Prescription & Review saved for ${currentPatient.name} (${currentPatient.id}) ✓`);
+    setTimeout(() => setToastMessage(""), 3500);
   };
+
+  const isUrgent =
+    currentPatient?.triage === "Critical Red Flag" ||
+    currentPatient?.status === "Urgent";
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(rgba(246,250,248,0.96),rgba(246,250,248,0.98)),url('https://upload.wikimedia.org/wikipedia/commons/3/36/Tripura_in_India.svg')] bg-[center/520px_no-repeat] text-[#103f32]">
-      <header className="h-[76px] bg-[#103f32] text-white flex items-center justify-between px-[6%] max-sm:px-[5%]">
-        <div>
-          <h1 className="m-0 text-[25px]">AarogyaVaani</h1>
-          <span className="block text-[12px] opacity-75">Tripura Health</span>
-        </div>
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50 pb-10">
+      <GovHeader
+        title="Doctor's Clinical Dashboard"
+        showBack={true}
+        backPath="/dashboard"
+      />
 
-        <div className="flex items-center gap-[8px] text-[13px] max-sm:hidden">
-          <UserRound size={17} />
-          Doctor Review
-        </div>
-      </header>
-
-      <main className="w-[min(1050px,92%)] mx-auto py-[30px] pb-[65px] max-sm:w-[94%] max-sm:pt-[20px]">
-        <div className="text-[#71847b] text-[13px] mb-[22px]">
-          Summary <span className="mx-[8px]">/</span> <strong className="text-[#103f32]">Doctor Review</strong>
-        </div>
-
-        <section className="flex justify-between gap-[20px] items-start mb-[24px] max-sm:flex-col">
-          <div>
-            <p className="text-[#2f8f69] text-[11px] font-extrabold tracking-[1.5px] m-0 mb-[7px]">FINAL CLINICAL REVIEW</p>
-            <h2 className="m-0 mb-[7px] text-[clamp(28px,5vw,42px)]">Review & Approve Summary</h2>
-            <span className="text-[#71847c]">
-              The doctor can correct the generated history before
-              approving it.
-            </span>
-          </div>
-
-          {approved && (
-            <div className="flex items-center gap-[7px] bg-[#ddf2e6] text-[#176944] border border-[#b9dec8] rounded-full px-[14px] py-[9px] text-[13px] font-[750]">
-              <CheckCircle2 size={18} />
-              Approved
-            </div>
-          )}
-        </section>
-
-        <section className="flex items-center gap-[15px] bg-white border border-[#d7e8df] rounded-[18px] p-[20px] mb-[18px] shadow-[0_8px_28px_rgba(16,63,50,0.05)]">
-          <div className="w-[56px] h-[56px] bg-[#e5f3eb] text-[#2f8f69] grid place-items-center rounded-[15px]">
-            <UserRound size={28} />
-          </div>
-
-          <div>
-            <small className="text-[#82938c] text-[11px]">Patient</small>
-            <h3 className="m-0 my-[2px] text-[19px]">{patient.name || "Patient"}</h3>
-
-            <p className="m-0 text-[#70827a] text-[13px]">
-              {patient.age ? `${patient.age} years` : "Age not recorded"}
-              {patient.gender
-                ? ` • ${patient.gender}`
-                : ""}
-              {patientType === "maternal"
-                ? " • Maternal / Antenatal"
-                : " • General Intake"}
-            </p>
-          </div>
-        </section>
-
-        {dangerData.urgent && (
-          <section className="flex items-start gap-[12px] p-[17px] bg-[#fff1f0] border border-[#efc8c4] rounded-[15px] mb-[18px] text-[#a5261c]">
-            <AlertTriangle size={23} />
-
-            <div>
-              <strong className="block mb-[4px]">Safety flag requires attention</strong>
-
-              <p className="m-0 text-[#806c68] text-[13px]">
-                {dangerData.dangerSigns?.length || 0} danger
-                sign(s) were detected during the fixed-rule
-                screening.
-              </p>
-            </div>
-          </section>
-        )}
-
-        <section className="bg-white border border-[#d7e8df] rounded-[20px] p-[25px] shadow-[0_8px_28px_rgba(16,63,50,0.05)] max-sm:p-[18px]">
-          <div className="flex gap-[11px] items-start mb-[22px]">
-            <FileText className="text-[#2f8f69]" size={20} />
-            <div>
-              <h3 className="m-0 mb-[4px]">Structured Patient History</h3>
-              <p className="m-0 text-[#7a8c84] text-[13px]">Edit any field before approval.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-[18px] max-sm:grid-cols-1">
-            <div className="col-span-2 max-sm:col-auto">
-              <label className="block text-[13px] font-[750] mb-[8px]">Main complaint / reason for visit</label>
-
-              <textarea
-                className="w-full min-h-[105px] resize-y border border-[#cbded5] rounded-[12px] p-[13px] font-inherit text-[14px] leading-[1.5] outline-none focus:border-[#2f8f69] focus:shadow-[0_0_0_3px_rgba(47,143,105,0.11)]"
-                value={summary.mainComplaint}
-                onChange={(event) =>
-                  handleChange(
-                    "mainComplaint",
-                    event.target.value
-                  )
-                }
-              />
-            </div>
-
-            <div className="col-span-2 max-sm:col-auto">
-              <label className="block text-[13px] font-[750] mb-[8px]">History of present problem</label>
-
-              <textarea
-                className="w-full min-h-[105px] resize-y border border-[#cbded5] rounded-[12px] p-[13px] font-inherit text-[14px] leading-[1.5] outline-none focus:border-[#2f8f69] focus:shadow-[0_0_0_3px_rgba(47,143,105,0.11)]"
-                value={summary.history}
-                onChange={(event) =>
-                  handleChange(
-                    "history",
-                    event.target.value
-                  )
-                }
-              />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-[750] mb-[8px]">Medical conditions</label>
-
-              <textarea
-                className="w-full min-h-[105px] resize-y border border-[#cbded5] rounded-[12px] p-[13px] font-inherit text-[14px] leading-[1.5] outline-none focus:border-[#2f8f69] focus:shadow-[0_0_0_3px_rgba(47,143,105,0.11)]"
-                value={summary.medicalConditions}
-                onChange={(event) =>
-                  handleChange(
-                    "medicalConditions",
-                    event.target.value
-                  )
-                }
-              />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-[750] mb-[8px]">Medicines / supplements</label>
-
-              <textarea
-                className="w-full min-h-[105px] resize-y border border-[#cbded5] rounded-[12px] p-[13px] font-inherit text-[14px] leading-[1.5] outline-none focus:border-[#2f8f69] focus:shadow-[0_0_0_3px_rgba(47,143,105,0.11)]"
-                value={summary.medicines}
-                onChange={(event) =>
-                  handleChange(
-                    "medicines",
-                    event.target.value
-                  )
-                }
-              />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-[750] mb-[8px]">Allergies</label>
-
-              <textarea
-                className="w-full min-h-[105px] resize-y border border-[#cbded5] rounded-[12px] p-[13px] font-inherit text-[14px] leading-[1.5] outline-none focus:border-[#2f8f69] focus:shadow-[0_0_0_3px_rgba(47,143,105,0.11)]"
-                value={summary.allergies}
-                onChange={(event) =>
-                  handleChange(
-                    "allergies",
-                    event.target.value
-                  )
-                }
-              />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-[750] mb-[8px]">Doctor's additional notes</label>
-
-              <textarea
-                className="w-full min-h-[105px] resize-y border border-[#cbded5] rounded-[12px] p-[13px] font-inherit text-[14px] leading-[1.5] outline-none focus:border-[#2f8f69] focus:shadow-[0_0_0_3px_rgba(47,143,105,0.11)]"
-                value={summary.additionalNotes}
-                onChange={(event) =>
-                  handleChange(
-                    "additionalNotes",
-                    event.target.value
-                  )
-                }
-                placeholder="Add any correction or note..."
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-2 gap-[18px] mt-[18px] max-sm:grid-cols-1">
-          <div className="bg-white border border-[#d7e8df] rounded-[16px] p-[19px]">
-            <h3 className="m-0 mb-[9px] text-[15px]">Safety findings</h3>
-
-            {dangerData.dangerSigns?.length ? (
-              <ul className="m-0 pl-[18px] text-[#8c2a21] text-[13px] leading-[1.8]">
-                {dangerData.dangerSigns.map((item) => (
-                  <li key={item.id}>{item.title}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="m-0 text-[#71847c] text-[13px]">No configured danger signs detected.</p>
-            )}
-          </div>
-
-          <div className="bg-white border border-[#d7e8df] rounded-[16px] p-[19px]">
-            <h3 className="m-0 mb-[9px] text-[15px]">Previous reports</h3>
-
-            <p className="m-0 text-[#71847c] text-[13px]">
-              {reports.length
-                ? `${reports.length} report(s) attached for review.`
-                : "No previous reports attached."}
-            </p>
-          </div>
-        </section>
-
-        <section className="flex gap-[12px] bg-[#eaf5ef] border border-[#cde3d7] rounded-[15px] p-[17px] mt-[18px]">
-          <ShieldCheck className="text-[#2f8f69] shrink-0" size={22} />
-
-          <div>
-            <strong className="block mb-[4px]">Doctor approval required</strong>
-
-            <p className="m-0 text-[#61766d] text-[12px] leading-[1.5]">
-              AarogyaVaani does not make a diagnosis. This summary
-              must be checked and approved by a qualified doctor.
-            </p>
-          </div>
-        </section>
-
-        <div className="flex justify-between gap-[15px] mt-[25px] max-sm:flex-col-reverse">
-          <button
-            className="min-h-[53px] rounded-[12px] px-[20px] flex items-center gap-[8px] cursor-pointer font-[750] max-sm:w-full max-sm:justify-center bg-white border border-[#cbded5] text-[#103f32]"
-            onClick={handleBack}
-          >
-            <ArrowLeft size={18} />
-            Back to Summary
-          </button>
-
-          <button
-            className="min-h-[53px] rounded-[12px] px-[20px] flex items-center gap-[8px] cursor-pointer font-[750] max-sm:w-full max-sm:justify-center bg-[#0f5c45] border-0 text-white hover:bg-[#103f32]"
-            onClick={handleApprove}
-          >
-            {approved ? (
-              <>
-                <CheckCircle2 size={19} />
-                Approved
-              </>
-            ) : (
-              <>
-                <Save size={19} />
-                Approve Summary
-              </>
-            )}
-          </button>
-        </div>
-
-        {approved && (
-          <div className="mt-[18px] bg-[#e8f6ee] border border-[#bfe0cc] rounded-[15px] p-[16px] flex gap-[11px] text-[#176944]">
-            <CheckCircle2 className="shrink-0" size={22} />
-
-            <div>
-              <strong className="block mb-[3px]">Summary approved successfully</strong>
-              <p className="m-0 text-[12px] text-[#637a6f]">
-                The reviewed summary has been saved on this device.
-              </p>
-            </div>
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
+        {toastMessage && (
+          <div className="glass-card-emerald px-4 py-3 rounded-2xl flex items-center gap-2 animate-fade-in text-emerald-950 font-bold text-xs shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>{toastMessage}</span>
           </div>
         )}
+
+        {/* 1. Patient ID Search Bar */}
+        <div className="glass-panel p-4 rounded-3xl shadow-sm border border-emerald-500/30">
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+            Lookup Patient by ID:
+          </label>
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Enter Patient ID (e.g. AV-8921, AV-9012)"
+                className="w-full pl-9 pr-3 py-2.5 bg-white/90 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs shrink-0"
+            >
+              Search
+            </button>
+          </form>
+
+          {/* Quick Patient Pills */}
+          <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <span className="text-[10px] text-slate-400 font-bold shrink-0">Recent:</span>
+            {patientsList.slice(0, 4).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setSelectedPatientId(p.id);
+                  setSearchQuery(p.id);
+                }}
+                className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer shrink-0 ${
+                  selectedPatientId === p.id
+                    ? "bg-emerald-700 text-white shadow-2xs"
+                    : p.triage === "Critical Red Flag"
+                    ? "bg-rose-100 text-rose-800 border border-rose-200"
+                    : "glass-card text-slate-700 hover:bg-white"
+                }`}
+              >
+                {p.id}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Patient Clinical Summary Card */}
+        {currentPatient ? (
+          <div className="space-y-4">
+            {/* Patient Header Card */}
+            <div className="glass-panel p-4.5 rounded-3xl shadow-sm border border-white/80">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg shrink-0">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md">
+                        {currentPatient.id}
+                      </span>
+                      <span
+                        className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                          isUrgent
+                            ? "bg-rose-100 text-rose-800 border border-rose-200"
+                            : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        }`}
+                      >
+                        {isUrgent ? "Critical Red Flag" : "Stable"}
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-black text-slate-900 mt-1">
+                      {currentPatient.name}
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {currentPatient.age} yrs • {currentPatient.gender} • {currentPatient.village}
+                    </p>
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-extrabold uppercase text-emerald-900 bg-emerald-100/90 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span>👩‍⚕️</span>
+                        <span>{currentPatient.assistedMode ? (currentPatient.assistedBy || "ASHA Assisted") : "Direct Intake"}</span>
+                      </span>
+                      <span className="text-[10px] font-medium text-slate-500 truncate max-w-[220px]">
+                        {currentPatient.assistedReason || (currentPatient.assistedMode ? "Field Proxy (Patient unable to use app)" : "Direct Patient")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 20-sec Audio Brief button */}
+                <button
+                  type="button"
+                  onClick={toggleDoctorAudio}
+                  className={`p-2.5 rounded-xl transition-all cursor-pointer shadow-xs ${
+                    isSpeaking
+                      ? "bg-rose-600 text-white animate-pulse"
+                      : "glass-card hover:bg-white text-emerald-800"
+                  }`}
+                  title="Audio Summary"
+                >
+                  {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* Vitals Bar */}
+              {currentPatient.vitals && (
+                <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-slate-100 text-center">
+                  <div className="bg-slate-50 p-2 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">BP</span>
+                    <strong
+                      className={`text-xs font-black block mt-0.5 ${
+                        currentPatient.vitals.bp?.includes("15") ? "text-rose-600 font-bold" : "text-slate-800"
+                      }`}
+                    >
+                      {currentPatient.vitals.bp}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-50 p-2 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Weight / Hb</span>
+                    <strong className="text-xs font-black text-slate-800 block mt-0.5">
+                      {currentPatient.vitals.weight || "—"} • {currentPatient.vitals.hb || "—"}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-50 p-2 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Fetal Rate</span>
+                    <strong className="text-xs font-black text-emerald-800 block mt-0.5">
+                      {currentPatient.vitals.fetalHeartRate || "Normal"}
+                    </strong>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Chief Complaint & AI Assessment */}
+            <div className="glass-panel p-4.5 rounded-3xl shadow-sm space-y-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+                  Reported Chief Complaint:
+                </span>
+                <p className="text-xs font-bold text-slate-900 bg-white/80 p-3 rounded-xl border border-slate-100 italic leading-relaxed">
+                  "{currentPatient.chiefComplaint}"
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+                  AI Clinical Impression (Summary):
+                </span>
+                <p className="text-xs font-medium text-slate-700 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 leading-relaxed">
+                  {currentPatient.clinicalSummary}
+                </p>
+              </div>
+
+              {/* Q&A Assessment Details */}
+              {currentPatient.assessmentHistory && currentPatient.assessmentHistory.length > 0 && (
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
+                    Patient Answers to Doctor Questions:
+                  </span>
+                  <div className="space-y-1.5">
+                    {currentPatient.assessmentHistory.map((item, idx) => (
+                      <div key={idx} className="bg-slate-50 p-2.5 rounded-xl text-[11px]">
+                        <p className="font-semibold text-slate-600">
+                          {idx + 1}. {item.question}
+                        </p>
+                        <p className="font-black text-slate-900 mt-0.5 pl-3">
+                          ↳ {item.answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Doctor Action Panel (Clinical Notes & Rx) */}
+            <div className="glass-panel p-4.5 rounded-3xl shadow-md border border-emerald-500/30 space-y-3.5">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                <Stethoscope className="w-4 h-4 text-emerald-700" />
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  Doctor's Plan & Prescription
+                </h3>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Clinical Advice / Orders:
+                </label>
+                <textarea
+                  rows={2}
+                  value={doctorNotes}
+                  onChange={(e) => setDoctorNotes(e.target.value)}
+                  placeholder="Doctor's clinical advice, diet, lab tests..."
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Pill className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Prescription (Rx):</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={prescription}
+                  onChange={(e) => setPrescription(e.target.value)}
+                  placeholder="e.g. Tab IFA 1 OD x 30 days, Tab Calcium 500mg BD..."
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none font-mono"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveReview}
+                  className="w-full bg-[#0b6651] hover:bg-[#074738] text-white font-extrabold text-xs py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:shadow-lg"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Approve Summary & Issue Prescription</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="w-full glass-card hover:bg-white text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Printer className="w-4 h-4 text-slate-600" />
+                  <span>Print Doctor Prescription Slip</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="glass-panel p-8 text-center rounded-3xl">
+            <p className="text-slate-500 font-bold text-sm">No patient selected.</p>
+          </div>
+        )}
+
+        {/* 4. Complete Patient Queue */}
+        <div className="glass-panel p-4 rounded-3xl shadow-sm">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 px-1">
+            All Registered Patients ({patientsList.length})
+          </h3>
+          <div className="space-y-2">
+            {patientsList.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => {
+                  setSelectedPatientId(p.id);
+                  setSearchQuery(p.id);
+                }}
+                className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  selectedPatientId === p.id
+                    ? "bg-emerald-50 border border-emerald-300 shadow-2xs"
+                    : "glass-card hover:bg-white"
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-black text-emerald-800">
+                      {p.id}
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-xs truncate">
+                      {p.name}
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                    {p.chiefComplaint || p.category}
+                  </p>
+                </div>
+
+                <span
+                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                    p.triage === "Critical Red Flag"
+                      ? "bg-rose-100 text-rose-800"
+                      : p.status === "Reviewed"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {p.status === "Reviewed" ? "Reviewed ✓" : p.triage || "Pending"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

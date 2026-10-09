@@ -1,110 +1,210 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
   ShieldAlert,
-  UserRound,
+  User,
+  Clock,
+  CheckCircle,
+  Bed,
+  Ambulance,
+  Stethoscope,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
 
-const alerts = [
+const INITIAL_ALERTS = [
   {
-    id: "patient-4",
+    id: "alert-01",
+    patientId: "AV-9012",
     name: "Bimala Reang",
     age: "31",
-    type: "Maternal & Antenatal",
-    sign: "Severe headache / blurred vision",
+    village: "Karbook",
+    type: "Maternal ANC (32 Weeks)",
+    sign: "Severe headache / blurred vision (Preeclampsia risk)",
+    severity: "CRITICAL",
     time: "09:21 AM",
+    vitalNotice: "BP 154/98 mmHg reported in triage assessment",
+    status: "PENDING_ACK",
+  },
+  {
+    id: "alert-02",
+    patientId: "patient-7",
+    name: "Anita Debnath",
+    age: "24",
+    village: "Bishalgarh",
+    type: "Maternal ANC (28 Weeks)",
+    sign: "Fresh vaginal bleeding (Haemorrhage risk)",
+    severity: "CRITICAL",
+    time: "10:14 AM",
+    vitalNotice: "Requires urgent clinical speculum exam & referral",
+    status: "PENDING_ACK",
+  },
+  {
+    id: "alert-03",
+    patientId: "patient-8",
+    name: "Pooja Tripura",
+    age: "22",
+    village: "Manu",
+    type: "Maternal ANC (34 Weeks)",
+    sign: "Reduced baby movement (Fetal Distress risk)",
+    severity: "HIGH",
+    time: "10:45 AM",
+    vitalNotice: "Fetal Doppler auscultation required immediately",
+    status: "ACKNOWLEDGED",
   },
 ];
 
-function DangerAlerts() {
+export default function DangerAlerts() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const [alerts, setAlerts] = useState(INITIAL_ALERTS);
+  const [ackMessage, setAckMessage] = useState("");
+
+  const handleAcknowledge = (id) => {
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: "ACKNOWLEDGED" } : a))
+    );
+    setAckMessage(t("acknowledged") + " ✓");
+    setTimeout(() => setAckMessage(""), 3500);
+  };
+
+  const pendingCount = alerts.filter((a) => a.status === "PENDING_ACK").length;
 
   return (
-    <div className="min-h-screen bg-[#f5f9f8] text-[#12322f] font-sans">
-      <header className="min-h-[72px] bg-white border-b border-[#e2ece9] flex justify-between items-center px-[35px] max-md:px-4">
-        <div>
-          <h1 className="m-0 text-[#087f6a] text-[18px]">AarogyaVaani</h1>
-          <span className="text-[#81918e] text-[10px]">Tripura Health</span>
-        </div>
+    <div className="min-h-screen flex flex-col font-sans bg-[#f7faf9] pb-24">
+      <GovHeader
+        title="Red-Flag Triage"
+        subtitle={`${pendingCount} urgent maternal cases`}
+        showBack={true}
+        backPath="/dashboard"
+      />
 
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="border border-[#dce9e5] bg-white text-[#087f6a] rounded-[9px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer"
-        >
-          <ArrowLeft size={17} />
-          Dashboard
-        </button>
-      </header>
-
-      <main className="max-w-[1100px] mx-auto p-[30px] max-md:px-[14px] max-md:py-[18px]">
-        <div className="text-[#8a9c98] text-[11px] mb-[18px]">
-          Dashboard <span className="mx-[7px]">›</span> Danger Alerts
-        </div>
-
-        <section className="bg-[#fff1f1] border border-[#f0d1d1] text-[#cf5151] rounded-[15px] p-[25px] flex items-center gap-[14px]">
-          <ShieldAlert size={26} />
-
-          <div>
-            <h2 className="text-[#12322f] mb-1 text-[23px] mt-0">Danger Alerts</h2>
-            <p className="m-0 text-[#718582] text-[11px]">
-              Predefined safety rules that require health-worker or
-              doctor attention.
-            </p>
-          </div>
-        </section>
-
-        <div className="mt-[18px] bg-[#fffaf0] border border-[#f1e1bd] rounded-[12px] p-[15px] flex gap-[10px] text-[#b27620]">
-          <AlertTriangle size={20} />
-
-          <div>
-            <strong className="text-[11px] font-bold">Safety flags are not diagnoses.</strong>
-            <p className="mt-1 mb-0 text-[#8c806c] text-[9px]">
-              AarogyaVaani only highlights predefined danger signs
-              collected during patient intake.
-            </p>
+      <main className="w-full max-w-md sm:max-w-lg mx-auto px-4 py-3 space-y-4">
+        {/* Banner Alert Pill */}
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-4 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                Emergency Queue
+              </span>
+              <h2 className="text-base sm:text-lg font-black text-rose-950 mt-0.5">
+                {pendingCount} Critical Cases Pending
+              </h2>
+            </div>
           </div>
         </div>
 
-        <section className="mt-[18px] flex flex-col gap-[12px]">
-          {alerts.map((alert) => (
-            <article className="bg-white border border-[#ecdada] rounded-[13px] p-[16px] grid grid-cols-[1.3fr_1.5fr_90px_auto] gap-[15px] items-center max-md:grid-cols-1" key={alert.id}>
-              <div className="flex items-center gap-[10px]">
-                <div className="w-[38px] h-[38px] rounded-[10px] bg-[#fde7e7] text-[#d45555] flex items-center justify-center">
-                  <UserRound size={20} />
+        {ackMessage && (
+          <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 px-4 py-3 rounded-2xl flex items-center gap-2 font-bold text-xs animate-fade-in">
+            <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>{ackMessage}</span>
+          </div>
+        )}
+
+        {/* Triage Cases List */}
+        <div className="space-y-3">
+          {alerts.map((item) => (
+            <div
+              key={item.id}
+              className={`bg-white border rounded-3xl p-4.5 shadow-xs transition-all ${
+                item.severity === "CRITICAL"
+                  ? "border-rose-200"
+                  : "border-amber-200"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm shrink-0">
+                    <User className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-base font-black text-slate-900">{item.name}</h3>
+                      <span className="text-xs text-slate-500 font-medium">
+                        ({item.age}y • {item.village})
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-semibold">{item.type}</p>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-[3px]">
-                  <strong className="text-[11px]">{alert.name}</strong>
-                  <span className="text-[8px] text-[#91a19d]">
-                    {alert.age} years • {alert.type}
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{item.time}</span>
+                </div>
+              </div>
+
+              {/* Danger Sign Highlight */}
+              <div className="mt-3 bg-rose-50/70 border border-rose-200 rounded-2xl p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <strong className="text-xs sm:text-sm text-rose-950 font-black block">
+                      {item.sign}
+                    </strong>
+                    <p className="text-[11px] text-rose-900/80 mt-0.5 font-medium">
+                      {item.vitalNotice}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile-Friendly Action Buttons */}
+              <div className="mt-3.5 pt-2 flex flex-wrap items-center gap-2">
+                {item.status === "PENDING_ACK" ? (
+                  <button
+                    onClick={() => handleAcknowledge(item.id)}
+                    className="flex-1 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Acknowledge</span>
+                  </button>
+                ) : (
+                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    Acknowledged
                   </span>
-                </div>
-              </div>
+                )}
 
-              <div className="bg-[#fff2f2] rounded-[8px] p-[9px] flex gap-[6px] items-center text-[#cc5050] text-[9px] font-bold">
-                <AlertTriangle size={17} />
-                <span>{alert.sign}</span>
-              </div>
+                <button
+                  onClick={() => alert(`Calling 108 Ambulance dispatch for ${item.name}...`)}
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Call 108"
+                >
+                  <Ambulance className="w-3.5 h-3.5 text-rose-600" />
+                  <span>108</span>
+                </button>
 
-              <div className="text-[#879995] text-[9px]">
-                {alert.time}
-              </div>
+                <button
+                  onClick={() => alert(`Labour Bed allocated at Bishalgarh CHC for ${item.name}.`)}
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Allocate Bed"
+                >
+                  <Bed className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Bed</span>
+                </button>
 
-              <button
-                onClick={() => navigate(`/patient-details?id=${alert.id}`)}
-                className="border-0 bg-[#d95858] text-white rounded-[8px] h-[34px] px-[11px] flex items-center gap-[5px] cursor-pointer text-[9px] font-bold max-md:justify-center"
-              >
-                Review
-                <ArrowRight size={15} />
-              </button>
-            </article>
+                <button
+                  onClick={() => navigate(`/doctor-review?id=${item.patientId}`)}
+                  className="bg-[#0b6651] hover:bg-[#074738] text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer ml-auto"
+                >
+                  <Stethoscope className="w-3.5 h-3.5" />
+                  <span>Chart</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           ))}
-        </section>
+        </div>
       </main>
+
+      <BottomNav />
     </div>
   );
 }
-
-export default DangerAlerts;

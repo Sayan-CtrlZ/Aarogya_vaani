@@ -1,97 +1,113 @@
-import {
-  ArrowLeft,
-  CheckCircle2,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  User,
+  CheckCircle2,
+  Printer,
+  QrCode,
+} from "lucide-react";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
 
-function SignupStatus() {
+export default function SignupStatus() {
   const navigate = useNavigate();
-  const role =
-    sessionStorage.getItem("aarogyaVaaniRole") || "health-worker";
+  const { t } = useLanguage();
 
+  const role = sessionStorage.getItem("aarogyaVaaniRole") || "health-worker";
   const userName =
     sessionStorage.getItem("aarogyaVaaniUserName") ||
-    (role === "doctor" ? "Dr. Aarogya" : "Health Worker");
+    (role === "doctor" ? "Dr. S. Roy (Medical Officer)" : "Kalpana Reang (ASHA Worker)");
+  const facility = sessionStorage.getItem("aarogyaVaaniFacility") || "Bishalgarh CHC";
+  const district = sessionStorage.getItem("aarogyaVaaniDistrict") || "Sepahijala District";
+  const workerId =
+    sessionStorage.getItem("aarogyaVaaniWorkerId") ||
+    (role === "doctor" ? "TR-MO-8841" : "TR-ASHA-0412");
 
   return (
-    <div className="min-h-screen bg-[#f5f9f8] text-[#12322f] font-sans">
-      <header className="min-h-[72px] bg-white border-b border-[#e2ece9] flex justify-between items-center px-[35px] max-sm:px-4">
-        <div>
-          <h1 className="m-0 text-[#087f6a] text-[18px]">AarogyaVaani</h1>
-          <span className="text-[#81918e] text-[10px]">Tripura Health</span>
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50">
+      <GovHeader
+        title={t("staffIdTitle")}
+        showBack={true}
+        backPath="/dashboard"
+      />
+
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
+        {/* Verification Pill */}
+        <div className="glass-card-emerald p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+            <span className="text-xs font-bold text-emerald-950">
+              Verified Healthcare ID
+            </span>
+          </div>
+          <span className="bg-emerald-700 text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+            ACTIVE
+          </span>
         </div>
 
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="border border-[#dce9e5] bg-white text-[#087f6a] rounded-[9px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer"
-        >
-          <ArrowLeft size={17} />
-          Dashboard
-        </button>
-      </header>
+        {/* Staff Identity Card */}
+        <div className="glass-panel rounded-3xl overflow-hidden border border-emerald-500/30 shadow-md">
+          {/* Card Top Pill Header */}
+          <div className="bg-gradient-to-r from-emerald-700 to-teal-800 text-white p-4 flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider">Health Worker Badge</span>
+            <span className="text-[11px] font-mono bg-white/20 px-2.5 py-0.5 rounded-md font-bold">
+              {role === "doctor" ? "Doctor" : "ASHA"}
+            </span>
+          </div>
 
-      <main className="max-w-[850px] mx-auto p-[30px] max-sm:px-[14px] max-sm:py-[18px]">
-        <div className="text-[#8a9c98] text-[11px] mb-[18px]">
-          Dashboard <span className="mx-[7px]">›</span> Signup Status
+          <div className="p-5 flex items-start gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-200 border border-emerald-300 text-emerald-900 flex items-center justify-center font-bold text-2xl shrink-0 shadow-xs">
+              <User className="w-8 h-8" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                {role === "doctor" ? t("doctor") : t("healthWorker")}
+              </span>
+              <h2 className="text-lg font-black text-slate-900 truncate mt-0.5">{userName}</h2>
+              <div className="text-xs text-slate-600 mt-1 font-semibold truncate">
+                🏥 {facility} • {district}
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <span className="glass-card px-2.5 py-1 text-[11px] font-mono font-bold text-slate-800">
+                  ID: {workerId}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* QR Code and Meta */}
+          <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-4">
+            <div className="text-xs text-slate-600 space-y-1">
+              <div>Facility: <strong className="text-slate-800">{facility}</strong></div>
+              <div>District: <strong className="text-slate-800">{district}</strong></div>
+            </div>
+
+            <div className="flex flex-col items-center shrink-0">
+              <div className="w-16 h-16 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-800 shadow-2xs">
+                <QrCode className="w-12 h-12 text-emerald-700" />
+              </div>
+              <span className="text-[9px] font-mono text-slate-400 mt-1 font-bold">
+                {workerId}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <section className="bg-[#e8f7f2] border border-[#d1eae2] rounded-[15px] p-[25px] flex gap-[14px] items-center">
-          <div className="w-[52px] h-[52px] rounded-[14px] bg-white text-[#087f6a] flex items-center justify-center">
-            <CheckCircle2 size={28} />
-          </div>
-
-          <div className="flex flex-col">
-            <span className="text-[8px] font-extrabold text-[#087f6a]">ACCOUNT STATUS</span>
-            <h2 className="my-[5px] text-[22px]">Profile setup complete</h2>
-            <p className="m-0 text-[#718582] text-[10px]">
-              This device has an active AarogyaVaani workspace.
-            </p>
-          </div>
-        </section>
-
-        <section className="bg-white border border-[#e2ece9] rounded-[15px] p-[20px] mt-[18px]">
-          <div className="flex items-center gap-[11px] pb-[17px] border-b border-[#edf2f0]">
-            <div className="w-[42px] h-[42px] rounded-[11px] bg-[#e7f7f2] text-[#087f6a] flex items-center justify-center">
-              <UserRound size={22} />
-            </div>
-
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-[#8b9d99] text-[8px]">Registered user</span>
-              <strong className="text-[11px]">{userName}</strong>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[25px_1fr_auto] gap-[10px] items-center py-[14px] border-b border-[#edf2f0] text-[#087f6a]">
-            <ShieldCheck size={18} />
-
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-[#8b9d99] text-[8px]">Workspace</span>
-              <strong className="text-[#12322f] text-[10px]">
-                {role === "doctor"
-                  ? "Doctor Workspace"
-                  : "Health Worker Workspace"}
-              </strong>
-            </div>
-
-            <b className="bg-[#e8f8f0] text-[#198a6e] rounded-[20px] px-[8px] py-[5px] text-[8px]">Active</b>
-          </div>
-
-          <div className="grid grid-cols-[25px_1fr_auto] gap-[10px] items-center py-[14px] border-b border-[#edf2f0] text-[#087f6a]">
-            <CheckCircle2 size={18} />
-
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-[#8b9d99] text-[8px]">Local profile</span>
-              <strong className="text-[#12322f] text-[10px]">Available on this device</strong>
-            </div>
-
-            <b className="bg-[#e8f8f0] text-[#198a6e] rounded-[20px] px-[8px] py-[5px] text-[8px]">Ready</b>
-          </div>
-        </section>
+        {/* Action Button */}
+        <div className="pt-2">
+          <button
+            onClick={() => window.print()}
+            className="w-full glass-card hover:bg-white text-slate-700 font-bold text-sm py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+          >
+            <Printer className="w-4 h-4 text-slate-600" />
+            <span>{t("printIdCard")}</span>
+          </button>
+        </div>
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
-
-export default SignupStatus;

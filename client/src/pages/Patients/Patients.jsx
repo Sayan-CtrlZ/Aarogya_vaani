@@ -1,312 +1,189 @@
-import { useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   ArrowRight,
   Search,
-  UserRound,
+  User,
   AlertTriangle,
   CheckCircle2,
-  Clock3,
+  Clock,
+  Plus,
+  Stethoscope,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
+import { getAllPatients } from "../../utils/patientStore";
 
-const demoPatients = [
-  {
-    id: "patient-1",
-    name: "Mamta Debbarma",
-    age: "27",
-    gender: "Female",
-    type: "Maternal & Antenatal",
-    language: "Bengali",
-    status: "Completed",
-    time: "10:32 AM",
-    details: "Routine antenatal check",
-  },
-  {
-    id: "patient-2",
-    name: "Rani Tripura",
-    age: "24",
-    gender: "Female",
-    type: "Maternal & Antenatal",
-    language: "Hindi",
-    status: "In Progress",
-    time: "10:15 AM",
-    details: "20 weeks pregnancy",
-  },
-  {
-    id: "patient-3",
-    name: "Sukanta Das",
-    age: "42",
-    gender: "Male",
-    type: "General Patient",
-    language: "Bengali",
-    status: "Awaiting Review",
-    time: "09:48 AM",
-    details: "Fever reported",
-  },
-  {
-    id: "patient-4",
-    name: "Bimala Reang",
-    age: "31",
-    gender: "Female",
-    type: "Maternal & Antenatal",
-    language: "Bengali",
-    status: "Urgent",
-    time: "09:21 AM",
-    details: "Severe headache detected",
-    dangerSigns: ["Severe headache / blurred vision"],
-  },
-];
-
-function getStoredPatient() {
-  try {
-    return JSON.parse(
-      localStorage.getItem("aarogyaVaaniCurrentPatient") || "null"
-    );
-  } catch {
-    return null;
-  }
-}
-
-function StatusBadge({ status }) {
-  if (status === "Urgent") {
-    return (
-      <span className="inline-flex items-center gap-[5px] px-[8px] py-[5px] rounded-[20px] text-[8px] font-extrabold whitespace-nowrap bg-[#fde9e9] text-[#d45555]">
-        <AlertTriangle size={13} />
-        Urgent
-      </span>
-    );
-  }
-
-  if (status === "Completed") {
-    return (
-      <span className="inline-flex items-center gap-[5px] px-[8px] py-[5px] rounded-[20px] text-[8px] font-extrabold whitespace-nowrap bg-[#e8f8f0] text-[#198a6e]">
-        <CheckCircle2 size={13} />
-        Completed
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-[5px] px-[8px] py-[5px] rounded-[20px] text-[8px] font-extrabold whitespace-nowrap bg-[#f2edfb] text-[#745cb8]">
-      <Clock3 size={13} />
-      {status}
-    </span>
-  );
-}
-
-function Patients() {
+export default function Patients() {
   const navigate = useNavigate();
-  const params = new URLSearchParams(window.location.search);
-  const searchQuery = (params.get("search") || "").toLowerCase();
-  const statusFilter = params.get("status");
-  const view = params.get("view");
+  const { t } = useLanguage();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [patientList, setPatientList] = useState(() => getAllPatients());
 
-  const storedPatient = getStoredPatient();
+  useEffect(() => {
+    setPatientList(getAllPatients());
+  }, []);
 
-  const allPatients = useMemo(() => {
-    const stored = [];
+  const filteredPatients = useMemo(() => {
+    return patientList.filter((p) => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch =
+        p.name.toLowerCase().includes(term) ||
+        (p.id && p.id.toLowerCase().includes(term)) ||
+        (p.village && p.village.toLowerCase().includes(term)) ||
+        (p.chiefComplaint && p.chiefComplaint.toLowerCase().includes(term));
 
-    if (storedPatient?.patient) {
-      stored.push({
-        id: "current-patient",
-        name: storedPatient.patient.name || "Current Patient",
-        age: storedPatient.patient.age || "—",
-        gender: storedPatient.patient.gender || "—",
-        type:
-          storedPatient.patientType === "maternal"
-            ? "Maternal & Antenatal"
-            : "General Patient",
-        language:
-          JSON.parse(
-            localStorage.getItem("aarogyaVaaniConsent") || "{}"
-          )?.languageName || "English",
-        status: "Current Session",
-        time: "Current",
-        details: "Current AarogyaVaani intake session",
-      });
-    }
+      if (!matchesSearch) return false;
 
-    return [...stored, ...demoPatients];
-  }, [storedPatient]);
+      if (statusFilter === "urgent") {
+        return p.triage === "Critical Red Flag" || p.status === "Urgent";
+      }
+      if (statusFilter === "reviewed") {
+        return p.status === "Reviewed";
+      }
+      if (statusFilter === "pending") {
+        return p.status !== "Reviewed" && p.triage !== "Critical Red Flag";
+      }
 
-  const filteredPatients = allPatients.filter((patient) => {
-    const searchable = [
-      patient.name,
-      patient.age,
-      patient.type,
-      patient.language,
-      patient.details,
-      patient.status,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    const matchesSearch =
-      !searchQuery || searchable.includes(searchQuery);
-
-    let matchesStatus = true;
-
-    if (statusFilter === "review") {
-      matchesStatus =
-        patient.status === "Awaiting Review" ||
-        patient.status === "Pending Review";
-    }
-
-    if (statusFilter === "approved") {
-      matchesStatus = patient.status === "Completed";
-    }
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const openPatient = (id) => {
-    navigate(`/patient-details?id=${encodeURIComponent(id)}`);
-  };
+      return true;
+    });
+  }, [patientList, searchTerm, statusFilter]);
 
   return (
-    <div className="min-h-screen bg-[#f5f9f8] text-[#12322f] font-sans">
-      <header className="min-h-[72px] bg-white border-b border-[#e2ece9] flex items-center justify-between px-[35px] sticky top-0 z-20 max-sm:px-4">
-        <div className="flex flex-col">
-          <h1 className="m-0 text-[#087f6a] text-[18px]">AarogyaVaani</h1>
-          <span className="text-[#81918e] text-[10px] mt-[3px]">Tripura Health</span>
-        </div>
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50 pb-10">
+      <GovHeader
+        title="Patient Directory"
+        showBack={true}
+        backPath="/dashboard"
+      />
 
-        <button
-          className="border border-[#dce9e5] bg-white text-[#087f6a] rounded-[9px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer"
-          onClick={() => navigate("/dashboard")}
-        >
-          <ArrowLeft size={17} />
-          Dashboard
-        </button>
-      </header>
-
-      <main className="max-w-[1250px] mx-auto p-[30px] max-md:px-[14px] max-md:py-[18px]">
-        <div className="text-[#8a9c98] text-[11px] mb-[18px]">
-          Dashboard <span className="mx-[7px]">›</span> Patients
-        </div>
-
-        <section className="bg-[linear-gradient(110deg,#effaf7,#e5f6f1)] border border-[#d6ebe5] rounded-[18px] p-[28px] flex items-center justify-between gap-[20px] max-md:p-[20px] max-md:items-start max-md:flex-col">
-          <div>
-            <span className="flex items-center gap-[6px] text-[#087f6a] text-[10px] font-extrabold uppercase">
-              <UserRound size={14} />
-              Patient Records
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
+        {/* Search & New Patient Action */}
+        <div className="glass-panel p-4 rounded-3xl shadow-sm border border-white/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Search Patient Records
             </span>
-
-            <h2 className="my-[8px] mb-[5px] text-[27px] max-md:text-[23px]">
-              {view === "activity"
-                ? "Patient Intake Activity"
-                : "All Patients"}
-            </h2>
-
-            <p className="m-0 text-[#708580] text-[12px]">
-              Review patient sessions captured through the
-              AarogyaVaani intake workflow.
-            </p>
+            <button
+              onClick={() => navigate("/new-patient")}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Patient</span>
+            </button>
           </div>
 
-          <button
-            className="border-0 bg-[#087f6a] text-white rounded-[9px] px-[17px] py-[12px] flex items-center gap-[7px] cursor-pointer text-[11px] font-bold whitespace-nowrap max-md:w-full max-md:justify-center"
-            onClick={() => navigate("/new-patient")}
-          >
-            New Patient
-            <ArrowRight size={17} />
-          </button>
-        </section>
-
-        <section className="my-[20px] mb-[10px] h-[45px] bg-white border border-[#dfeae7] rounded-[10px] flex items-center gap-[10px] px-[14px] text-[#81938f]">
-          <Search size={18} />
-
-          <input
-            className="border-0 outline-0 w-full text-[#12322f] bg-transparent text-[12px]"
-            readOnly
-            value={searchQuery}
-            placeholder="Search by patient name, age, type, language or status..."
-          />
-        </section>
-
-        {searchQuery && (
-          <div className="mx-[2px] my-[10px] text-[#718582] text-[11px]">
-            Showing results for: <strong>{searchQuery}</strong>
-          </div>
-        )}
-
-        <section className="bg-white border border-[#e2ece9] rounded-[15px] overflow-hidden mt-[15px]">
-          <div className="px-[20px] py-[18px] border-b border-[#edf2f0]">
-            <div className="flex gap-[5px] items-baseline">
-              <strong className="text-[20px]">{filteredPatients.length}</strong>
-              <span className="text-[10px] text-[#8b9c98]">patient records</span>
-            </div>
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by Name, Patient ID, or Village..."
+              className="w-full pl-9 pr-3.5 py-2.5 bg-white/90 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            />
           </div>
 
-          {filteredPatients.length === 0 ? (
-            <div className="px-[20px] py-[70px] text-center text-[#91a29f] flex flex-col items-center">
-              <Search size={35} />
-              <h3 className="text-[#12322f] my-[12px] mb-[5px]">No patients found</h3>
-              <p className="text-[11px]">
-                Try another patient name, ID, language or status.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] border-collapse">
-                <thead>
-                  <tr>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left">Patient</th>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left">Age</th>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left">Type</th>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left">Language</th>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left">Status</th>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left">Time</th>
-                    <th className="bg-[#f7faf9] px-[15px] py-[11px] text-[#849590] text-[9px] text-left" />
-                  </tr>
-                </thead>
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            {[
+              { id: "all", label: `All (${patientList.length})` },
+              { id: "urgent", label: "Red Flags" },
+              { id: "pending", label: "Pending" },
+              { id: "reviewed", label: "Reviewed" },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setStatusFilter(f.id)}
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === f.id
+                    ? "bg-emerald-700 text-white shadow-2xs"
+                    : "glass-card text-slate-600 hover:bg-white"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                <tbody>
-                  {filteredPatients.map((patient) => (
-                    <tr key={patient.id}>
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">
-                        <div className="flex items-center gap-[9px]">
-                          <div className="w-[32px] h-[32px] rounded-[9px] bg-[#e7f7f2] text-[#087f6a] flex items-center justify-center">
-                            <UserRound size={17} />
-                          </div>
-
-                          <div className="flex flex-col gap-[2px]">
-                            <strong className="text-[#12322f] text-[10px]">{patient.name}</strong>
-                            <span className="text-[#9aa9a6] text-[8px]">{patient.gender}</span>
-                          </div>
+        {/* Patients List */}
+        <div className="space-y-2.5">
+          {filteredPatients.length > 0 ? (
+            filteredPatients.map((p) => {
+              const isUrgent =
+                p.triage === "Critical Red Flag" || p.status === "Urgent";
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => navigate(`/summary?id=${p.id}`)}
+                  className="glass-panel p-4 rounded-3xl hover:bg-white transition-all cursor-pointer shadow-xs space-y-2 group border border-white/80"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm shrink-0">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-black text-emerald-800">
+                            {p.id}
+                          </span>
+                          <h3 className="font-black text-slate-900 text-sm">
+                            {p.name}
+                          </h3>
                         </div>
-                      </td>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          {p.age} yrs • {p.gender} • {p.village}
+                        </p>
+                        {p.assistedMode && (
+                          <span className="text-[9px] bg-emerald-100 text-emerald-900 font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                            👩‍⚕️ ASHA Proxy: {p.patientCondition === "pregnant_distress" ? "Pregnant Mother" : p.patientCondition === "elderly_frail" ? `Elderly (${p.gender === "Female" ? "Old Woman" : "Old Man"})` : "Assisted"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">{patient.age}</td>
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">{patient.type}</td>
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">{patient.language}</td>
+                    <span
+                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full shrink-0 ${
+                        isUrgent
+                          ? "bg-rose-100 text-rose-800 border border-rose-200"
+                          : p.status === "Reviewed"
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {p.status === "Reviewed" ? "Reviewed ✓" : isUrgent ? "Red Flag" : "Stable"}
+                    </span>
+                  </div>
 
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">
-                        <StatusBadge status={patient.status} />
-                      </td>
+                  <p className="text-xs text-slate-600 line-clamp-1 italic font-medium bg-slate-50 p-2 rounded-xl">
+                    "{p.chiefComplaint}"
+                  </p>
 
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">{patient.time}</td>
-
-                      <td className="px-[15px] py-[13px] border-t border-[#edf2f0] text-[#627873] text-[10px]">
-                        <button
-                          className="border border-[#dce9e5] bg-white text-[#087f6a] rounded-[7px] px-[9px] py-[7px] flex items-center gap-[4px] cursor-pointer text-[8px] font-bold hover:bg-[#e7f7f2]"
-                          onClick={() => openPatient(patient.id)}
-                        >
-                          Open
-                          <ArrowRight size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                    <span>{p.createdAt}</span>
+                    <span className="text-emerald-700 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                      <span>View Health Summary</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="glass-panel p-8 text-center rounded-3xl text-slate-500 font-bold text-xs">
+              No patients match your search.
             </div>
           )}
-        </section>
+        </div>
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
-
-export default Patients;

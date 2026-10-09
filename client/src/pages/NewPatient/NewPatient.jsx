@@ -1,65 +1,112 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Activity,
-  ArrowLeft,
+  User,
+  Phone,
+  MapPin,
+  Calendar,
+  Baby,
+  Stethoscope,
   ArrowRight,
   CheckCircle2,
-  FileText,
-  HeartPulse,
-  Home,
-  Languages,
-  Mic,
-  ShieldCheck,
-  UserRound,
-  UsersRound,
-  WifiOff,
+  Users,
+  IdCard,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
+import { generatePatientId } from "../../utils/patientStore";
 
-const TRIPURA_MAP_URL =
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Tripura_in_India.svg/800px-Tripura_in_India.svg.png";
+const TRIPURA_DISTRICTS = [
+  "Sepahijala District",
+  "West Tripura District",
+  "Gomati District",
+  "South Tripura District",
+  "Khowai District",
+  "Dhalai District",
+  "Unakoti District",
+  "North Tripura District",
+];
 
-function NewPatient() {
+export default function NewPatient() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+
+  const [patientId] = useState(() => generatePatientId());
   const [patientType, setPatientType] = useState("maternal");
+  const [assistedMode, setAssistedMode] = useState(true);
+  const [patientCondition, setPatientCondition] = useState("pregnant_distress");
+  const ashaWorkerName = "Kalpana Reang (ASHA Worker)";
 
   const [formData, setFormData] = useState({
-    name: "",
-    age: "",
-    phone: "",
-    village: "",
+    name: "Mamta Debbarma",
+    age: "27",
+    gender: "Female",
+    phone: "9862100000",
+    village: "Bishramganj, Sepahijala",
+    district: "Sepahijala District",
+    abhaId: "",
+    rchId: "",
   });
 
-  const userName =
-    sessionStorage.getItem("aarogyaVaaniUsername") || "Health Worker";
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const goToDashboard = () => {
-    navigate("/dashboard");
-  };
-
-  const handleContinue = () => {
-    if (!formData.name.trim()) {
-      alert("Please enter the patient's name.");
-      return;
+  const handleConditionSelect = (cond) => {
+    setPatientCondition(cond);
+    if (cond === "pregnant_distress") {
+      setAssistedMode(true);
+      setPatientType("maternal");
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name === "Birendra Tripura" ? "Mamta Debbarma" : prev.name,
+        age: prev.age === "68" ? "27" : prev.age,
+        gender: "Female",
+      }));
+    } else if (cond === "elderly_frail") {
+      setAssistedMode(true);
+      setPatientType("general");
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name === "Mamta Debbarma" ? "Birendra Tripura" : prev.name,
+        age: prev.age === "27" ? "68" : prev.age,
+        gender: prev.gender || "Male",
+      }));
+    } else if (cond === "acute_frail") {
+      setAssistedMode(true);
+      setPatientType("general");
+    } else if (cond === "direct") {
+      setAssistedMode(false);
     }
+  };
 
-    if (!formData.age.trim()) {
-      alert("Please enter the patient's age.");
+  const handleContinue = (e) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.age.trim()) {
+      alert("Please enter patient name and age.");
       return;
     }
 
     const patientRecord = {
-      patient: formData,
+      id: patientId,
+      patient: {
+        ...formData,
+        id: patientId,
+      },
       patientType,
+      assistedMode,
+      assistedBy: assistedMode ? ashaWorkerName : null,
+      patientCondition: assistedMode ? patientCondition : "direct",
+      assistedReason:
+        !assistedMode
+          ? "Direct patient self-intake"
+          : patientCondition === "pregnant_distress"
+          ? "Pregnant mother in distress / pain (ASHA assisted intake)"
+          : patientCondition === "elderly_frail"
+          ? `Elderly patient (${formData.gender === "Female" ? "Old woman" : "Old man"} unable to operate phone)`
+          : "Frail patient unable to use phone directly",
       createdAt: new Date().toISOString(),
     };
 
@@ -68,605 +115,436 @@ function NewPatient() {
       JSON.stringify(patientRecord)
     );
 
-    navigate("/consent");
+    navigate("/interview");
   };
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#f6fbf8_0%,#eef7f2_48%,#f8fbf9_100%)] text-[#183c31] font-sans">
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50">
+      <GovHeader
+        title={t("newPatientTitle")}
+        showBack={true}
+        backPath="/dashboard"
+      />
 
-      {/* =====================================================
-          TRIPURA BACKGROUND
-          ===================================================== */}
-
-      <div className="fixed right-[-80px] top-[70px] w-[470px] h-[620px] opacity-7 pointer-events-none z-0 flex justify-center items-center max-[1000px]:right-[-130px] max-[1000px]:opacity-5 max-[560px]:w-[350px] max-[560px]:h-[500px] max-[560px]:right-[-120px] max-[560px]:top-[230px] max-[560px]:opacity-[0.045]">
-        <img
-          src={TRIPURA_MAP_URL}
-          alt=""
-          aria-hidden="true"
-          className="w-full h-full object-contain filter grayscale brightness-[0.65] sepia"
-        />
-      </div>
-
-      <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(circle_at_88%_28%,rgba(24,117,79,0.1),transparent_30%),radial-gradient(circle_at_5%_90%,rgba(45,137,99,0.06),transparent_25%)]"></div>
-
-      {/* =====================================================
-          TOP NAVIGATION
-          ===================================================== */}
-
-      <header className="relative z-10 w-full min-h-[78px] px-[6%] bg-[rgba(9,49,38,0.98)] flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] shadow-[0_5px_25px_rgba(5,39,29,0.12)] max-[1000px]:px-[4%] max-[760px]:min-h-[70px] max-[560px]:px-[18px]">
-
-        <div className="flex flex-col">
-          <div className="text-white text-[21px] font-[850] tracking-[-0.6px] leading-[1.1] max-[560px]:text-[18px]">
-            AarogyaVaani
-          </div>
-
-          <div className="mt-[5px] text-[#91c7a9] text-[9px] font-bold uppercase tracking-[1.5px] max-[560px]:text-[8px]">
-            Tripura Health
-          </div>
-        </div>
-
-        <div className="flex items-center gap-[24px] max-[760px]:gap-[10px]">
-
-          <div className="flex items-center gap-[7px] text-[#c6e7d3] text-[10px] font-bold px-[12px] py-[8px] border border-[rgba(183,229,201,0.15)] rounded-full bg-[rgba(255,255,255,0.045)] max-[560px]:hidden">
-            <span className="w-[7px] h-[7px] rounded-full bg-[#62d48d] shadow-[0_0_0_4px_rgba(98,212,141,0.12)]"></span>
-            <WifiOff size={14} />
-            <span className="max-[760px]:hidden">Offline Ready</span>
-          </div>
-
-          <div className="flex items-center gap-[9px]">
-            <div className="w-[36px] h-[36px] rounded-full bg-[#d8f0e0] text-[#126047] flex items-center justify-center">
-              <UserRound size={17} />
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 pb-24">
+        {/* Main Registration Card */}
+        <div className="glass-panel rounded-3xl p-5 sm:p-6 border border-white/80 shadow-md">
+          <div className="border-b border-slate-200/70 pb-4 mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">
+                {t("newPatientTitle")}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Register patient to start AI voice assessment
+              </p>
             </div>
-
-            <div className="flex flex-col gap-[2px] max-[760px]:hidden">
-              <strong className="text-white text-[10px]">{userName}</strong>
-              <span className="text-[rgba(255,255,255,0.48)] text-[8px]">Health Worker</span>
+            <div className="glass-card-emerald px-3 py-1.5 rounded-xl border border-emerald-500/30 text-right">
+              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Patient ID</span>
+              <strong className="font-mono text-sm font-black text-emerald-950">{patientId}</strong>
             </div>
           </div>
 
-        </div>
-      </header>
+          <form onSubmit={handleContinue} className="space-y-6">
+            {/* 1. Intake Operator & Assisted Scenario Selection */}
+            <div className="bg-gradient-to-br from-emerald-50/80 to-teal-50/60 p-4.5 rounded-2xl border border-emerald-200/70 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase text-emerald-800 tracking-wider block">
+                    Intake Mode
+                  </span>
+                  <h4 className="text-sm font-black text-emerald-950">
+                    Who is operating the phone?
+                  </h4>
+                </div>
+                {assistedMode && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white shadow-2xs">
+                    👩‍⚕️ ASHA Proxy
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-emerald-900/80 leading-relaxed font-medium">
+                If the patient is not in a condition to operate the phone (pregnant mother in distress, old man/woman), the ASHA worker records on their behalf.
+              </p>
 
-      {/* =====================================================
-          MAIN CONTENT
-          ===================================================== */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {/* Scenario 1: Pregnant Mother in Distress */}
+                <button
+                  type="button"
+                  onClick={() => handleConditionSelect("pregnant_distress")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    assistedMode && patientCondition === "pregnant_distress"
+                      ? "bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-300"
+                      : "bg-white/85 text-slate-800 border-slate-200 hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black flex items-center gap-1.5">
+                      <span>🤰</span> Pregnant Mother in Distress
+                    </span>
+                    {assistedMode && patientCondition === "pregnant_distress" && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] mt-1 ${
+                      assistedMode && patientCondition === "pregnant_distress"
+                        ? "text-emerald-100"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    Pain / contractions, unable to hold phone
+                  </span>
+                </button>
 
-      <main className="relative z-[2] w-[min(1180px,88%)] mx-auto py-[28px] pb-[55px] max-[1000px]:w-[92%] max-[760px]:w-[94%] max-[760px]:pt-[21px] max-[560px]:w-[92%] max-[560px]:pb-[35px] max-[380px]:w-[94%]">
+                {/* Scenario 2: Elderly Patient (Old Man / Woman) */}
+                <button
+                  type="button"
+                  onClick={() => handleConditionSelect("elderly_frail")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    assistedMode && patientCondition === "elderly_frail"
+                      ? "bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-300"
+                      : "bg-white/85 text-slate-800 border-slate-200 hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black flex items-center gap-1.5">
+                      <span>👴</span> Elderly (Old Man / Woman)
+                    </span>
+                    {assistedMode && patientCondition === "elderly_frail" && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] mt-1 ${
+                      assistedMode && patientCondition === "elderly_frail"
+                        ? "text-emerald-100"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    Bedridden, frail, or unable to use mobile
+                  </span>
+                </button>
 
-        {/* BACK BUTTON */}
+                {/* Scenario 3: Acute Frail / Child */}
+                <button
+                  type="button"
+                  onClick={() => handleConditionSelect("acute_frail")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    assistedMode && patientCondition === "acute_frail"
+                      ? "bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-300"
+                      : "bg-white/85 text-slate-800 border-slate-200 hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black flex items-center gap-1.5">
+                      <span>🤒</span> Acute Emergency / Frail
+                    </span>
+                    {assistedMode && patientCondition === "acute_frail" && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] mt-1 ${
+                      assistedMode && patientCondition === "acute_frail"
+                        ? "text-emerald-100"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    High fever, vomiting, or altered state
+                  </span>
+                </button>
 
-        <button
-          className="border-0 bg-transparent text-[#527268] inline-flex items-center gap-[8px] py-[5px] text-[11px] font-[750] cursor-pointer transition-[0.2s_ease] hover:text-[#126047] hover:-translate-x-[3px]"
-          onClick={goToDashboard}
-        >
-          <ArrowLeft size={17} />
-          <span>Back to Dashboard</span>
-        </button>
-
-        {/* BREADCRUMB */}
-
-        <div className="mt-[15px] flex items-center gap-[8px] text-[#91a19a] text-[9px] max-[560px]:text-[8px]">
-          <span>Dashboard</span>
-          <span>/</span>
-          <strong className="text-[#277356]">New Patient Intake</strong>
-        </div>
-
-        {/* ===================================================
-            HERO
-            =================================================== */}
-
-        <section className="mt-[19px] flex items-end justify-between gap-[30px] max-[1000px]:items-start max-[1000px]:flex-col max-[560px]:mt-[15px]">
-
-          <div>
-
-            <div className="inline-flex items-center gap-[7px] text-[#237653] text-[9px] font-[850] tracking-[1.4px]">
-              <Activity size={14} />
-              <span>PRIMARY HEALTH CENTRE</span>
-            </div>
-
-            <h1 className="max-w-[700px] mt-[11px] text-[#123c30] text-[clamp(34px,5vw,53px)] leading-[1.02] tracking-[-2px] font-black max-[760px]:text-[38px] max-[560px]:mt-[9px] max-[560px]:text-[32px] max-[560px]:tracking-[-1.2px] max-[380px]:text-[28px]">
-              Start a New
-              <span className="text-[#25805b]"> Patient Record</span>
-            </h1>
-
-            <p className="max-w-[650px] mt-[14px] text-[#71867d] text-[12px] leading-[1.7] max-[560px]:text-[10px]">
-              Begin a simple, voice-first and offline-ready
-              health intake for a patient at your health centre.
-            </p>
-
-          </div>
-
-          <div className="min-w-[270px] p-[15px] border border-[#cce5d6] rounded-[14px] bg-[rgba(245,252,248,0.92)] flex items-center gap-[12px] shadow-[0_8px_25px_rgba(28,90,64,0.05)] max-[1000px]:min-w-0 max-[560px]:w-full">
-            <div className="w-[40px] h-[40px] rounded-[11px] bg-[#dff3e6] text-[#176b4b] flex items-center justify-center shrink-0">
-              <ShieldCheck size={21} />
-            </div>
-
-            <div className="flex flex-col gap-[4px]">
-              <strong className="text-[#205541] text-[11px]">Consent First</strong>
-              <span className="text-[#83978e] text-[9px] leading-[1.4]">
-                Patient permission is required before recording.
-              </span>
-            </div>
-          </div>
-
-        </section>
-
-        {/* ===================================================
-            PROGRESS
-            =================================================== */}
-
-        <section className="mt-[27px] min-h-[88px] px-[23px] py-[17px] border border-[#dce8e1] rounded-[17px] bg-[rgba(255,255,255,0.9)] flex items-center shadow-[0_8px_28px_rgba(24,67,50,0.04)] max-[760px]:overflow-x-auto max-[560px]:p-[14px] max-[560px]:rounded-[14px]">
-
-          <div className="flex-1 flex items-center gap-[11px] opacity-100 max-[760px]:min-w-[160px] max-[560px]:min-w-[145px]">
-            <div className="w-[35px] h-[35px] rounded-full bg-[#15734f] text-white shadow-[0_5px_14px_rgba(21,115,79,0.2)] flex items-center justify-center text-[9px] font-[850] shrink-0">01</div>
-
-            <div className="flex flex-col gap-[3px]">
-              <strong className="text-[#36594e] text-[10px] font-[850] whitespace-nowrap max-[560px]:text-[9px]">Patient Details</strong>
-              <span className="text-[#9aa9a3] text-[8px] whitespace-nowrap max-[560px]:text-[7px]">Basic information</span>
-            </div>
-          </div>
-
-          <div className="flex-[0.45] h-[1px] bg-[#dce7e1] max-[760px]:min-w-[25px]"></div>
-
-          <div className="flex-1 flex items-center gap-[11px] opacity-55 max-[760px]:min-w-[160px] max-[560px]:min-w-[145px]">
-            <div className="w-[35px] h-[35px] rounded-full bg-[#edf3ef] text-[#8a9b94] flex items-center justify-center text-[9px] font-[850] shrink-0">02</div>
-
-            <div className="flex flex-col gap-[3px]">
-              <strong className="text-[#36594e] text-[10px] font-[850] whitespace-nowrap max-[560px]:text-[9px]">Language & Consent</strong>
-              <span className="text-[#9aa9a3] text-[8px] whitespace-nowrap max-[560px]:text-[7px]">Permission & language</span>
-            </div>
-          </div>
-
-          <div className="flex-[0.45] h-[1px] bg-[#dce7e1] max-[760px]:min-w-[25px]"></div>
-
-          <div className="flex-1 flex items-center gap-[11px] opacity-55 max-[760px]:min-w-[160px] max-[560px]:min-w-[145px]">
-            <div className="w-[35px] h-[35px] rounded-full bg-[#edf3ef] text-[#8a9b94] flex items-center justify-center text-[9px] font-[850] shrink-0">03</div>
-
-            <div className="flex flex-col gap-[3px]">
-              <strong className="text-[#36594e] text-[10px] font-[850] whitespace-nowrap max-[560px]:text-[9px]">Health Interview</strong>
-              <span className="text-[#9aa9a3] text-[8px] whitespace-nowrap max-[560px]:text-[7px]">Voice or touch intake</span>
-            </div>
-          </div>
-
-        </section>
-
-        {/* ===================================================
-            PATIENT RECORD
-            =================================================== */}
-
-        <section className="mt-[22px] overflow-hidden border border-[#dce8e1] rounded-[21px] bg-white shadow-[0_18px_55px_rgba(20,65,49,0.07)] max-[560px]:mt-[17px] max-[560px]:rounded-[16px]">
-
-          {/* CARD HEADER */}
-
-          <div className="min-h-[88px] px-[27px] py-[19px] flex items-center justify-between gap-[20px] border-b border-[#e5eee9] bg-[linear-gradient(100deg,#ffffff,#f8fcfa)] max-[760px]:items-start max-[760px]:flex-col max-[560px]:p-[17px] max-[380px]:p-[15px]">
-
-            <div className="flex items-center gap-[13px]">
-
-              <div className="w-[45px] h-[45px] rounded-[12px] bg-[#e2f4e8] text-[#176c4c] flex items-center justify-center">
-                <FileText size={22} />
+                {/* Scenario 4: Direct Patient Self */}
+                <button
+                  type="button"
+                  onClick={() => handleConditionSelect("direct")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    !assistedMode
+                      ? "bg-blue-700 text-white border-blue-700 shadow-sm ring-2 ring-blue-300"
+                      : "bg-white/85 text-slate-800 border-slate-200 hover:border-blue-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black flex items-center gap-1.5">
+                      <span>👤</span> Direct Patient Self-Intake
+                    </span>
+                    {!assistedMode && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-200 shrink-0" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] mt-1 ${
+                      !assistedMode ? "text-blue-100" : "text-slate-500"
+                    }`}
+                  >
+                    Patient speaks directly to AI
+                  </span>
+                </button>
               </div>
 
+              {assistedMode && (
+                <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-200/50 flex items-center justify-between text-xs font-bold text-emerald-950">
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-emerald-700" />
+                    ASHA Field Worker: <span className="text-emerald-800">{ashaWorkerName}</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-mono">Dhalai / Sepahijala</span>
+                </div>
+              )}
+            </div>
+
+            {/* Module Selection (Colored Glass Cards) */}
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-3">
+                {t("clinicalModule")}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Maternal ANC Module */}
+                <div
+                  onClick={() => setPatientType("maternal")}
+                  className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex items-start gap-4 ${
+                    patientType === "maternal"
+                      ? "glass-card-emerald border-[#0b6651] shadow-sm"
+                      : "bg-white/70 border-slate-200/80 hover:border-slate-300"
+                  }`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                      patientType === "maternal"
+                        ? "bg-[#0b6651] text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Baby className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-slate-900">{t("maternalModule")}</h3>
+                      {patientType === "maternal" && (
+                        <CheckCircle2 className="w-5 h-5 text-[#0b6651]" />
+                      )}
+                    </div>
+                    <span className="inline-block bg-emerald-600/15 text-emerald-800 text-[11px] px-2 py-0.5 rounded font-bold mt-1">
+                      Maternal ANC
+                    </span>
+                    <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                      {t("maternalModuleSub")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* General Outpatient Module */}
+                <div
+                  onClick={() => setPatientType("general")}
+                  className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex items-start gap-4 ${
+                    patientType === "general"
+                      ? "glass-card-blue border-blue-600 shadow-sm"
+                      : "bg-white/70 border-slate-200/80 hover:border-slate-300"
+                  }`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                      patientType === "general"
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Stethoscope className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-slate-900">{t("generalModule")}</h3>
+                      {patientType === "general" && (
+                        <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                      )}
+                    </div>
+                    <span className="inline-block bg-blue-600/15 text-blue-800 text-[11px] px-2 py-0.5 rounded font-bold mt-1">
+                      General / Geriatric OPD
+                    </span>
+                    <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                      {t("generalModuleSub")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ABHA / Govt Health IDs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <h2 className="m-0 text-[#193f34] text-[17px] font-[850] max-[560px]:text-[15px]">Patient Information</h2>
-
-                <p className="mt-[4px] m-0 text-[#8a9b95] text-[9px] max-[560px]:text-[8px]">
-                  Enter a few details to create the patient's
-                  local health record.
-                </p>
-              </div>
-
-            </div>
-
-            <div className="flex items-center gap-[6px] text-[#237454] px-[11px] py-[8px] rounded-full bg-[#edf9f1] text-[9px] font-[750] whitespace-nowrap max-[760px]:ml-[58px] max-[560px]:ml-0">
-              <CheckCircle2 size={14} />
-              <span>Secure Local Record</span>
-            </div>
-
-          </div>
-
-          {/* FORM */}
-
-          <div className="p-[29px] max-[560px]:p-[18px] max-[380px]:p-[15px]">
-
-            <div className="flex items-start gap-[12px]">
-              <span className="w-[29px] h-[29px] rounded-[8px] bg-[#edf7f1] text-[#237454] flex items-center justify-center text-[9px] font-[850] shrink-0">01</span>
-
-              <div>
-                <h3 className="m-0 text-[#244c3f] text-[14px] font-[850] max-[560px]:text-[13px]">Basic Patient Details</h3>
-                <p className="mt-[4px] m-0 text-[#8b9b95] text-[9px] leading-[1.5]">
-                  These details help identify the patient during
-                  the health interview.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-[23px] grid grid-cols-2 gap-[21px] max-[760px]:grid-cols-1">
-
-              {/* NAME */}
-
-              <div className="flex flex-col gap-[8px] col-span-1">
-
-                <label className="flex items-center gap-[4px] text-[#34584d] text-[10px] font-[850]">
-                  Patient Full Name
-                  <span className="text-[#d54c4c]">*</span>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  {t("abhaId")}
                 </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <IdCard className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="text"
+                    name="abhaId"
+                    value={formData.abhaId}
+                    onChange={handleChange}
+                    placeholder="91-XXXX-XXXX-XXXX"
+                    className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b6651]"
+                  />
+                </div>
+              </div>
 
-                <div className="h-[50px] relative flex items-center border border-[#d5e3dc] rounded-[11px] bg-[#fbfdfc] transition-all duration-200 focus-within:border-[#338f68] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(51,143,104,0.09)] max-[560px]:h-[47px]">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  {t("rchId")}
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Baby className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="text"
+                    name="rchId"
+                    value={formData.rchId}
+                    onChange={handleChange}
+                    placeholder="TR-RCH-XXXXX"
+                    className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b6651]"
+                  />
+                </div>
+              </div>
+            </div>
 
-                  <UserRound className="absolute left-[15px] text-[#8da39a] pointer-events-none" size={18} />
-
+            {/* Patient Name & Age */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  {t("fullName")} <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <User className="w-5 h-5" />
+                  </div>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    placeholder="Enter patient's full name"
-                    autoComplete="off"
-                    className="w-full h-full border-0 outline-0 py-0 pr-[14px] pl-[44px] rounded-[11px] bg-transparent text-[#193f34] text-[12px] placeholder:text-[#a6b4ae]"
+                    placeholder="e.g. Mamta Debbarma"
+                    required
+                    className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b6651]"
                   />
-
                 </div>
-
-                <small className="text-[#9ba9a4] text-[8px]">
-                  Use the patient's preferred name.
-                </small>
-
               </div>
 
-              {/* AGE */}
-
-              <div className="flex flex-col gap-[8px]">
-
-                <label className="flex items-center gap-[4px] text-[#34584d] text-[10px] font-[850]">
-                  Age
-                  <span className="text-[#d54c4c]">*</span>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  {t("age")} <span className="text-red-500">*</span>
                 </label>
-
-                <div className="h-[50px] relative flex items-center border border-[#d5e3dc] rounded-[11px] bg-[#fbfdfc] transition-all duration-200 focus-within:border-[#338f68] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(51,143,104,0.09)] max-[560px]:h-[47px]">
-
-                  <Activity className="absolute left-[15px] text-[#8da39a] pointer-events-none" size={18} />
-
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Calendar className="w-5 h-5" />
+                  </div>
                   <input
                     type="number"
                     name="age"
                     value={formData.age}
                     onChange={handleChange}
-                    placeholder="Age in years"
-                    min="0"
-                    max="120"
-                    className="w-full h-full border-0 outline-0 py-0 pr-[14px] pl-[44px] rounded-[11px] bg-transparent text-[#193f34] text-[12px] placeholder:text-[#a6b4ae]"
+                    placeholder="27"
+                    required
+                    min="1"
+                    max="110"
+                    className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b6651]"
                   />
-
                 </div>
-
-                <small className="text-[#9ba9a4] text-[8px]">
-                  Enter age in completed years.
-                </small>
-
               </div>
+            </div>
 
-              {/* PHONE */}
+            {/* Patient Gender */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                Patient Gender {patientCondition === "elderly_frail" && <span className="text-emerald-700 lowercase font-medium">(Select Old Man / Old Woman)</span>}
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, gender: "Female" }))}
+                  className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    formData.gender === "Female"
+                      ? "bg-emerald-700 text-white border-emerald-700 shadow-xs"
+                      : "bg-white/80 text-slate-700 border-slate-200 hover:bg-emerald-50"
+                  }`}
+                >
+                  <span>Female {patientCondition === "elderly_frail" ? "(Old Woman)" : ""}</span>
+                  {formData.gender === "Female" && <CheckCircle2 className="w-4 h-4 text-emerald-200" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, gender: "Male" }))}
+                  className={`p-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    formData.gender === "Male"
+                      ? "bg-emerald-700 text-white border-emerald-700 shadow-xs"
+                      : "bg-white/80 text-slate-700 border-slate-200 hover:bg-emerald-50"
+                  }`}
+                >
+                  <span>Male {patientCondition === "elderly_frail" ? "(Old Man)" : ""}</span>
+                  {formData.gender === "Male" && <CheckCircle2 className="w-4 h-4 text-emerald-200" />}
+                </button>
+              </div>
+            </div>
 
-              <div className="flex flex-col gap-[8px]">
-
-                <label className="flex items-center gap-[4px] text-[#34584d] text-[10px] font-[850]">
-                  Mobile Number
-                  <em className="ml-auto text-[#9aa9a3] text-[8px] not-italic font-semibold">Optional</em>
+            {/* Phone & Address / Village */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  {t("phone")}
                 </label>
-
-                <div className="h-[50px] relative flex items-center border border-[#d5e3dc] rounded-[11px] bg-[#fbfdfc] transition-all duration-200 focus-within:border-[#338f68] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(51,143,104,0.09)] max-[560px]:h-[47px]">
-
-                  <span className="absolute left-[14px] text-[#5e786d] text-[10px] font-[750]">
-                    +91
-                  </span>
-
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Phone className="w-5 h-5" />
+                  </div>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Enter mobile number"
-                    maxLength="10"
-                    className="w-full h-full border-0 outline-0 py-0 pr-[14px] pl-[48px] rounded-[11px] bg-transparent text-[#193f34] text-[12px] placeholder:text-[#a6b4ae]"
+                    placeholder="98XXXXXXXX"
+                    className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b6651]"
                   />
-
                 </div>
-
-                <small className="text-[#9ba9a4] text-[8px]">
-                  Optional contact information.
-                </small>
-
               </div>
 
-              {/* VILLAGE */}
-
-              <div className="flex flex-col gap-[8px]">
-
-                <label className="flex items-center gap-[4px] text-[#34584d] text-[10px] font-[850]">
-                  Village / Locality
-                  <em className="ml-auto text-[#9aa9a3] text-[8px] not-italic font-semibold">Optional</em>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                  {t("village")}
                 </label>
-
-                <div className="h-[50px] relative flex items-center border border-[#d5e3dc] rounded-[11px] bg-[#fbfdfc] transition-all duration-200 focus-within:border-[#338f68] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(51,143,104,0.09)] max-[560px]:h-[47px]">
-
-                  <Home className="absolute left-[15px] text-[#8da39a] pointer-events-none" size={18} />
-
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <MapPin className="w-5 h-5" />
+                  </div>
                   <input
                     type="text"
                     name="village"
                     value={formData.village}
                     onChange={handleChange}
-                    placeholder="Enter village or locality"
-                    className="w-full h-full border-0 outline-0 py-0 pr-[14px] pl-[44px] rounded-[11px] bg-transparent text-[#193f34] text-[12px] placeholder:text-[#a6b4ae]"
+                    placeholder="e.g. Bishramganj, Sepahijala"
+                    className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0b6651]"
                   />
-
                 </div>
-
-                <small className="text-[#9ba9a4] text-[8px]">
-                  Helpful for local health-worker follow-up.
-                </small>
-
               </div>
-
             </div>
 
-            {/* =================================================
-                INTAKE TYPE
-                ================================================= */}
-
-            <div className="mt-[31px] pt-[28px] border-t border-[#e5ede9]">
-
-              <div className="flex items-start gap-[12px]">
-
-                <span className="w-[29px] h-[29px] rounded-[8px] bg-[#edf7f1] text-[#237454] flex items-center justify-center text-[9px] font-[850] shrink-0">02</span>
-
-                <div>
-                  <h3 className="m-0 text-[#244c3f] text-[14px] font-[850] max-[560px]:text-[13px]">Choose Intake Type</h3>
-
-                  <p className="mt-[4px] m-0 text-[#8b9b95] text-[9px] leading-[1.5]">
-                    Select the health interview you want to start.
-                  </p>
-                </div>
-
-              </div>
-
-              <div className="mt-[21px] grid grid-cols-2 gap-[17px] max-[760px]:grid-cols-1">
-
-                {/* MATERNAL */}
-
-                <button
-                  type="button"
-                  className={`relative min-h-[185px] p-[19px] border-[1.5px] rounded-[16px] text-left cursor-pointer transition-all duration-[220ms] hover:-translate-y-[3px] max-[560px]:min-h-[180px] max-[380px]:p-[15px] ${
-                    patientType === "maternal"
-                      ? "border-[#29845f] bg-[linear-gradient(135deg,#f4fbf7,#eaf7ef)] shadow-[0_10px_28px_rgba(27,112,77,0.1)]"
-                      : "border-[#dce7e1] bg-white hover:border-[#a9cfbb] hover:shadow-[0_10px_25px_rgba(25,100,70,0.08)]"
-                  }`}
-                  onClick={() => setPatientType("maternal")}
-                >
-
-                  <div className="flex items-start justify-between">
-
-                    <div className="w-[45px] h-[45px] rounded-[12px] flex items-center justify-center text-[#176c4c] bg-[#dff3e7]">
-                      <HeartPulse size={23} />
-                    </div>
-
-                    <div
-                      className={`w-[19px] h-[19px] border-2 rounded-full flex items-center justify-center ${
-                        patientType === "maternal"
-                          ? "border-[#19734f]"
-                          : "border-[#c1d0c9]"
-                      }`}
-                    >
-                      {patientType === "maternal" && (
-                        <span className="w-[9px] h-[9px] rounded-full bg-[#19734f]"></span>
-                      )}
-                    </div>
-
-                  </div>
-
-                  <div className="mt-[17px]">
-
-                    <h4 className="m-0 text-[#244d40] text-[13px] font-[850]">
-                      Maternal & Antenatal Care
-                    </h4>
-
-                    <p className="max-w-[490px] mt-[6px] m-0 text-[#81958c] text-[9px] leading-[1.6]">
-                      Pregnancy and antenatal questions,
-                      danger-sign checks and maternal health
-                      information.
-                    </p>
-
-                  </div>
-
-                  <div className="absolute inset-x-[19px] bottom-[16px] pt-[11px] border-t border-[rgba(42,107,79,0.1)] flex items-center justify-between text-[#277555] text-[8px] font-[750] max-[380px]:inset-x-[15px]">
-                    <span>Recommended MVP flow</span>
-                    <ArrowRight size={15} />
-                  </div>
-
-                </button>
-
-                {/* GENERAL */}
-
-                <button
-                  type="button"
-                  className={`relative min-h-[185px] p-[19px] border-[1.5px] rounded-[16px] text-left cursor-pointer transition-all duration-[220ms] hover:-translate-y-[3px] max-[560px]:min-h-[180px] max-[380px]:p-[15px] ${
-                    patientType === "general"
-                      ? "border-[#29845f] bg-[linear-gradient(135deg,#f4fbf7,#eaf7ef)] shadow-[0_10px_28px_rgba(27,112,77,0.1)]"
-                      : "border-[#dce7e1] bg-white hover:border-[#a9cfbb] hover:shadow-[0_10px_25px_rgba(25,100,70,0.08)]"
-                  }`}
-                  onClick={() => setPatientType("general")}
-                >
-
-                  <div className="flex items-start justify-between">
-
-                    <div className="w-[45px] h-[45px] rounded-[12px] flex items-center justify-center text-[#315f75] bg-[#e5f1f5]">
-                      <UsersRound size={23} />
-                    </div>
-
-                    <div
-                      className={`w-[19px] h-[19px] border-2 rounded-full flex items-center justify-center ${
-                        patientType === "general"
-                          ? "border-[#19734f]"
-                          : "border-[#c1d0c9]"
-                      }`}
-                    >
-                      {patientType === "general" && (
-                        <span className="w-[9px] h-[9px] rounded-full bg-[#19734f]"></span>
-                      )}
-                    </div>
-
-                  </div>
-
-                  <div className="mt-[17px]">
-
-                    <h4 className="m-0 text-[#244d40] text-[13px] font-[850]">
-                      General Patient Intake
-                    </h4>
-
-                    <p className="max-w-[490px] mt-[6px] m-0 text-[#81958c] text-[9px] leading-[1.6]">
-                      Basic health interview for patients
-                      outside the maternal care workflow.
-                    </p>
-
-                  </div>
-
-                  <div className="absolute inset-x-[19px] bottom-[16px] pt-[11px] border-t border-[rgba(42,107,79,0.1)] flex items-center justify-between text-[#277555] text-[8px] font-[750] max-[380px]:inset-x-[15px]">
-                    <span>General health workflow</span>
-                    <ArrowRight size={15} />
-                  </div>
-
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* =================================================
-                CONSENT NOTICE
-                ================================================= */}
-
-            <div className="mt-[27px] p-[17px] border border-[#cde5d6] rounded-[14px] bg-[linear-gradient(135deg,#f4fbf6,#edf8f1)] flex items-start gap-[12px] max-[560px]:p-[13px]">
-
-              <div className="w-[37px] h-[37px] rounded-[10px] bg-[#d9f0e1] text-[#17694b] flex items-center justify-center shrink-0">
-                <ShieldCheck size={21} />
-              </div>
-
-              <div>
-
-                <h4 className="m-0 text-[#225641] text-[11px] font-[850]">
-                  Privacy & Consent Protection
-                </h4>
-
-                <p className="max-w-[820px] mt-[5px] m-0 text-[#71897e] text-[9px] leading-[1.6]">
-                  No voice recording will begin on this screen.
-                  Before any audio is captured, the patient will
-                  be shown a clear consent step and can choose
-                  whether to continue.
-                </p>
-
-                <div className="mt-[9px] flex items-center flex-wrap gap-[14px] max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-[7px]">
-
-                  <span className="flex items-center gap-[5px] text-[#35765b] text-[8px] font-[750]">
-                    <CheckCircle2 size={13} />
-                    Consent required
-                  </span>
-
-                  <span className="flex items-center gap-[5px] text-[#35765b] text-[8px] font-[750]">
-                    <CheckCircle2 size={13} />
-                    Offline storage
-                  </span>
-
-                  <span className="flex items-center gap-[5px] text-[#35765b] text-[8px] font-[750]">
-                    <CheckCircle2 size={13} />
-                    Patient can refuse
-                  </span>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* =================================================
-                ACTIONS
-                ================================================= */}
-
-            <div className="mt-[26px] pt-[20px] border-t border-[#e5ede9] flex items-center justify-between gap-[15px] max-[560px]:flex-col-reverse max-[560px]:items-stretch">
-
+            {/* Submit Action */}
+            <div className="pt-4 border-t border-slate-200/70">
               <button
-                type="button"
-                className="min-h-[45px] px-[19px] border border-[#d5e1dc] rounded-[10px] bg-white text-[#61766e] text-[10px] font-[750] cursor-pointer transition-[0.2s_ease] hover:bg-[#f5f9f7] hover:border-[#bed2c8] max-[560px]:w-full"
-                onClick={goToDashboard}
+                type="submit"
+                className="w-full bg-[#0b6651] hover:bg-[#074738] text-white font-bold text-base py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-3 cursor-pointer hover:shadow-lg"
               >
-                Cancel
+                <span>Start AI Voice Intake</span>
+                <ArrowRight className="w-5 h-5" />
               </button>
-
-              <button
-                type="button"
-                className="min-h-[47px] px-[21px] border-0 rounded-[10px] bg-[linear-gradient(135deg,#197b55,#106342)] text-white inline-flex items-center justify-center gap-[9px] text-[10px] font-extrabold cursor-pointer shadow-[0_8px_18px_rgba(18,103,69,0.2)] transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_11px_24px_rgba(18,103,69,0.26)] active:translate-y-0 max-[560px]:w-full"
-                onClick={handleContinue}
-              >
-                <span>Continue to Consent</span>
-                <ArrowRight size={17} />
-              </button>
-
             </div>
-
-          </div>
-
-        </section>
-
-        {/* ===================================================
-            BOTTOM INFORMATION
-            =================================================== */}
-
-        <section className="mt-[19px] px-[18px] py-[14px] border border-[#dce8e1] rounded-[13px] bg-[rgba(255,255,255,0.72)] flex items-center justify-center gap-[34px] max-[760px]:flex-wrap max-[760px]:gap-x-[25px] max-[760px]:gap-y-[15px] max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-[11px]">
-
-          <div className="flex items-center gap-[8px] text-[#70867d] text-[8px] font-bold">
-            <div className="w-[26px] h-[26px] rounded-[8px] bg-[#e5f3ea] text-[#237454] flex items-center justify-center">
-              <Mic size={16} />
-            </div>
-
-            <span>
-              Voice-first interview
-            </span>
-          </div>
-
-          <div className="flex items-center gap-[8px] text-[#70867d] text-[8px] font-bold">
-            <div className="w-[26px] h-[26px] rounded-[8px] bg-[#e5f3ea] text-[#237454] flex items-center justify-center">
-              <Languages size={16} />
-            </div>
-
-            <span>
-              Bengali & Hindi ready
-            </span>
-          </div>
-
-          <div className="flex items-center gap-[8px] text-[#70867d] text-[8px] font-bold">
-            <div className="w-[26px] h-[26px] rounded-[8px] bg-[#e5f3ea] text-[#237454] flex items-center justify-center">
-              <WifiOff size={16} />
-            </div>
-
-            <span>
-              Works without internet
-            </span>
-          </div>
-
-        </section>
-
-        <footer className="pt-[20px] px-[4px] pb-0 flex items-center justify-between text-[#9aa8a3] text-[8px] max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-[7px]">
-          <span>
-            AarogyaVaani • Tripura Health
-          </span>
-
-          <span>
-            Patient-first • Consent-first • Offline-ready
-          </span>
-        </footer>
-
+          </form>
+        </div>
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
-
-export default NewPatient;

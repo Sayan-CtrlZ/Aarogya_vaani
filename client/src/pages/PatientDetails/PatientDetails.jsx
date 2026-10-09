@@ -1,306 +1,297 @@
-import { useMemo } from "react";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  ClipboardList,
-  Languages,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  User,
+  Baby,
+  Calendar,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  Printer,
+  ShieldCheck,
+  Heart,
+  Droplet,
+} from "lucide-react";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
 
-const patients = {
+const PATIENT_DATABASE = {
   "patient-1": {
     name: "Mamta Debbarma",
     age: "27",
     gender: "Female",
-    type: "Maternal & Antenatal",
-    language: "Bengali",
+    village: "Bishramganj, Sepahijala District",
+    phone: "9862100000",
+    abhaId: "91-4829-1048-2831",
+    rchId: "TR-RCH-89211",
+    type: "Maternal & Antenatal (ANC)",
     status: "Completed",
-    details: "Routine antenatal check",
-    answers: {
-      "Age": "27",
-      "Pregnancy": "18 weeks",
-      "First pregnancy": "Yes",
-      "Previous complications": "No",
-      "Vaginal bleeding": "No",
-      "Severe abdominal pain": "No",
-      "Severe headache / blurred vision": "No",
-      "Fever / feeling unwell": "No",
-      "Swelling": "No",
-      "Baby movement": "Normal",
+    gestationalWeeks: "20 Weeks (2nd Trimester)",
+    gravidaPara: "G2 P1 L1 A0",
+    lmp: "15-May-2026",
+    edd: "19-Feb-2027",
+    vitals: {
+      bp: "118/76 mmHg",
+      weight: "54 kg",
+      hb: "10.4 g/dL",
+      fetalHeartRate: "142 bpm (Regular)",
     },
+    visits: [
+      {
+        visit: "ANC Visit 1 (Registration)",
+        date: "10-Jul-2026",
+        facility: "Bishalgarh CHC",
+        notes: "Urine pregnancy test positive. TT-1 injection given. IFA 100 tablets issued.",
+      },
+      {
+        visit: "ANC Visit 2 (Current)",
+        date: "Today, 10-Oct-2026",
+        facility: "Bishalgarh CHC",
+        notes: "Quick ultrasound scan recommended. Fetal movements normal. No bleeding or severe headache.",
+      },
+    ],
+    dangerSigns: [],
+    medications: ["Iron Folic Acid (IFA) - 1 daily", "Calcium Carbonate 500mg - 2 daily"],
   },
-
-  "patient-2": {
-    name: "Rani Tripura",
-    age: "24",
-    gender: "Female",
-    type: "Maternal & Antenatal",
-    language: "Hindi",
-    status: "In Progress",
-    details: "20 weeks pregnancy",
-    answers: {
-      "Age": "24",
-      "Pregnancy": "20 weeks",
-      "First pregnancy": "Yes",
-      "Previous complications": "No",
-      "Current concern": "Routine check",
-    },
-  },
-
-  "patient-3": {
-    name: "Sukanta Das",
-    age: "42",
-    gender: "Male",
-    type: "General Patient",
-    language: "Bengali",
-    status: "Awaiting Review",
-    details: "Fever reported",
-    answers: {
-      "Age": "42",
-      "Main problem": "Fever",
-      "Duration": "2 days",
-      "Fever": "Yes",
-      "Breathing difficulty": "No",
-      "Vomiting": "No",
-    },
-  },
-
   "patient-4": {
     name: "Bimala Reang",
     age: "31",
     gender: "Female",
-    type: "Maternal & Antenatal",
-    language: "Bengali",
+    village: "Karbook, Gomati District",
+    phone: "9436100000",
+    abhaId: "91-9921-4401-2098",
+    rchId: "TR-RCH-90112",
+    type: "Maternal & Antenatal (ANC)",
     status: "Urgent",
-    details: "Severe headache detected",
-    dangerSigns: ["Severe headache / blurred vision"],
-    answers: {
-      "Age": "31",
-      "Pregnancy": "28 weeks",
-      "First pregnancy": "No",
-      "Vaginal bleeding": "No",
-      "Severe abdominal pain": "No",
-      "Severe headache / blurred vision": "Yes",
-      "Fever": "No",
-      "Baby movement": "Normal",
+    gestationalWeeks: "32 Weeks (3rd Trimester)",
+    gravidaPara: "G3 P2 L2 A0",
+    lmp: "22-Feb-2026",
+    edd: "29-Nov-2026",
+    vitals: {
+      bp: "152/98 mmHg (Elevated)",
+      weight: "61 kg",
+      hb: "9.2 g/dL (Mild Anaemia)",
+      fetalHeartRate: "138 bpm",
     },
+    visits: [
+      {
+        visit: "ANC Visit 3 (Emergency Triage)",
+        date: "Today, 09:21 AM",
+        facility: "Karbook Sub-Centre -> Bishalgarh CHC",
+        notes: "Patient reported acute severe headache and visual blurring. High risk of preeclampsia. Urgent Medical Officer review requested.",
+      },
+    ],
+    dangerSigns: ["Severe headache or blurred vision (Preeclampsia risk)"],
+    medications: ["Methyldopa (under doctor review)", "Iron Folic Acid"],
   },
 };
 
-function PatientDetails() {
+export default function PatientDetails() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
+  const id = params.get("id") || "patient-1";
 
-  const currentPatient = useMemo(() => {
+  const patient = useMemo(() => {
     if (id === "current-patient") {
       try {
-        const patientData = JSON.parse(
-          localStorage.getItem("aarogyaVaaniCurrentPatient") ||
-            "null"
-        );
-
-        const interviewData = JSON.parse(
-          localStorage.getItem("aarogyaVaaniInterview") ||
-            "null"
-        );
-
-        const consentData = JSON.parse(
-          localStorage.getItem("aarogyaVaaniConsent") ||
-            "null"
-        );
-
-        if (!patientData?.patient) {
-          return null;
+        const stored = JSON.parse(localStorage.getItem("aarogyaVaaniCurrentPatient") || "{}");
+        const answers = JSON.parse(localStorage.getItem("aarogyaVaaniInterview") || "{}").answers || {};
+        const danger = JSON.parse(localStorage.getItem("aarogyaVaaniDangerCheck") || "{}").dangerSigns || [];
+        if (stored.patient) {
+          return {
+            name: stored.patient.name,
+            age: stored.patient.age,
+            gender: stored.patient.gender || "Female",
+            village: stored.patient.village || "Sepahijala",
+            phone: stored.patient.phone || "9862000000",
+            abhaId: stored.patient.abhaId || "91-4829-1048-2831",
+            rchId: stored.patient.rchId || "TR-RCH-89211",
+            type: stored.patientType === "maternal" ? "Maternal & Antenatal (ANC)" : "General OPD",
+            status: danger.length > 0 ? "Urgent" : "Pending Review",
+            gestationalWeeks: `${answers.pregnancyMonths || "5"} Months`,
+            gravidaPara: "G1 P0",
+            vitals: { bp: "120/80 mmHg", weight: "52 kg", hb: "10.2 g/dL", fetalHeartRate: "140 bpm" },
+            visits: [{ visit: "Intake Visit", date: "Today", facility: "PHC Bishalgarh", notes: "Current voice intake." }],
+            dangerSigns: danger.map((d) => (typeof d === "string" ? d : d.title || d.sign)),
+            medications: ["Iron Folic Acid tablets"],
+          };
         }
-
-        return {
-          name: patientData.patient.name || "Current Patient",
-          age: patientData.patient.age || "—",
-          gender: patientData.patient.gender || "—",
-          type:
-            patientData.patientType === "maternal"
-              ? "Maternal & Antenatal"
-              : "General Patient",
-          language: consentData?.languageName || "English",
-          status: "Current Session",
-          details: "Current AarogyaVaani intake session",
-          answers: interviewData?.answers || {},
-          dangerSigns: interviewData?.dangerSigns || [],
-        };
       } catch {
-        return null;
+        // fallback
       }
     }
-
-    return patients[id] || null;
+    return PATIENT_DATABASE[id] || PATIENT_DATABASE["patient-1"];
   }, [id]);
 
-  if (!currentPatient) {
-    return (
-      <div className="min-h-screen bg-[#f5f9f8] text-[#12322f] font-sans">
-        <div className="min-h-screen flex items-center justify-center flex-col text-center text-[#879995]">
-          <UserRound size={40} />
-          <h2 className="text-[#12322f]">Patient not found</h2>
-          <p>The requested patient record could not be opened.</p>
-
-          <button
-            onClick={() => navigate("/patients")}
-            className="mt-[12px] border-0 bg-[#087f6a] text-white px-[15px] py-[10px] rounded-[8px] cursor-pointer"
-          >
-            Back to Patients
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const dangerSigns = currentPatient.dangerSigns || [];
-  const urgent = dangerSigns.length > 0;
+  const isUrgent = patient.status === "Urgent" || patient.dangerSigns?.length > 0;
 
   return (
-    <div className="min-h-screen bg-[#f5f9f8] text-[#12322f] font-sans">
-      <header className="min-h-[72px] bg-white border-b border-[#e2ece9] flex items-center justify-between px-[35px] max-md:px-4">
-        <div>
-          <h1 className="m-0 text-[#087f6a] text-[18px]">AarogyaVaani</h1>
-          <span className="text-[#81918e] text-[10px]">Tripura Health</span>
-        </div>
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50">
+      <GovHeader
+        title={t("profileTitle")}
+        showBack={true}
+        backPath="/patients"
+      />
 
-        <button
-          onClick={() => navigate("/patients")}
-          className="border border-[#dce9e5] bg-white text-[#087f6a] rounded-[9px] h-[38px] px-[13px] flex items-center gap-[7px] cursor-pointer"
-        >
-          <ArrowLeft size={17} />
-          Patients
-        </button>
-      </header>
-
-      <main className="max-w-[1050px] mx-auto p-[30px] max-md:px-[14px] max-md:py-[18px]">
-        <div className="text-[#8a9c98] text-[11px] mb-[18px]">
-          Patients <span className="mx-[7px]">›</span> Patient Details
-        </div>
-
-        <section className="bg-white border border-[#e2ece9] rounded-[16px] p-[23px] flex items-center gap-[16px] max-md:flex-col max-md:items-start">
-          <div className="w-[65px] h-[65px] rounded-[17px] bg-[#e5f6f0] text-[#087f6a] flex items-center justify-center">
-            <UserRound size={30} />
-          </div>
-
-          <div className="flex-1">
-            <span className="text-[#087f6a] text-[9px] font-extrabold tracking-[0.8px]">PATIENT RECORD</span>
-            <h2 className="my-[5px] mb-[2px] text-[23px]">{currentPatient.name}</h2>
-
-            <p className="m-0 text-[#849590] text-[11px]">
-              {currentPatient.age} years • {currentPatient.gender}
-            </p>
-          </div>
-
-          <div className="flex gap-[30px] max-md:w-full max-md:flex-wrap max-md:gap-[20px]">
-            <div className="flex flex-col gap-[4px]">
-              <span className="text-[#96a6a3] text-[9px]">Intake type</span>
-              <strong className="text-[10px]">{currentPatient.type}</strong>
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
+        {/* Urgent Alert Banner */}
+        {isUrgent && (
+          <div className="glass-card-red p-4 rounded-2xl flex items-start gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertTriangle className="w-5 h-5" />
             </div>
-
-            <div className="flex flex-col gap-[4px]">
-              <span className="text-[#96a6a3] text-[9px]">Language</span>
-              <strong className="text-[10px]">{currentPatient.language}</strong>
+            <div>
+              <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Critical Red Flag
+              </span>
+              <h3 className="text-base font-extrabold text-red-950 mt-1">
+                {t("urgentAlerts")}
+              </h3>
+              <p className="text-xs text-red-900/90 mt-0.5 font-semibold">
+                {patient.dangerSigns?.join(", ") || "Critical maternal indicators reported."}
+              </p>
             </div>
           </div>
-        </section>
-
-        <section
-          className={`mt-[18px] rounded-[13px] p-[17px] flex gap-[12px] items-start ${
-            urgent ? "bg-[#fff1f1] border border-[#f0cccc] text-[#c94f4f]" : "bg-[#ecf9f4] border border-[#cfece1] text-[#087f6a]"
-          }`}
-        >
-          {urgent ? (
-            <AlertTriangle size={24} />
-          ) : (
-            <CheckCircle2 size={24} />
-          )}
-
-          <div>
-            <strong className="text-[12px] font-bold">
-              {urgent
-                ? "Urgent safety flag"
-                : "No danger sign flagged"}
-            </strong>
-
-            <p className="mt-[4px] mb-0 text-[#738681] text-[10px]">
-              {urgent
-                ? "A predefined safety rule requires health-worker or doctor attention."
-                : "No predefined danger sign was identified in the available record."}
-            </p>
-          </div>
-        </section>
-
-        {urgent && (
-          <section className="bg-white border border-[#efd2d2] rounded-[15px] mt-[18px] p-[20px]">
-            <div className="flex items-center gap-[8px] text-[#087f6a] mb-[16px]">
-              <AlertTriangle size={18} />
-              <h3 className="m-0 text-[#12322f] text-[14px]">Danger Signs</h3>
-            </div>
-
-            {dangerSigns.map((sign) => (
-              <div className="flex items-center gap-[7px] text-[#c74f4f] bg-[#fff5f5] rounded-[8px] p-[9px] mt-[7px] text-[10px] font-bold" key={sign}>
-                <AlertTriangle size={15} />
-                {sign}
-              </div>
-            ))}
-          </section>
         )}
 
-        <section className="bg-white border border-[#e2ece9] rounded-[15px] mt-[18px] p-[20px]">
-          <div className="flex items-center gap-[8px] text-[#087f6a] mb-[16px]">
-            <ClipboardList size={18} />
-            <h3 className="m-0 text-[#12322f] text-[14px]">Structured Interview</h3>
+        {/* Digital Health ID Card */}
+        <div className="glass-panel rounded-3xl overflow-hidden border border-emerald-500/30 shadow-md">
+          {/* Card Top Pill Header */}
+          <div className="bg-gradient-to-r from-emerald-700 to-teal-800 text-white p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-300" />
+              <span className="text-xs font-bold uppercase tracking-wider">Digital Health Card</span>
+            </div>
+            <span className="text-[11px] font-mono bg-white/20 px-2.5 py-0.5 rounded-md font-bold">
+              {patient.type?.includes("Maternal") ? "ANC" : "OPD"}
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-[10px] max-md:grid-cols-1">
-            {Object.entries(currentPatient.answers || {}).map(
-              ([question, answer]) => (
-                <div className="bg-[#f7faf9] border border-[#e9f0ee] rounded-[9px] p-[11px] flex flex-col gap-[5px]" key={question}>
-                  <span className="text-[#8b9d99] text-[9px]">{question}</span>
-                  <strong className="text-[#12322f] text-[10px]">{String(answer)}</strong>
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-200 border border-emerald-300 text-emerald-900 flex items-center justify-center font-bold text-2xl shrink-0 shadow-xs">
+                <User className="w-8 h-8" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-black text-slate-900 truncate">{patient.name}</h3>
+                <div className="flex items-center gap-2 text-xs text-slate-600 mt-1 font-semibold flex-wrap">
+                  <span>{patient.age} {t("age")}</span>
+                  <span>•</span>
+                  <span>{patient.gender}</span>
+                  <span>•</span>
+                  <span className="truncate">{patient.village}</span>
                 </div>
-              )
-            )}
-          </div>
-        </section>
+                <div className="mt-2.5 flex items-center gap-2 flex-wrap text-xs">
+                  <div className="glass-card px-2.5 py-1 font-mono font-bold text-slate-800 text-[11px]">
+                    ABHA: {patient.abhaId}
+                  </div>
+                  <div className="glass-card-emerald px-2.5 py-1 font-mono font-bold text-emerald-950 text-[11px]">
+                    RCH: {patient.rchId}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <section className="grid grid-cols-2 gap-[14px] mt-[18px] max-md:grid-cols-1">
-          <div className="bg-white border border-[#e2ece9] rounded-[13px] p-[15px] flex gap-[10px] items-center text-[#087f6a]">
-            <Languages size={20} />
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-[#8b9d99] text-[9px]">Interview language</span>
-              <strong className="text-[#12322f] text-[10px]">{currentPatient.language}</strong>
+            {/* Quick Actions */}
+            <div className="flex gap-2.5 mt-4 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => navigate("/doctor-review")}
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <span>{t("openChart")}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="glass-card hover:bg-white text-slate-700 font-bold text-xs px-3.5 py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Printer className="w-4 h-4 text-slate-600" />
+                <span>{t("printSlip")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Antenatal Care (ANC) Maternal Status Grid - 2x2 for mobile */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="glass-card-emerald p-3.5 rounded-2xl">
+            <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider">{t("gestationalWeeks")}</span>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Baby className="w-4 h-4 text-emerald-700 shrink-0" />
+              <strong className="text-sm text-emerald-950 font-black truncate">{patient.gestationalWeeks}</strong>
             </div>
           </div>
 
-          <div className="bg-white border border-[#e2ece9] rounded-[13px] p-[15px] flex gap-[10px] items-center text-[#087f6a]">
-            <ShieldCheck size={20} />
-            <div className="flex flex-col gap-[3px]">
-              <span className="text-[#8b9d99] text-[9px]">Safety model</span>
-              <strong className="text-[#12322f] text-[10px]">Fixed rule-based check</strong>
+          <div className="glass-card-blue p-3.5 rounded-2xl">
+            <span className="text-[10px] font-extrabold text-sky-900 uppercase tracking-wider">{t("bloodPressure")}</span>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Heart className={`w-4 h-4 ${patient.vitals?.bp?.includes("152") ? "text-red-600" : "text-sky-700"} shrink-0`} />
+              <strong className={`text-sm font-black truncate ${patient.vitals?.bp?.includes("152") ? "text-red-700" : "text-sky-950"}`}>
+                {patient.vitals?.bp}
+              </strong>
             </div>
           </div>
-        </section>
 
-        <section className="mt-[18px] p-[14px] bg-[#edf7f4] border border-[#d9ebe6] rounded-[11px] flex gap-[9px] text-[#087f6a]">
-          <ShieldCheck size={18} />
+          <div className="glass-card-amber p-3.5 rounded-2xl">
+            <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider">{t("hemoglobin")}</span>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Droplet className="w-4 h-4 text-amber-700 shrink-0" />
+              <strong className="text-sm text-amber-950 font-black">{patient.vitals?.hb}</strong>
+            </div>
+          </div>
 
-          <p className="m-0 text-[#71847f] text-[9px] leading-[1.6]">
-            This record contains information provided during
-            patient intake. AarogyaVaani does not make a diagnosis.
-            A doctor must review, edit and approve the clinical
-            summary.
-          </p>
-        </section>
+          <div className="glass-card-purple p-3.5 rounded-2xl">
+            <span className="text-[10px] font-extrabold text-purple-900 uppercase tracking-wider">{t("fetalHeartRate")}</span>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Heart className="w-4 h-4 text-purple-700 shrink-0" />
+              <strong className="text-sm text-purple-950 font-black">{patient.vitals?.fetalHeartRate?.split(" ")[0]} bpm</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div className="glass-panel p-4 rounded-3xl">
+          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+            <Calendar className="w-4 h-4 text-emerald-700" />
+            <span>{t("ancTimeline")}</span>
+          </h4>
+          <div className="space-y-2.5">
+            {patient.visits?.map((v, i) => (
+              <div key={i} className="glass-card p-3 rounded-xl">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-0.5">
+                  <span className="text-emerald-800">{v.visit}</span>
+                  <span>{v.date}</span>
+                </div>
+                <p className="text-[10px] text-slate-500 font-semibold">{v.facility}</p>
+                <p className="text-xs text-slate-700 mt-1 font-medium">{v.notes}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Prescribed Medications */}
+        <div className="glass-panel p-4 rounded-3xl">
+          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+            <FileText className="w-4 h-4 text-emerald-700" />
+            <span>{t("medications")}</span>
+          </h4>
+          <div className="space-y-2">
+            {patient.medications?.map((m, i) => (
+              <div key={i} className="glass-card-emerald p-2.5 rounded-xl text-xs font-bold text-emerald-950 flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>{m}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
-
-export default PatientDetails;

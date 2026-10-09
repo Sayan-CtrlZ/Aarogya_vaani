@@ -1,79 +1,99 @@
-import { useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ShieldCheck,
-  Volume2,
-  Languages,
-  Mic,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Volume2,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  Play,
+  Pause,
+} from "lucide-react";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
 
-const languages = [
-  {
-    id: "english",
-    name: "English",
-    native: "English",
-    speechCode: "en-IN",
+const AUDIO_SCRIPTS = {
+  en: {
+    speechLang: "en-IN",
+    sampleText:
+      "Hello. Your clinical history is being recorded solely for the doctor's consultation. All data remains encrypted on this device under India's DPDP Act 2023. Do you agree to proceed?",
   },
-  {
-    id: "bengali",
-    name: "Bengali",
-    native: "বাংলা",
-    speechCode: "bn-IN",
+  bn: {
+    speechLang: "bn-IN",
+    sampleText:
+      "নমস্কার। আপনার স্বাস্থ্য পরীক্ষা এবং ডাক্তারের সুবিধার জন্য কিছু তথ্য রেকর্ড করা হবে। এই তথ্য সম্পূর্ণ সুরক্ষিত এবং গোপন থাকবে। আপনি কি সম্মত আছেন?",
   },
-  {
-    id: "hindi",
-    name: "Hindi",
-    native: "हिन्दी",
-    speechCode: "hi-IN",
+  hi: {
+    speechLang: "hi-IN",
+    sampleText:
+      "नमस्ते। आपकी स्वास्थ्य जांच और डॉक्टर की सुविधा के लिए जानकारी दर्ज की जा रही है। यह जानकारी पूरी तरह सुरक्षित रहेगी। क्या आप सहमत हैं?",
   },
-  {
-    id: "kokborok",
-    name: "Kokborok",
-    native: "Kokborok",
-    speechCode: "kok-IN",
+  kok: {
+    speechLang: "en-IN",
+    sampleText:
+      "Khulumkha. Nini saimung doctor no rina bagwi kiphiljaknai. Bini sawari pora boro tongo. Nini raida tongo?",
   },
-];
+};
 
-function Consent() {
+export default function Consent() {
   const navigate = useNavigate();
-  const [language, setLanguage] = useState("english");
-  const [audioConsent, setAudioConsent] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const { language, t } = useLanguage();
 
-  const patientData = JSON.parse(
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const patientRecord = JSON.parse(
     localStorage.getItem("aarogyaVaaniCurrentPatient") || "{}"
   );
+  const patient = patientRecord.patient || { name: "Mamta Debbarma", age: "27" };
 
-  const patientType = patientData.patientType || "maternal";
+  const currentAudioScript = AUDIO_SCRIPTS[language] || AUDIO_SCRIPTS.en;
 
-  const selectedLanguage = languages.find(
-    (item) => item.id === language
-  );
+  const playAudioConsent = () => {
+    if (!("speechSynthesis" in window)) {
+      alert("Browser Speech Synthesis is not supported on this device.");
+      return;
+    }
 
-  const goBack = () => {
-    navigate("/new-patient");
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(currentAudioScript.sampleText);
+    utterance.lang = currentAudioScript.speechLang;
+    utterance.rate = 0.9;
+
+    utterance.onstart = () => setIsPlayingAudio(true);
+    utterance.onend = () => setIsPlayingAudio(false);
+    utterance.onerror = () => setIsPlayingAudio(false);
+
+    window.speechSynthesis.speak(utterance);
   };
 
-  const handleContinue = () => {
-    if (!audioConsent || !privacyAccepted) {
-      alert(
-        "Please provide audio consent and accept the privacy notice before continuing."
-      );
+  useEffect(() => {
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleConsentSubmit = (consentGranted) => {
+    if (!consentGranted) {
+      alert("Consent was not given. Returning to dashboard.");
+      navigate("/dashboard");
       return;
     }
 
     localStorage.setItem(
       "aarogyaVaaniConsent",
       JSON.stringify({
+        granted: true,
         language,
-        languageName: selectedLanguage.name,
-        speechCode: selectedLanguage.speechCode,
-        audioConsent: true,
-        consentGiven: true,
-        consentAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        dpdpCompliant: true,
       })
     );
 
@@ -81,234 +101,132 @@ function Consent() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden bg-[#f3faf6] text-[#123c30] before:content-[''] before:fixed before:inset-0 before:bg-[linear-gradient(rgba(243,250,246,0.94),rgba(243,250,246,0.97)),url('https://upload.wikimedia.org/wikipedia/commons/3/36/Tripura_in_India.svg')] before:bg-no-repeat before:bg-center before:bg-[length:cover,520px] before:opacity-95 before:pointer-events-none before:z-0">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(47,143,105,0.12),transparent_30%),radial-gradient(circle_at_90%_80%,rgba(15,92,69,0.08),transparent_30%)] pointer-events-none z-10"></div>
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50">
+      <GovHeader
+        title={t("consentTitle")}
+        showBack={true}
+        backPath="/new-patient"
+      />
 
-      <header className="min-h-[78px] px-[5%] py-[15px] bg-[rgba(255,255,255,0.92)] border-b border-[#dcebe4] flex items-center justify-between relative z-50 backdrop-blur-[14px] max-sm:px-[18px] max-sm:py-[14px]">
-        <div>
-          <div className="text-[25px] font-extrabold tracking-[-0.5px] text-[#103f32]">AarogyaVaani</div>
-          <div className="mt-[1px] text-[11px] font-bold tracking-[1.7px] text-[#2f8f69] uppercase">Tripura Health</div>
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 pb-24 space-y-4">
+        {/* Patient Pill */}
+        <div className="glass-panel rounded-2xl p-4 mb-6 border border-white/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Patient</span>
+            <h3 className="text-xl font-bold text-slate-900">
+              {patient.name} ({patient.age} yrs)
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-xs bg-emerald-500/15 text-emerald-800 border border-emerald-500/20 px-3 py-1.5 rounded-lg font-semibold">
+            <ShieldCheck className="w-4 h-4 text-[#0b6651]" />
+            <span>DPDP Act 2023 Gate</span>
+          </div>
         </div>
 
-        <div>
-          <span className="flex items-center gap-[7px] px-[13px] py-[9px] rounded-[30px] bg-[#e8f5ef] text-[#176246] text-[13px] font-bold max-sm:hidden">
-            <ShieldCheck size={17} />
-            Privacy First
-          </span>
-        </div>
-      </header>
-
-      <main className="relative z-30 w-[min(1120px,92%)] mx-auto py-[28px] max-sm:pt-[20px] pb-[55px] max-md:w-[min(94%,760px)]">
-        <div className="flex items-center gap-[8px] text-[13px] text-[#71867d] mb-[20px]">
-          <span className="cursor-pointer hover:text-[#2f8f69]" onClick={goBack}>Patient Information</span>
-          <ArrowRight size={15} />
-          <strong className="text-[#103f32]">Language & Consent</strong>
-        </div>
-
-        <div className="flex items-center justify-center gap-[10px] mb-[32px] max-sm:justify-start max-sm:overflow-x-auto">
-          <div className="flex items-center gap-[8px] text-[#176246] text-[12px] font-bold max-sm:whitespace-nowrap">
-            <span className="w-[29px] h-[29px] rounded-full bg-[#2f8f69] grid place-items-center text-white">
-              <Check size={15} />
+        {/* Main Consent Glass Panel */}
+        <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/80 shadow-md">
+          {/* Audio Explanation Box (Emerald Glass) */}
+          <div className="glass-card-emerald rounded-2xl p-6 mb-6">
+            <span className="inline-block bg-[#0b6651] text-white text-xs font-bold px-2.5 py-1 rounded-md mb-2">
+              Audio Consent
             </span>
-            Patient
-          </div>
-
-          <div className="w-[70px] h-[2px] bg-[#2f8f69] max-sm:w-[25px] max-sm:shrink-0"></div>
-
-          <div className="flex items-center gap-[8px] text-[#176246] text-[12px] font-bold max-sm:whitespace-nowrap">
-            <span className="w-[29px] h-[29px] rounded-full bg-[#2f8f69] grid place-items-center text-white">2</span>
-            Consent
-          </div>
-
-          <div className="w-[70px] h-[2px] bg-[#d9e5df] max-sm:w-[25px] max-sm:shrink-0"></div>
-
-          <div className="flex items-center gap-[8px] text-[#91a69d] text-[12px] font-bold max-sm:whitespace-nowrap">
-            <span className="w-[29px] h-[29px] rounded-full bg-[#e1ebe6] grid place-items-center">3</span>
-            Interview
-          </div>
-
-          <div className="w-[70px] h-[2px] bg-[#d9e5df] max-sm:w-[25px] max-sm:shrink-0"></div>
-
-          <div className="flex items-center gap-[8px] text-[#91a69d] text-[12px] font-bold max-sm:whitespace-nowrap">
-            <span className="w-[29px] h-[29px] rounded-full bg-[#e1ebe6] grid place-items-center">4</span>
-            Summary
-          </div>
-        </div>
-
-        <section className="flex items-center gap-[18px] mb-[20px] max-sm:items-start">
-          <div className="w-[62px] h-[62px] shrink-0 rounded-[18px] bg-[#dff2e9] text-[#176246] grid place-items-center max-sm:w-[50px] max-sm:h-[50px]">
-            <Languages size={30} />
-          </div>
-
-          <div>
-            <p className="m-0 mb-[5px] text-[11px] font-extrabold text-[#2f8f69] tracking-[1.5px]">STEP 2 OF 4</p>
-            <h1 className="m-0 text-[#103f32] text-[clamp(28px,4vw,42px)] tracking-[-1px]">Language & Consent</h1>
-
-            <p className="mt-[8px] max-w-[720px] leading-[1.6] text-[#61776e]">
-              Choose the language the patient is most comfortable speaking.
-              AarogyaVaani will use this choice throughout the interview.
+            <h3 className="text-xl font-bold text-slate-900">
+              {t("listenNotice")}
+            </h3>
+            <p className="text-base text-slate-700 mt-2 italic bg-white/70 p-3 rounded-xl border border-emerald-500/20">
+              "{currentAudioScript.sampleText}"
             </p>
-          </div>
-        </section>
 
-        <section className="grid grid-cols-2 gap-[20px] px-[20px] py-[17px] mb-[18px] bg-[rgba(255,255,255,0.85)] border border-[#dcebe4] rounded-[16px] max-sm:grid-cols-1">
-          <div>
-            <span className="block text-[11px] text-[#80948c] uppercase tracking-[1px] mb-[5px]">Patient</span>
-            <strong className="text-[15px] text-[#163f33]">
-              {patientData.patient?.name || "Patient"}
-            </strong>
-          </div>
-
-          <div>
-            <span className="block text-[11px] text-[#80948c] uppercase tracking-[1px] mb-[5px]">Intake Type</span>
-            <strong className="text-[15px] text-[#163f33]">
-              {patientType === "maternal"
-                ? "Maternal Care"
-                : "General Patient Intake"}
-            </strong>
-          </div>
-        </section>
-
-        <section className="bg-[rgba(255,255,255,0.94)] border border-[#dcebe4] rounded-[22px] p-[25px] mb-[18px] shadow-[0_12px_35px_rgba(16,63,50,0.06)] max-sm:p-[18px] max-sm:rounded-[17px]">
-          <div className="flex items-start justify-between gap-[20px] mb-[20px] text-[#2f8f69]">
-            <div>
-              <p className="m-0 mb-[5px] text-[11px] font-extrabold text-[#2f8f69] tracking-[1.5px]">PATIENT LANGUAGE</p>
-              <h2 className="m-0 text-[#153f33] text-[20px]">Which language would you like to use?</h2>
-            </div>
-
-            <Languages size={24} />
-          </div>
-
-          <div className="grid grid-cols-4 gap-[13px] max-md:grid-cols-2 max-sm:grid-cols-1">
-            {languages.map((item) => (
+            {/* Giant Play/Pause Audio Button */}
+            <div className="mt-5 flex flex-wrap items-center gap-4">
               <button
-                key={item.id}
-                className={`relative rounded-[17px] p-[17px] text-left flex items-center gap-[12px] cursor-pointer transition-[0.25s_ease] hover:-translate-y-[3px] hover:border-[#79b89f] hover:shadow-[0_9px_22px_rgba(47,143,105,0.1)] ${
-                  language === item.id ? "bg-[#eaf7f0] border-2 border-[#2f8f69]" : "bg-[#f9fcfa] border border-[#d8e7df]"
+                type="button"
+                onClick={playAudioConsent}
+                className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-bold text-base transition-all shadow-md cursor-pointer ${
+                  isPlayingAudio
+                    ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
+                    : "bg-[#0b6651] hover:bg-[#074738] text-white"
                 }`}
-                onClick={() => setLanguage(item.id)}
               >
-                <div className={`w-[25px] h-[25px] rounded-full grid place-items-center text-white shrink-0 ${language === item.id ? "bg-[#2f8f69] border border-[#2f8f69]" : "border-[1.5px] border-[#c5d9d0]"}`}>
-                  {language === item.id && <Check size={17} />}
-                </div>
-
-                <div className="flex-1">
-                  <strong className="block text-[#173e33] text-[15px]">{item.name}</strong>
-                  <span className="block mt-[3px] text-[12px] text-[#81958d]">{item.native}</span>
-                </div>
-
-                <div className="text-[#79a996]">
-                  <Mic size={18} />
-                </div>
+                {isPlayingAudio ? (
+                  <>
+                    <Pause className="w-5 h-5" />
+                    <span>{t("pauseAudio")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-5 h-5" />
+                    <span>{t("playAudio")}</span>
+                  </>
+                )}
               </button>
-            ))}
-          </div>
 
-          <div className="flex gap-[12px] items-start p-[15px] mt-[18px] rounded-[14px] bg-[#f1f8f4] text-[#2f8f69]">
-            <Volume2 size={20} />
-
-            <div>
-              <strong className="text-[#245c49] text-[14px]">Voice-first support</strong>
-              <p className="mt-[3px] mb-0 text-[12px] text-[#71867d] leading-[1.5]">
-                The selected language will also be used when voice input is
-                available on the device.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-[rgba(255,255,255,0.94)] border border-[#dcebe4] rounded-[22px] p-[25px] mb-[18px] shadow-[0_12px_35px_rgba(16,63,50,0.06)] max-sm:p-[18px] max-sm:rounded-[17px]">
-          <div className="flex items-start justify-between gap-[20px] mb-[20px] text-[#2f8f69]">
-            <div>
-              <p className="m-0 mb-[5px] text-[11px] font-extrabold text-[#2f8f69] tracking-[1.5px]">AUDIO CONSENT</p>
-              <h2 className="m-0 text-[#153f33] text-[20px]">May we use voice input?</h2>
-            </div>
-
-            <Mic size={24} />
-          </div>
-
-          <p className="text-[#687d74] leading-[1.6] text-[14px] -mt-[8px] mb-[18px]">
-            AarogyaVaani can use the device microphone to understand the
-            patient's spoken answers. Audio is not stored as part of this
-            demo workflow.
-          </p>
-
-          <button
-            className={`w-full rounded-[17px] p-[16px] flex items-center gap-[14px] text-left cursor-pointer transition-[0.25s_ease] hover:border-[#7bb89f] ${
-              audioConsent ? "bg-[#eaf7f0] border border-[#2f8f69]" : "bg-[#f9fcfa] border border-[#d6e6de]"
-            }`}
-            onClick={() => setAudioConsent(!audioConsent)}
-          >
-            <div className={`w-[31px] h-[31px] rounded-full grid place-items-center text-white shrink-0 ${audioConsent ? 'bg-[#2f8f69] border border-[#2f8f69]' : 'border-2 border-[#bcd4c8]'}`}>
-              {audioConsent && <Check size={16} />}
-            </div>
-
-            <div>
-              <strong className="block text-[#173e33] text-[14px]">
-                {audioConsent
-                  ? "Audio consent given"
-                  : "Allow voice input"}
-              </strong>
-
-              <span className="block text-[#81958d] text-[12px] mt-[3px]">
-                {audioConsent
-                  ? "The patient has agreed to continue."
-                  : "Tap to provide consent."}
+              <span className="text-sm font-semibold text-slate-600">
+                {isPlayingAudio ? t("playingAudio") : "Speaker output ready"}
               </span>
             </div>
-          </button>
-        </section>
-
-        <section className="flex gap-[15px] p-[20px] rounded-[20px] bg-[#edf7f2] border border-[#cfe4d9] mb-[22px] max-sm:p-[16px]">
-          <div className="w-[45px] h-[45px] rounded-[13px] bg-white text-[#2f8f69] grid place-items-center shrink-0">
-            <ShieldCheck size={23} />
           </div>
 
-          <div>
-            <h3 className="m-0 text-[#194b3a] text-[16px]">Patient privacy comes first</h3>
+          {/* Legal & Privacy Safeguards (Colored Glass Cards) */}
+          <div className="mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="glass-card-blue p-4 rounded-2xl">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center mb-2 font-bold text-sm">
+                  1
+                </div>
+                <h5 className="font-bold text-sm text-blue-950">{t("rule1Title")}</h5>
+                <p className="text-xs text-blue-800 mt-1 leading-relaxed">
+                  {t("rule1Desc")}
+                </p>
+              </div>
 
-            <p className="my-[7px] mb-[13px] text-[#61776e] leading-[1.55] text-[13px]">
-              The patient can refuse voice input or stop the interview at any
-              time. AarogyaVaani does not provide a diagnosis. Final clinical
-              review remains with the healthcare professional.
-            </p>
+              <div className="glass-card-emerald p-4 rounded-2xl">
+                <div className="w-8 h-8 rounded-lg bg-[#0b6651] text-white flex items-center justify-center mb-2 font-bold text-sm">
+                  2
+                </div>
+                <h5 className="font-bold text-sm text-emerald-950">{t("rule2Title")}</h5>
+                <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+                  {t("rule2Desc")}
+                </p>
+              </div>
 
-            <label className="flex items-start gap-[10px] cursor-pointer text-[13px] text-[#315b4c] leading-[1.45]">
-              <input
-                type="checkbox"
-                className="mt-[3px] accent-[#2f8f69] w-[16px] h-[16px]"
-                checked={privacyAccepted}
-                onChange={(e) =>
-                  setPrivacyAccepted(e.target.checked)
-                }
-              />
-
-              <span>
-                I understand the privacy notice and the patient has agreed
-                to continue.
-              </span>
-            </label>
+              <div className="glass-card-purple p-4 rounded-2xl">
+                <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-2 font-bold text-sm">
+                  3
+                </div>
+                <h5 className="font-bold text-sm text-purple-950">{t("rule3Title")}</h5>
+                <p className="text-xs text-purple-800 mt-1 leading-relaxed">
+                  {t("rule3Desc")}
+                </p>
+              </div>
+            </div>
           </div>
-        </section>
 
-        <div className="flex items-center justify-between gap-[15px] max-sm:flex-col-reverse">
-          <button className="min-h-[48px] px-[22px] rounded-[13px] flex items-center justify-center gap-[9px] font-bold text-[14px] cursor-pointer transition-[0.25s_ease] max-sm:w-full border border-[#cdded6] bg-white text-[#315b4c] hover:border-[#2f8f69]" onClick={goBack}>
-            <ArrowLeft size={18} />
-            Back
-          </button>
+          {/* Action Cards */}
+          <div className="pt-4 border-t border-slate-200/70 flex flex-col sm:flex-row gap-4">
+            <button
+              type="button"
+              onClick={() => handleConsentSubmit(true)}
+              className="flex-1 bg-[#0b6651] hover:bg-[#074738] text-white font-bold text-base py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-3 cursor-pointer hover:shadow-lg"
+            >
+              <CheckCircle2 className="w-6 h-6" />
+              <span>{t("giveConsent")}</span>
+            </button>
 
-          <button
-            className="min-h-[48px] px-[22px] rounded-[13px] flex items-center justify-center gap-[9px] font-bold text-[14px] cursor-pointer transition-[0.25s_ease] max-sm:w-full border-0 bg-[#176246] text-white shadow-[0_8px_20px_rgba(23,98,70,0.18)] hover:not-disabled:bg-[#0f4f3b] hover:not-disabled:-translate-y-[2px] disabled:opacity-45 disabled:cursor-not-allowed"
-            onClick={handleContinue}
-            disabled={!audioConsent || !privacyAccepted}
-          >
-            Continue to Interview
-            <ArrowRight size={18} />
-          </button>
+            <button
+              type="button"
+              onClick={() => handleConsentSubmit(false)}
+              className="sm:w-60 bg-white/70 border-2 border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-base py-4 px-6 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <XCircle className="w-5 h-5 text-slate-500" />
+              <span>{t("declineConsent")}</span>
+            </button>
+          </div>
         </div>
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
-
-export default Consent;

@@ -1,966 +1,1058 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Mic, MicOff, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  ArrowRight,
+  ArrowLeft,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  User,
+  Heart,
+  Stethoscope,
+  Send,
+  RefreshCw,
+} from "lucide-react";
+import GovHeader from "../../components/GovHeader";
+import BottomNav from "../../components/BottomNav";
+import { useLanguage } from "../../context/LanguageContext";
+import { savePatient, generatePatientId } from "../../utils/patientStore";
 
-/* =========================================================
-   MATERNAL QUESTIONS
-========================================================= */
+// Question bank generator based on chief complaints & patient condition (Doctor-style diagnostic trees)
+function generateDoctorAssessment(complaintText, isMaternal, patientCondition, patientGender) {
+  const text = (complaintText || "").toLowerCase();
+  const isFemale = patientGender === "Female";
 
-const maternalQuestions = [
-  {
-    id: 1,
-    key: "age",
-    translations: {
-      english: "How old are you?",
-      bengali: "আপনার বয়স কত?",
-      hindi: "आपकी उम्र कितनी है?",
-      kokborok: "Nini bohor?",
-    },
-    placeholder: {
-      english: "Enter your age",
-      bengali: "আপনার বয়স লিখুন",
-      hindi: "अपनी उम्र दर्ज करें",
-      kokborok: "Nini bohor khulum",
-    },
-    type: "text",
-  },
-  {
-    id: 2,
-    key: "pregnancyMonths",
-    translations: {
-      english: "How many months pregnant are you?",
-      bengali: "আপনি কত মাসের গর্ভবতী?",
-      hindi: "आप कितने महीने की गर्भवती हैं?",
-      kokborok: "Nini borokni kotor month?",
-    },
-    placeholder: {
-      english: "Enter months",
-      bengali: "মাস লিখুন",
-      hindi: "महीने दर्ज करें",
-      kokborok: "Month khulum",
-    },
-    type: "text",
-  },
-  {
-    id: 3,
-    key: "firstPregnancy",
-    translations: {
-      english: "Is this your first pregnancy?",
-      bengali: "এটি কি আপনার প্রথম গর্ভাবস্থা?",
-      hindi: "क्या यह आपकी पहली गर्भावस्था है?",
-      kokborok: "Bini pregnancy sakra?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 4,
-    key: "previousComplications",
-    translations: {
-      english: "Did you have any complications during a previous pregnancy or delivery?",
-      bengali: "আগের গর্ভাবস্থা বা প্রসবের সময় কি কোনো জটিলতা হয়েছিল?",
-      hindi: "क्या पिछली गर्भावस्था या प्रसव के दौरान कोई जटिलता हुई थी?",
-      kokborok: "Agor pregnancy ba delivery somoi khamokha asik?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 5,
-    key: "bleeding",
-    translations: {
-      english: "Do you have any vaginal bleeding?",
-      bengali: "আপনার কি যোনিপথে রক্তপাত হচ্ছে?",
-      hindi: "क्या आपको योनि से रक्तस्राव हो रहा है?",
-      kokborok: "Nini vaginal bleeding tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 6,
-    key: "abdominalPain",
-    translations: {
-      english: "Do you have severe abdominal pain or cramps?",
-      bengali: "আপনার কি তীব্র পেটে ব্যথা বা ক্র্যাম্প হচ্ছে?",
-      hindi: "क्या आपको तेज पेट दर्द या ऐंठन हो रही है?",
-      kokborok: "Nini stomach-ni khorok ba betha tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 7,
-    key: "headacheVision",
-    translations: {
-      english: "Do you have a severe headache or blurred vision?",
-      bengali: "আপনার কি তীব্র মাথাব্যথা বা ঝাপসা দৃষ্টি হচ্ছে?",
-      hindi: "क्या आपको तेज सिरदर्द या धुंधला दिखाई दे रहा है?",
-      kokborok: "Nini head-ni khorok ba chok khulum?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 8,
-    key: "fever",
-    translations: {
-      english: "Do you have fever or feel very unwell?",
-      bengali: "আপনার কি জ্বর বা খুব অসুস্থ লাগছে?",
-      hindi: "क्या आपको बुखार है या बहुत अस्वस्थ महसूस हो रहा है?",
-      kokborok: "Nini fever tong ba khorok khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 9,
-    key: "swelling",
-    translations: {
-      english: "Do you have swelling of your face or hands?",
-      bengali: "আপনার মুখ বা হাতে কি ফোলা আছে?",
-      hindi: "क्या आपके चेहरे या हाथों में सूजन है?",
-      kokborok: "Nini mukh ba hat-ni swelling tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 10,
-    key: "babyMovement",
-    translations: {
-      english: "Have you felt your baby move today?",
-      bengali: "আজ কি আপনি আপনার শিশুর নড়াচড়া অনুভব করেছেন?",
-      hindi: "क्या आपने आज अपने बच्चे की हलचल महसूस की है?",
-      kokborok: "Nini baby movement aini feel khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 11,
-    key: "antenatalCheckups",
-    translations: {
-      english: "Have you been attending your antenatal checkups?",
-      bengali: "আপনি কি নিয়মিত গর্ভকালীন পরীক্ষা করছেন?",
-      hindi: "क्या आप नियमित प्रसवपूर्व जांच करा रही हैं?",
-      kokborok: "Nini antenatal checkup regular khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 12,
-    key: "bloodPressure",
-    translations: {
-      english: "Have you had your blood pressure checked recently?",
-      bengali: "সম্প্রতি কি আপনার রক্তচাপ পরীক্ষা করা হয়েছে?",
-      hindi: "क्या हाल ही में आपका ब्लड प्रेशर चेक हुआ है?",
-      kokborok: "Nini blood pressure recent check khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 13,
-    key: "medicalConditions",
-    translations: {
-      english: "Do you have anaemia, high blood pressure, diabetes, or another medical condition?",
-      bengali: "আপনার কি রক্তশূন্যতা, উচ্চ রক্তচাপ, ডায়াবেটিস বা অন্য কোনো রোগ আছে?",
-      hindi: "क्या आपको एनीमिया, हाई ब्लड प्रेशर, डायबिटीज या कोई अन्य बीमारी है?",
-      kokborok: "Nini anaemia, high pressure, diabetes ba sakra rog tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 14,
-    key: "medicines",
-    translations: {
-      english: "Are you taking any medicines, iron tablets, or supplements?",
-      bengali: "আপনি কি কোনো ওষুধ, আয়রন ট্যাবলেট বা সাপ্লিমেন্ট নিচ্ছেন?",
-      hindi: "क्या आप कोई दवा, आयरन की गोली या सप्लीमेंट ले रही हैं?",
-      kokborok: "Nini medicine, iron tablet ba supplement khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 15,
-    key: "otherConcern",
-    translations: {
-      english: "Is there any other health concern you want to tell us about?",
-      bengali: "আপনার কি অন্য কোনো স্বাস্থ্য সমস্যা আছে যা আপনি জানাতে চান?",
-      hindi: "क्या कोई अन्य स्वास्थ्य समस्या है जिसके बारे में आप बताना चाहती हैं?",
-      kokborok: "Nini sakra health concern tong?",
-    },
-    type: "yesno",
-  },
-];
+  // Dedicated Geriatric / Elderly Patient Assessment Tree
+  if (
+    patientCondition === "elderly_frail" ||
+    text.includes("elderly") ||
+    text.includes("old") ||
+    text.includes("bedridden") ||
+    text.includes("shiver") ||
+    text.includes("rigor") ||
+    text.includes("frail")
+  ) {
+    return [
+      {
+        id: "q1",
+        question: `For how many days has the elderly patient (${isFemale ? "old woman" : "old man"}) had fever, chills, or extreme weakness?`,
+        bengali: `প্রবীণ রোগীর (${isFemale ? "বৃদ্ধা মহিলার" : "বৃদ্ধ পুরুষের"}) কতদিন ধরে জ্বর, কাঁপুনি বা তীব্র দুর্বলতা হচ্ছে?`,
+        hindi: `बुजुर्ग मरीज (${isFemale ? "वृद्ध महिला" : "वृद्ध पुरुष"}) को कितने दिनों से बुखार, कंपकंपी या कमजोरी है?`,
+        options: ["1-2 days (Recent onset)", "3-5 days (High fever with shivering)", "Over a week (Bedridden)", "Chronic recurring fever"],
+      },
+      {
+        id: "q2",
+        question: "Is the patient able to stand or walk, or having chest heaviness or gasping?",
+        bengali: "রোগী কি একা দাঁড়াতে বা হাঁটতে পারছেন, নাকি বুকে চাপ ও শ্বাসকষ্ট হচ্ছে?",
+        hindi: "क्या मरीज खड़े होने या चलने में असमर्थ हैं, या सीने में भारीपन व सांस लेने में तकलीफ है?",
+        options: ["Completely bedridden (Cannot stand)", "Unable to walk without support", "Chest heaviness / breathlessness", "Can walk slowly with help"],
+      },
+      {
+        id: "q3",
+        question: "Is the elderly patient disoriented, unusually drowsy, or having slurred speech?",
+        bengali: "রোগী কি বিভ্রান্ত/অসংলগ্ন কথা বলছেন, নিস্তেজ হয়ে পড়ে আছেন বা কথা জড়িয়ে যাচ্ছে?",
+        hindi: "क्या मरीज भ्रमित (confused) हैं, बहुत सुस्त हैं या आवाज लड़खड़ा रही है?",
+        options: ["Disoriented / confused", "Severe drowsiness & weakness", "Slurred speech", "Alert & conscious"],
+      },
+      {
+        id: "q4",
+        question: "Is the patient taking water and food, or unable to swallow fluids?",
+        bengali: "রোগী কি জল বা খাবার খেতে পারছেন নাকি বমি হয়ে যাচ্ছে?",
+        hindi: "क्या मरीज पानी और तरल पदार्थ ले पा रहे हैं या खाना-पीना छोड़ दिया है?",
+        options: ["Unable to eat or drink (Refusing)", "Taking small sips of water only", "Frequent vomiting", "Normal intake"],
+      },
+    ];
+  }
 
-/* =========================================================
-   GENERAL QUESTIONS
-========================================================= */
+  // Maternal & Preeclampsia / Headache Tree
+  if (text.includes("head") || text.includes("dizz") || text.includes("eye") || text.includes("blur") || text.includes("matha") || text.includes("sir")) {
+    return [
+      {
+        id: "q1",
+        question: "When did this headache start, and is it severe or mild?",
+        bengali: "মাথাব্যথাটি কখন থেকে শুরু হয়েছে এবং এটি কি খুব তীব্র নাকি হালকা?",
+        hindi: "यह सिरदर्द कब से शुरू हुआ है, और क्या यह बहुत तेज है या हल्का?",
+        options: ["Started today (Severe)", "Since 2-3 days", "Mild on & off", "Very Severe / Unbearable"],
+      },
+      {
+        id: "q2",
+        question: "Are you having any blurred vision, dark spots, or dizziness?",
+        bengali: "আপনার কি চোখে ঝাপসা দেখা, অন্ধকার লাগা বা মাথা ঘোরার সমস্যা হচ্ছে?",
+        hindi: "क्या आपको धुंधला दिखाई दे रहा है, चक्कर आ रहे हैं या आंखों के आगे अंधेरा छा रहा है?",
+        options: ["Yes, blurry vision", "Only dizziness", "No visual issues", "Severe blackout"],
+      },
+      {
+        id: "q3",
+        question: "Have you noticed sudden swelling in your feet, hands, or face?",
+        bengali: "আপনার হাত, পা বা মুখে কি হঠাৎ কোনো ফোলাভাব লক্ষ্য করেছেন?",
+        hindi: "क्या आपके पैरों, हाथों या चेहरे पर अचानक कोई सूजन आई है?",
+        options: ["Yes, feet swollen", "Swelling on face & hands", "No swelling", "Mild ankle puffiness"],
+      },
+      ...(isMaternal
+        ? [
+            {
+              id: "q4",
+              question: "Are you feeling the baby's movements regularly today?",
+              bengali: "আজকে গর্ভস্থ বাচ্চার নড়াচড়া কি স্বাভাবিকভাবে টের পাচ্ছেন?",
+              hindi: "क्या आज आपको बच्चे की हलचल सामान्य रूप से महसूस हो रही है?",
+              options: ["Yes, normal & active", "Reduced movements", "No movement today", "Not sure"],
+            },
+          ]
+        : [
+            {
+              id: "q4",
+              question: "Have you had your blood pressure checked, or taken any medicine?",
+              bengali: "আপনার রক্তচাপ (BP) কি মাপা হয়েছে বা কোনো ওষুধ খেয়েছেন?",
+              hindi: "क्या आपका ब्लड प्रेशर नापा गया है या आपने कोई दवा ली है?",
+              options: ["High BP reported", "Normal BP", "Took Paracetamol", "Not checked yet"],
+            },
+          ]),
+    ];
+  }
 
-const generalQuestions = [
-  {
-    id: 1,
-    key: "age",
-    translations: {
-      english: "How old are you?",
-      bengali: "আপনার বয়স কত?",
-      hindi: "आपकी उम्र कितनी है?",
-      kokborok: "Nini bohor?",
+  // Bleeding / Obstetric Danger Tree
+  if (text.includes("bleed") || text.includes("blood") || text.includes("spot") || text.includes("rokto") || text.includes("khoon")) {
+    return [
+      {
+        id: "q1",
+        question: "How heavy is the bleeding or spotting, and when did it begin?",
+        bengali: "রক্তপাত কতটা বেশি এবং এটি কখন থেকে শুরু হয়েছে?",
+        hindi: "रक्तस्राव कितना अधिक है और यह कब से शुरू हुआ है?",
+        options: ["Fresh red bleeding (Heavy)", "Light spotting", "Brown discharge", "Continuous flow"],
+      },
+      {
+        id: "q2",
+        question: "Are you having severe abdominal cramps or back pain with it?",
+        bengali: "এর সাথে কি তীব্র পেটে মোচড় বা কোমরে ব্যথা হচ্ছে?",
+        hindi: "क्या इसके साथ पेट में तेज मरोड़ या कमर में दर्द हो रहा है?",
+        options: ["Severe cramping pain", "Mild ache", "No pain", "Pain in lower back"],
+      },
+      {
+        id: "q3",
+        question: "Are you feeling faint, unusually cold, or dizzy?",
+        bengali: "আপনার কি মাথা ঘোরা, অজ্ঞান হয়ে যাওয়া বা শরীর ঠান্ডা লাগার অনুভূতি হচ্ছে?",
+        hindi: "क्या आपको चक्कर, बेहोशी या कमजोरी महसूस हो रही है?",
+        options: ["Yes, very dizzy & weak", "Mild weakness", "No fainting feeling", "Cold sweats"],
+      },
+      {
+        id: "q4",
+        question: "Did this happen after heavy lifting, travel, or suddenly?",
+        bengali: "এটি কি ভারী কোনো কাজ, যাতায়াত নাকি হঠাৎ করেই হয়েছে?",
+        hindi: "क्या यह कोई भारी काम करने, सफर करने के बाद हुआ या अचानक?",
+        options: ["Sudden onset while resting", "After travel / walking", "After lifting weight", "Gradual increase"],
+      },
+    ];
+  }
+
+  // Abdominal Pain / Contractions Tree
+  if (text.includes("pain") || text.includes("stomach") || text.includes("cramp") || text.includes("pet") || text.includes("betha") || text.includes("groan") || text.includes("labor")) {
+    return [
+      {
+        id: "q1",
+        question: "Where exactly is the pain located (upper, lower, or all over)?",
+        bengali: "ব্যথাটি ঠিক পেটের কোন অংশে হচ্ছে (উপরের পেট, তলপেট নাকি পুরো পেট)?",
+        hindi: "दर्द पेट के किस हिस्से में है (ऊपर, निचले हिस्से में या पूरे पेट में)?",
+        options: ["Lower abdomen (cramps)", "Upper right under ribs", "Entire stomach", "Radiating to back"],
+      },
+      {
+        id: "q2",
+        question: "Is the pain coming in continuous waves, or constant sharp pain?",
+        bengali: "ব্যথাটি কি মোচড় দিয়ে ঢেউয়ের মতো আসছে নাকি একটানা তীব্র ব্যথা?",
+        hindi: "क्या दर्द मरोड़ की तरह रुक-रुक कर आ रहा है या लगातार तेज बना हुआ है?",
+        options: ["Continuous severe pain", "Comes in waves (like cramps)", "Mild dull ache", "Sharp stabbing pain"],
+      },
+      {
+        id: "q3",
+        question: "Do you have any vomiting, fever, or burning while urinating?",
+        bengali: "আপনার কি বমি, জ্বর বা প্রস্রাবে জ্বালাপোড়ার সমস্যা আছে?",
+        hindi: "क्या आपको उल्टी, बुखार या पेशाब में जलन की समस्या है?",
+        options: ["Yes, vomiting & nausea", "Burning urination", "Mild fever", "No other symptoms"],
+      },
+      ...(isMaternal
+        ? [
+            {
+              id: "q4",
+              question: "Are you feeling the baby move, and is there any watery discharge?",
+              bengali: "বাচ্চার নড়াচড়া কি ঠিক আছে এবং কোনো জল বা তরল ভাঙছে কি?",
+              hindi: "क्या बच्चे की हलचल ठीक है और क्या कोई पानी जैसा स्राव हो रहा है?",
+              options: ["Baby moving normally", "Baby movements reduced", "Watery fluid leakage", "No leakage, normal"],
+            },
+          ]
+        : [
+            {
+              id: "q4",
+              question: "When did you last pass stool or eat a normal meal?",
+              bengali: "শেষ কবে স্বাভাবিকভাবে খাবার খেয়েছেন বা শৌচ করেছেন?",
+              hindi: "आपने आखिरी बार सामान्य खाना कब खाया था या शौच हुआ था?",
+              options: ["Loose motions / diarrhea", "Constipation since 3 days", "Unable to eat food", "Normal digestion"],
+            },
+          ]),
+    ];
+  }
+
+  // Default / General Fever & Illness Tree
+  return [
+    {
+      id: "q1",
+      question: "For how many days have you been feeling unwell or having fever?",
+      bengali: "কতদিন ধরে আপনার এই অসুস্থতা বা জ্বর হচ্ছে?",
+      hindi: "आप कितने दिनों से अस्वस्थ हैं या आपको बुखार आ रहा है?",
+      options: ["1-2 days (Recent onset)", "3-5 days", "More than a week", "Over 2 weeks"],
     },
-    placeholder: {
-      english: "Enter your age",
-      bengali: "আপনার বয়স লিখুন",
-      hindi: "अपनी उम्र दर्ज करें",
-      kokborok: "Nini bohor khulum",
+    {
+      id: "q2",
+      question: "Do you have shivering, chills, severe body ache, or bitter taste?",
+      bengali: "আপনার কি কাঁপুনি দিয়ে জ্বর, তীব্র গায়ে ব্যথা বা মুখের স্বাদ তেতো লাগছে?",
+      hindi: "क्या आपको कंपकंपी के साथ बुखार, तेज बदन दर्द या मुंह में कड़वाहट है?",
+      options: ["Yes, high fever with chills", "Severe body & joint aches", "Bitter taste & weakness", "Mild fever only"],
     },
-    type: "text",
-  },
-  {
-    id: 2,
-    key: "mainProblem",
-    translations: {
-      english: "What is your main health problem today?",
-      bengali: "আজ আপনার প্রধান স্বাস্থ্য সমস্যা কী?",
-      hindi: "आज आपकी मुख्य स्वास्थ्य समस्या क्या है?",
-      kokborok: "Aini nini main health problem ni?",
+    {
+      id: "q3",
+      question: "Are you able to drink water and eat, or are you throwing up?",
+      bengali: "আপনি কি জল ও খাবার খেতে পারছেন নাকি বমি হয়ে যাচ্ছে?",
+      hindi: "क्या आप पानी और खाना ले पा रहे हैं या उल्टी हो रही है?",
+      options: ["Able to drink fluids", "Frequent vomiting", "Extreme fatigue & nausea", "Normal appetite"],
     },
-    placeholder: {
-      english: "Describe the problem",
-      bengali: "সমস্যাটি লিখুন",
-      hindi: "समस्या बताएं",
-      kokborok: "Problem khulum",
+    {
+      id: "q4",
+      question: "Any chest tightness, cough, or difficulty breathing while resting?",
+      bengali: "বুকে চাপ, কাশি বা বিশ্রাম নেওয়ার সময় শ্বাসকষ্ট হচ্ছে কি?",
+      hindi: "क्या सीने में जकड़न, खांसी या सांस लेने में कोई तकलीफ हो रही है?",
+      options: ["No breathing issues", "Dry cough present", "Shortness of breath", "Chest heaviness"],
     },
-    type: "text",
-  },
-  {
-    id: 3,
-    key: "duration",
-    translations: {
-      english: "How long have you had this problem?",
-      bengali: "এই সমস্যাটি কতদিন ধরে আছে?",
-      hindi: "यह समस्या आपको कब से है?",
-      kokborok: "Kotor din-ni problem tong?",
-    },
-    placeholder: {
-      english: "For example: 2 days",
-      bengali: "যেমন: ২ দিন",
-      hindi: "जैसे: 2 दिन",
-      kokborok: "Example: 2 days",
-    },
-    type: "text",
-  },
-  {
-    id: 4,
-    key: "pain",
-    translations: {
-      english: "Do you have pain in any part of your body?",
-      bengali: "আপনার শরীরের কোনো অংশে কি ব্যথা হচ্ছে?",
-      hindi: "क्या आपके शरीर के किसी हिस्से में दर्द है?",
-      kokborok: "Nini body-ni sakra jaiga-ni betha tong?",
-    },
-    type: "yesno",
-    adaptive: "bodyPain",
-  },
-  {
-    id: 5,
-    key: "painSeverity",
-    translations: {
-      english: "How severe is the pain?",
-      bengali: "ব্যথাটি কতটা তীব্র?",
-      hindi: "दर्द कितना तेज है?",
-      kokborok: "Betha kotor khorok?",
-    },
-    type: "choice",
-    options: {
-      english: ["Mild", "Moderate", "Severe"],
-      bengali: ["হালকা", "মাঝারি", "তীব্র"],
-      hindi: ["हल्का", "मध्यम", "तेज"],
-      kokborok: ["Mild", "Moderate", "Severe"],
-    },
-  },
-  {
-    id: 6,
-    key: "fever",
-    translations: {
-      english: "Do you have fever?",
-      bengali: "আপনার কি জ্বর আছে?",
-      hindi: "क्या आपको बुखार है?",
-      kokborok: "Nini fever tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 7,
-    key: "breathing",
-    translations: {
-      english: "Are you having difficulty breathing?",
-      bengali: "আপনার কি শ্বাস নিতে অসুবিধা হচ্ছে?",
-      hindi: "क्या आपको सांस लेने में कठिनाई हो रही है?",
-      kokborok: "Nini saas khangni khamokha tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 8,
-    key: "fainting",
-    translations: {
-      english: "Have you fainted, felt severely dizzy, or lost consciousness?",
-      bengali: "আপনি কি অজ্ঞান হয়েছেন, খুব মাথা ঘুরেছে বা জ্ঞান হারিয়েছেন?",
-      hindi: "क्या आप बेहोश हुए हैं, बहुत चक्कर आया है या होश खोया है?",
-      kokborok: "Nini behosh ba khorok dizzy khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 9,
-    key: "vomiting",
-    translations: {
-      english: "Are you vomiting repeatedly or unable to keep fluids down?",
-      bengali: "আপনার কি বারবার বমি হচ্ছে বা পানি রাখতে পারছেন না?",
-      hindi: "क्या आपको बार-बार उल्टी हो रही है या पानी भी नहीं रुक रहा?",
-      kokborok: "Nini bar bar vomiting ba pani khangni khamokha tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 10,
-    key: "conditions",
-    translations: {
-      english: "Do you have any known medical conditions?",
-      bengali: "আপনার কি কোনো পরিচিত রোগ আছে?",
-      hindi: "क्या आपको कोई ज्ञात बीमारी है?",
-      kokborok: "Nini sakra known rog tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 11,
-    key: "medicines",
-    translations: {
-      english: "Are you currently taking any medicines?",
-      bengali: "আপনি কি বর্তমানে কোনো ওষুধ খাচ্ছেন?",
-      hindi: "क्या आप अभी कोई दवा ले रहे हैं?",
-      kokborok: "Nini aini medicine khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 12,
-    key: "allergies",
-    translations: {
-      english: "Do you have any medicine or food allergies?",
-      bengali: "আপনার কি কোনো ওষুধ বা খাবারে অ্যালার্জি আছে?",
-      hindi: "क्या आपको किसी दवा या भोजन से एलर्जी है?",
-      kokborok: "Nini medicine ba food-ni allergy tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 13,
-    key: "surgery",
-    translations: {
-      english: "Have you ever had surgery or been admitted to a hospital?",
-      bengali: "আপনার কি কখনও অস্ত্রোপচার হয়েছে বা হাসপাতালে ভর্তি হতে হয়েছে?",
-      hindi: "क्या आपकी कभी सर्जरी हुई है या अस्पताल में भर्ती हुए हैं?",
-      kokborok: "Nini surgery ba hospital admission khang?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 14,
-    key: "appetiteSleepEnergy",
-    translations: {
-      english: "Have you noticed changes in your appetite, sleep, or energy?",
-      bengali: "আপনার খাওয়া, ঘুম বা শক্তির মধ্যে কি কোনো পরিবর্তন হয়েছে?",
-      hindi: "क्या आपकी भूख, नींद या ऊर्जा में कोई बदलाव आया है?",
-      kokborok: "Nini appetite, sleep ba energy-ni change tong?",
-    },
-    type: "yesno",
-  },
-  {
-    id: 15,
-    key: "otherConcern",
-    translations: {
-      english: "Is there any other concern you want to tell us about?",
-      bengali: "আপনার কি অন্য কোনো সমস্যা আছে যা আপনি জানাতে চান?",
-      hindi: "क्या कोई अन्य समस्या है जिसके बारे में आप बताना चाहते हैं?",
-      kokborok: "Nini sakra concern khulumni tong?",
-    },
-    type: "yesno",
-  },
-];
-
-/* =========================================================
-   LANGUAGE UI TEXT
-========================================================= */
-
-const languageText = {
-  english: {
-    back: "Back",
-    next: "Next",
-    finish: "Continue",
-    yes: "Yes",
-    no: "No",
-    listening: "Listening...",
-    speak: "Speak Answer",
-    selectLocation: "Where does it hurt?",
-    selectMultiple: "Select one or more areas",
-    otherLocation: "Please specify where it hurts",
-    otherPlaceholder: "Type the body part or location",
-    selected: "Selected",
-    body: "Body",
-    firstVisitQuestion: "Have you visited this health centre before?",
-    firstVisitDescription: "This helps us know whether you have previous medical reports to attach.",
-    firstVisit: "This is my first visit",
-    previousVisit: "I have visited before",
-    firstStep: "Final step",
-    question: "Question",
-  },
-  bengali: {
-    back: "পিছনে",
-    next: "পরবর্তী",
-    finish: "চালিয়ে যান",
-    yes: "হ্যাঁ",
-    no: "না",
-    listening: "শোনা হচ্ছে...",
-    speak: "উত্তর বলুন",
-    selectLocation: "কোথায় ব্যথা হচ্ছে?",
-    selectMultiple: "এক বা একাধিক অংশ নির্বাচন করুন",
-    otherLocation: "কোথায় ব্যথা হচ্ছে লিখুন",
-    otherPlaceholder: "শরীরের অংশ বা স্থান লিখুন",
-    selected: "নির্বাচিত",
-    body: "শরীর",
-    firstVisitQuestion: "আপনি কি আগে এই স্বাস্থ্যকেন্দ্রে এসেছেন?",
-    firstVisitDescription: "এর মাধ্যমে আমরা জানতে পারব আপনার আগের কোনো রিপোর্ট আছে কি না।",
-    firstVisit: "এটি আমার প্রথমবার",
-    previousVisit: "আমি আগে এসেছি",
-    firstStep: "শেষ ধাপ",
-    question: "প্রশ্ন",
-  },
-  hindi: {
-    back: "पीछे",
-    next: "आगे",
-    finish: "जारी रखें",
-    yes: "हाँ",
-    no: "नहीं",
-    listening: "सुन रहा है...",
-    speak: "उत्तर बोलें",
-    selectLocation: "कहाँ दर्द हो रहा है?",
-    selectMultiple: "एक या अधिक हिस्से चुनें",
-    otherLocation: "दर्द कहाँ है, बताएं",
-    otherPlaceholder: "शरीर का हिस्सा या स्थान लिखें",
-    selected: "चयनित",
-    body: "शरीर",
-    firstVisitQuestion: "क्या आप पहले इस स्वास्थ्य केंद्र में आए हैं?",
-    firstVisitDescription: "इससे हमें पता चलेगा कि आपके पास पिछली मेडिकल रिपोर्ट है या नहीं।",
-    firstVisit: "यह मेरी पहली यात्रा है",
-    previousVisit: "मैं पहले आ चुका/चुकी हूँ",
-    firstStep: "अंतिम चरण",
-    question: "प्रश्न",
-  },
-  kokborok: {
-    back: "Agok",
-    next: "Agor",
-    finish: "Continue",
-    yes: "Ih",
-    no: "Ihi",
-    listening: "Khang khang...",
-    speak: "Katha khulum",
-    selectLocation: "Bini kothai betha tong?",
-    selectMultiple: "Sakra jaiga select khang",
-    otherLocation: "Kothai betha tong khulum",
-    otherPlaceholder: "Body part ba jaiga khulum",
-    selected: "Select khang",
-    body: "Body",
-    firstVisitQuestion: "Nini agor somoi health centre-o khang?",
-    firstVisitDescription: "Agor medical report tong na nai khangni help khang.",
-    firstVisit: "Iha nini first visit",
-    previousVisit: "Nini agor somoi khang",
-    firstStep: "Last step",
-    question: "Question",
-  },
-};
-
-/* =========================================================
-   BODY PARTS
-========================================================= */
-
-const bodyParts = [
-  { id: "head", label: "Head" },
-  { id: "neck", label: "Neck" },
-  { id: "chest", label: "Chest" },
-  { id: "stomach", label: "Stomach" },
-  { id: "back", label: "Back" },
-  { id: "leftArm", label: "Left Arm" },
-  { id: "rightArm", label: "Right Arm" },
-  { id: "leftHand", label: "Left Hand" },
-  { id: "rightHand", label: "Right Hand" },
-  { id: "leftLeg", label: "Left Leg" },
-  { id: "rightLeg", label: "Right Leg" },
-  { id: "other", label: "Other" },
-];
-
-/* =========================================================
-   BODY PAIN SELECTOR
-========================================================= */
-
-function BodyPainSelector({ language, selectedParts, setSelectedParts, otherText, setOtherText }) {
-  const text = languageText[language] || languageText.english;
-
-  const togglePart = (partId) => {
-    setSelectedParts((previous) =>
-      previous.includes(partId) ? previous.filter((item) => item !== partId) : [...previous, partId]
-    );
-  };
-
-  const activeClass = "bg-[#75b99c] border-[#0f5c45] shadow-[0_0_0_4px_rgba(47,143,105,0.14)] z-[4]";
-  const baseClass = "absolute p-0 border-[2px] border-[#8eb4a4] bg-[#e8f5ef] cursor-pointer z-[3] transition-all duration-200 hover:bg-[#cce8db] hover:border-[#2f8f69] hover:scale-105";
-
-  return (
-    <div className="mt-[28px] p-[24px] rounded-[22px] bg-[#f5faf7] border border-[#d7e8df]">
-      <style>{`
-        @keyframes headPulse {
-          0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 5px rgba(217,45,32,0.14); }
-          50% { opacity: 0.25; transform: scale(1.35); box-shadow: 0 0 0 11px rgba(217,45,32,0.04); }
-        }
-        .animate-headPulse { animation: headPulse 0.9s infinite; }
-      `}</style>
-      
-      <div className="mb-[22px]">
-        <span className="inline-flex px-[11px] py-[6px] rounded-full bg-[#e8f5ef] text-[#0f5c45] text-[11px] font-extrabold uppercase tracking-[0.8px]">
-          Adaptive question
-        </span>
-        <h3 className="m-[13px_0_5px] text-[24px] text-[#103f32]">{text.selectLocation}</h3>
-        <p className="m-0 text-[#668075] text-[14px]">{text.selectMultiple}</p>
-      </div>
-
-      <div className="grid grid-cols-[minmax(280px,0.9fr)_minmax(280px,1.1fr)] gap-[26px] items-stretch max-[760px]:grid-cols-1">
-        {/* BODY DIAGRAM */}
-        <div className="min-h-[500px] flex flex-col items-center justify-center p-[25px] rounded-[22px] bg-white border border-[#d7e8df]">
-          <div className="self-start mb-[14px] text-[13px] font-extrabold text-[#527065] uppercase tracking-[1px]">
-            {text.body}
-          </div>
-
-          <div className="relative w-[245px] h-[410px] m-auto">
-            {/* HEAD */}
-            <button type="button" aria-label="Head" onClick={() => togglePart("head")} className={`${baseClass} w-[58px] h-[62px] left-[94px] top-[7px] rounded-full ${selectedParts.includes("head") ? activeClass : ""}`}>
-              {selectedParts.includes("head") && <span className="absolute w-[15px] h-[15px] top-[18px] left-[20px] rounded-full bg-[#d92d20] shadow-[0_0_0_5px_rgba(217,45,32,0.14)] animate-headPulse" />}
-            </button>
-
-            {/* NECK */}
-            <button type="button" aria-label="Neck" onClick={() => togglePart("neck")} className={`${baseClass} w-[34px] h-[28px] left-[106px] top-[61px] rounded-[8px] ${selectedParts.includes("neck") ? activeClass : ""}`} />
-
-            {/* CHEST */}
-            <button type="button" aria-label="Chest" onClick={() => togglePart("chest")} className={`${baseClass} w-[82px] h-[75px] left-[81px] top-[78px] rounded-[24px_24px_15px_15px] ${selectedParts.includes("chest") ? activeClass : ""}`} />
-
-            {/* STOMACH */}
-            <button type="button" aria-label="Stomach" onClick={() => togglePart("stomach")} className={`${baseClass} w-[78px] h-[78px] left-[83px] top-[145px] rounded-[13px_13px_24px_24px] ${selectedParts.includes("stomach") ? activeClass : ""}`} />
-
-            {/* LEFT ARM */}
-            <button type="button" aria-label="Left arm" onClick={() => togglePart("leftArm")} className={`${baseClass} w-[32px] h-[142px] left-[45px] top-[87px] rounded-[18px] rotate-[7deg] hover:rotate-[7deg] ${selectedParts.includes("leftArm") ? activeClass : ""}`} />
-
-            {/* RIGHT ARM */}
-            <button type="button" aria-label="Right arm" onClick={() => togglePart("rightArm")} className={`${baseClass} w-[32px] h-[142px] right-[45px] top-[87px] rounded-[18px] -rotate-[7deg] hover:-rotate-[7deg] ${selectedParts.includes("rightArm") ? activeClass : ""}`} />
-
-            {/* LEFT HAND */}
-            <button type="button" aria-label="Left hand" onClick={() => togglePart("leftHand")} className={`${baseClass} w-[35px] h-[43px] left-[36px] top-[218px] rounded-[15px] ${selectedParts.includes("leftHand") ? activeClass : ""}`} />
-
-            {/* RIGHT HAND */}
-            <button type="button" aria-label="Right hand" onClick={() => togglePart("rightHand")} className={`${baseClass} w-[35px] h-[43px] right-[36px] top-[218px] rounded-[15px] ${selectedParts.includes("rightHand") ? activeClass : ""}`} />
-
-            {/* LEFT LEG */}
-            <button type="button" aria-label="Left leg" onClick={() => togglePart("leftLeg")} className={`${baseClass} w-[42px] h-[157px] left-[78px] top-[218px] rounded-[13px_13px_20px_20px] ${selectedParts.includes("leftLeg") ? activeClass : ""}`} />
-
-            {/* RIGHT LEG */}
-            <button type="button" aria-label="Right leg" onClick={() => togglePart("rightLeg")} className={`${baseClass} w-[42px] h-[157px] right-[78px] top-[218px] rounded-[13px_13px_20px_20px] ${selectedParts.includes("rightLeg") ? activeClass : ""}`} />
-
-            <div className="absolute w-[3px] h-[295px] left-[121px] top-[82px] bg-[rgba(47,143,105,0.25)] rounded-full z-[1] pointer-events-none" />
-          </div>
-
-          {selectedParts.includes("head") && (
-            <div className="flex items-center gap-[8px] mt-[14px] p-[8px_12px] rounded-full bg-[#fff4f2] text-[#b42318] text-[12px] font-extrabold">
-              <span className="w-[9px] h-[9px] rounded-full bg-[#d92d20] animate-headPulse" />
-              Head selected
-            </div>
-          )}
-        </div>
-
-        {/* BODY LOCATION BUTTONS */}
-        <div className="grid grid-cols-2 gap-[11px] content-center max-[450px]:grid-cols-1">
-          {bodyParts.map((part) => (
-            <button
-              type="button"
-              key={part.id}
-              className={`min-h-[54px] flex items-center gap-[10px] p-[10px_13px] border-[1.5px] rounded-[14px] text-[14px] font-bold cursor-pointer text-left transition-all duration-200 hover:-translate-y-[2px] hover:border-[#2f8f69] ${selectedParts.includes(part.id) ? "bg-[#e8f5ef] border-[#2f8f69] text-[#0f5c45]" : "bg-white border-[#d7e8df] text-[#315c4d]"}`}
-              onClick={() => togglePart(part.id)}
-            >
-              <span className="text-[#2f8f69] text-[10px]">●</span>
-              <span>{part.label}</span>
-              {selectedParts.includes(part.id) && <CheckCircle2 size={18} className="ml-auto" />}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {selectedParts.includes("other") && (
-        <div className="mt-[18px]">
-          <label className="block mb-[8px] text-[14px] font-extrabold text-[#315c4d]">{text.otherLocation}</label>
-          <input
-            type="text"
-            value={otherText}
-            onChange={(event) => setOtherText(event.target.value)}
-            placeholder={text.otherPlaceholder}
-            className="w-full min-h-[54px] px-[15px] border-[1.5px] border-[#d7e8df] rounded-[13px] bg-white outline-none font-sans text-[15px] text-[#103f32] transition-colors focus:border-[#2f8f69]"
-          />
-        </div>
-      )}
-
-      {selectedParts.length > 0 && (
-        <div className="mt-[18px] p-[14px_16px] rounded-[12px] bg-[#e8f5ef] text-[#13664d] text-[13px] leading-[1.6]">
-          <strong>{text.selected}:</strong> {selectedParts.map((id) => bodyParts.find((part) => part.id === id)?.label || id).join(", ")}
-        </div>
-      )}
-    </div>
-  );
+  ];
 }
-
-/* =========================================================
-   VISIT HISTORY
-========================================================= */
-
-function VisitHistoryQuestion({ language, visitHistory, setVisitHistory }) {
-  const text = languageText[language] || languageText.english;
-
-  return (
-    <div className="flex flex-col items-center justify-center text-center p-[40px_20px] max-[760px]:p-[20px_0]">
-      <div className="w-[84px] h-[84px] rounded-[24px] bg-[#e8f5ef] text-[#10704f] flex items-center justify-center mb-[28px]">
-        <CheckCircle2 size={32} />
-      </div>
-      <h2 className="m-0 text-[#103f32] text-[clamp(24px,3.5vw,34px)] leading-[1.2] tracking-[-0.5px] mb-[12px]">{text.firstVisitQuestion}</h2>
-      <p className="m-0 text-[#527065] text-[16px] max-w-[480px] mb-[45px]">{text.firstVisitDescription}</p>
-      
-      <div className="flex gap-[20px] w-full max-w-[650px] max-[600px]:flex-col">
-        <button
-          type="button"
-          className={`flex-1 min-h-[105px] border-[2px] rounded-[22px] flex items-center justify-center gap-[16px] p-[20px] text-[18px] font-bold cursor-pointer transition-all hover:-translate-y-[3px] hover:shadow-[0_12px_30px_rgba(47,143,105,0.08)] ${visitHistory === "first-time" ? "bg-[#e8f5ef] border-[#2f8f69] text-[#0f5c45] shadow-[0_12px_30px_rgba(47,143,105,0.12)]" : "bg-white border-[#d7e8df] text-[#103f32] hover:border-[#2f8f69]"}`}
-          onClick={() => setVisitHistory("first-time")}
-        >
-          <span className={`w-[26px] h-[26px] rounded-full border-[2px] flex items-center justify-center text-[14px] ${visitHistory === "first-time" ? "border-[#2f8f69] bg-[#2f8f69] text-white" : "border-[#b5cdc3]"}`}>
-            {visitHistory === "first-time" ? "✓" : ""}
-          </span>
-          <span>{text.firstVisit}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`flex-1 min-h-[105px] border-[2px] rounded-[22px] flex items-center justify-center gap-[16px] p-[20px] text-[18px] font-bold cursor-pointer transition-all hover:-translate-y-[3px] hover:shadow-[0_12px_30px_rgba(47,143,105,0.08)] ${visitHistory === "previous" ? "bg-[#e8f5ef] border-[#2f8f69] text-[#0f5c45] shadow-[0_12px_30px_rgba(47,143,105,0.12)]" : "bg-white border-[#d7e8df] text-[#103f32] hover:border-[#2f8f69]"}`}
-          onClick={() => setVisitHistory("previous")}
-        >
-          <span className={`w-[26px] h-[26px] rounded-full border-[2px] flex items-center justify-center text-[14px] ${visitHistory === "previous" ? "border-[#2f8f69] bg-[#2f8f69] text-white" : "border-[#b5cdc3]"}`}>
-            {visitHistory === "previous" ? "✓" : ""}
-          </span>
-          <span>{text.previousVisit}</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   MAIN INTERVIEW
-========================================================= */
 
 export default function Interview() {
   const navigate = useNavigate();
-  const patientData = JSON.parse(localStorage.getItem("aarogyaVaaniCurrentPatient") || "{}");
-  const consentData = JSON.parse(localStorage.getItem("aarogyaVaaniConsent") || "{}");
-  const patientType = patientData.patientType || "maternal";
-  const language = consentData.language || "english";
+  const { language } = useLanguage();
 
-  const questions = useMemo(() => patientType === "general" ? generalQuestions : maternalQuestions, [patientType]);
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [selectedBodyParts, setSelectedBodyParts] = useState([]);
-  const [otherBodyLocation, setOtherBodyLocation] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [voiceError, setVoiceError] = useState("");
-  const [showVisitHistory, setShowVisitHistory] = useState(false);
-  const [visitHistory, setVisitHistory] = useState("");
-
-  const currentQuestion = questions[currentIndex];
-  const text = languageText[language] || languageText.english;
-
-  useEffect(() => {
-    const savedInterview = JSON.parse(localStorage.getItem("aarogyaVaaniInterview") || "{}");
-    if (savedInterview.answers) setAnswers(savedInterview.answers);
-    if (savedInterview.bodyPain?.locations) setSelectedBodyParts(savedInterview.bodyPain.locations);
-    if (savedInterview.bodyPain?.otherLocation) setOtherBodyLocation(savedInterview.bodyPain.otherLocation);
-    if (savedInterview.visitHistory) setVisitHistory(savedInterview.visitHistory);
+  // Retrieve current active patient
+  const storedRecord = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("aarogyaVaaniCurrentPatient") || "{}");
+    } catch {
+      return {};
+    }
   }, []);
 
-  const setAnswer = (value) => {
-    setAnswers((previous) => ({ ...previous, [currentQuestion.key]: value }));
+  const patient = storedRecord.patient || {
+    name: "Mamta Debbarma",
+    age: "27",
+    gender: "Female",
+    village: "Bishramganj, Sepahijala",
+    phone: "9862100000",
+    id: storedRecord.id || "AV-8921",
   };
 
-  const getDangerSigns = () => {
-    const detectedDangerSigns = [];
-    if (patientType === "maternal") {
-      if (answers.bleeding === "Yes") detectedDangerSigns.push("Vaginal bleeding");
-      if (answers.abdominalPain === "Yes") detectedDangerSigns.push("Severe abdominal pain");
-      if (answers.headacheVision === "Yes") detectedDangerSigns.push("Severe headache or blurred vision");
-      if (answers.fever === "Yes") detectedDangerSigns.push("Fever / feeling very unwell");
-      if (answers.babyMovement === "No") detectedDangerSigns.push("Reduced or absent baby movement");
+  const patientId = storedRecord.id || patient.id || "AV-8921";
+  const isMaternal = storedRecord.patientType !== "general";
+  const assistedMode = storedRecord.assistedMode ?? true;
+  const patientCondition = storedRecord.patientCondition || (isMaternal ? "pregnant_distress" : "elderly_frail");
+  const assistedBy = storedRecord.assistedBy || "Kalpana Reang (ASHA Worker)";
+  const assistedReason = storedRecord.assistedReason || (
+    patientCondition === "pregnant_distress"
+      ? "Pregnant mother in distress / pain (ASHA assisted intake)"
+      : patientCondition === "elderly_frail"
+      ? `Elderly patient (${patient.gender === "Female" ? "Old woman" : "Old man"} unable to operate phone)`
+      : "Assisted intake for patient unable to use device"
+  );
+
+  // Flow States: 1: 'chief_complaint', 2: 'assessment', 3: 'generating'
+  const [stage, setStage] = useState("chief_complaint");
+  const [chiefComplaint, setChiefComplaint] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [speechError, setSpeechError] = useState("");
+  const [activeChipTab, setActiveChipTab] = useState(
+    patientCondition === "pregnant_distress" ? "maternal" : "elderly"
+  );
+
+  // Assessment flow
+  const [assessmentQuestions, setAssessmentQuestions] = useState([]);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [currentAnswerText, setCurrentAnswerText] = useState("");
+
+  const recognitionRef = useRef(null);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      setSpeechSupported(true);
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = language === "bn" ? "bn-IN" : language === "hi" ? "hi-IN" : "en-IN";
+
+      rec.onstart = () => {
+        setIsListening(true);
+        setSpeechError("");
+      };
+
+      rec.onresult = (e) => {
+        const transcript = Array.from(e.results)
+          .map((r) => r[0].transcript)
+          .join("");
+
+        if (stage === "chief_complaint") {
+          setChiefComplaint(transcript);
+        } else {
+          setCurrentAnswerText(transcript);
+        }
+      };
+
+      rec.onerror = (e) => {
+        console.warn("Speech recognition error:", e);
+        setIsListening(false);
+        setSpeechError("Microphone input ended. You can also type or choose options below.");
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
     }
-    if (patientType === "general") {
-      if (answers.breathing === "Yes") detectedDangerSigns.push("Difficulty breathing");
-      if (answers.fainting === "Yes") detectedDangerSigns.push("Fainting / severe dizziness / loss of consciousness");
-    }
-    return detectedDangerSigns;
+  }, [language, stage]);
+
+  // Text to speech helper
+  const speakText = (text) => {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === "bn" ? "bn-IN" : language === "hi" ? "hi-IN" : "en-IN";
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
   };
 
-  const saveInterviewProgress = (completed = false) => {
-    const detectedDangerSigns = getDangerSigns();
-    localStorage.setItem(
-      "aarogyaVaaniInterview",
-      JSON.stringify({
-        patientType,
-        language,
-        languageName: consentData.languageName || "English",
-        answers,
-        bodyPain: { hasPain: answers.pain === "Yes", locations: selectedBodyParts, otherLocation: otherBodyLocation },
-        visitHistory,
-        dangerSigns: detectedDangerSigns,
-        completed,
-        completedAt: completed ? new Date().toISOString() : null,
-      })
+  // Speak welcome prompt on mount tailored for ASHA worker or direct patient
+  useEffect(() => {
+    let welcome = "";
+    if (assistedMode) {
+      if (patientCondition === "pregnant_distress") {
+        welcome =
+          language === "bn"
+            ? `নমস্কার আশা দিদি! মা কি বেশি কষ্টে আছেন? আপনি ওনার শারীরিক কষ্ট বা লক্ষণগুলি বলুন বা নিচের পর্যবেক্ষণ বোতাম বেছে নিন।`
+            : language === "hi"
+            ? `नमस्ते आशा दीदी! क्या गर्भवती माता अत्यधिक कष्ट में हैं? कृपया उनके लक्षण बोलकर बताएं या नीचे दिए गए बटन चुनें।`
+            : `Namaste ASHA Didi! As the pregnant mother is in acute distress and unable to use the device, please speak her observed symptoms or select from the options below.`;
+      } else if (patientCondition === "elderly_frail") {
+        const elderlyTitleBn = patient.gender === "Female" ? "বৃদ্ধা মহিলার" : "বৃদ্ধ পুরুষের";
+        const elderlyTitleHi = patient.gender === "Female" ? "वृद्ध महिला" : "वृद्ध पुरुष";
+        const elderlyTitleEn = patient.gender === "Female" ? "elderly woman" : "elderly man";
+        welcome =
+          language === "bn"
+            ? `নমস্কার আশা দিদি! প্রবীণ ${elderlyTitleBn} শারীরিক অবস্থা কেমন? ওনার লক্ষণগুলো আমাকে বলুন বা নিচের বোতামগুলো বেছে নিন।`
+            : language === "hi"
+            ? `नमस्ते आशा दीदी! ${elderlyTitleHi} की स्थिति कैसी है? कृपया उनके लक्षण बोलकर या चुनकर दर्ज करें।`
+            : `Namaste ASHA Didi! As the ${elderlyTitleEn} cannot operate the mobile phone, please observe and speak their symptoms or select the options below.`;
+      } else {
+        welcome =
+          language === "bn"
+            ? `নমস্কার আশা দিদি! রোগীর পর্যবেক্ষণ করা লক্ষণগুলো আমাকে বলুন বা বোতাম বেছে নিন।`
+            : language === "hi"
+            ? `नमस्ते आशा दीदी! मरीज के लक्षण बोलकर या नीचे से चुनकर दर्ज करें।`
+            : `Namaste ASHA Didi! Please record the patient's observed symptoms on their behalf.`;
+      }
+    } else {
+      welcome =
+        language === "bn"
+          ? `নমস্কার ${patient.name}। সহজ ভাষায় আমাকে বলুন, আজকে আপনার কি সমস্যা বা কষ্ট হচ্ছে?`
+          : language === "hi"
+          ? `नमस्ते ${patient.name}। कृपया सरल शब्दों में बताएं कि आज आपको क्या शारीरिक परेशानी हो रही है?`
+          : `Namaste ${patient.name}. Please tell me in your own words, what health issues or symptoms are you facing today?`;
+    }
+
+    const timer = setTimeout(() => speakText(welcome), 450);
+    return () => {
+      clearTimeout(timer);
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
+  }, [patient.name, language, assistedMode, patientCondition]);
+
+  // Toggle voice listening
+  const toggleListening = () => {
+    if (!speechSupported || !recognitionRef.current) {
+      alert("Speech recognition is not supported in this browser. Please type your message.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.lang =
+          language === "bn" ? "bn-IN" : language === "hi" ? "hi-IN" : "en-IN";
+        recognitionRef.current.start();
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+  };
+
+  // Start Assessment once Chief Complaint is provided
+  const handleStartAssessment = () => {
+    if (!chiefComplaint.trim()) {
+      alert("Please tell or type the patient's symptoms first.");
+      return;
+    }
+
+    const generated = generateDoctorAssessment(
+      chiefComplaint,
+      isMaternal,
+      patientCondition,
+      patient.gender
+    );
+    setAssessmentQuestions(generated);
+    setCurrentQIndex(0);
+    setStage("assessment");
+
+    // Speak first question
+    const firstQ =
+      language === "bn"
+        ? generated[0].bengali
+        : language === "hi"
+        ? generated[0].hindi
+        : generated[0].question;
+    speakText(
+      assistedMode
+        ? language === "bn"
+          ? `আশা দিদি, রোগীকে জিজ্ঞাসা করুন: ${firstQ}`
+          : `ASHA Didi, please ask: ${firstQ}`
+        : firstQ
     );
   };
 
-  const finishInterview = () => {
-    if (!visitHistory) {
-      alert(text.firstVisitQuestion);
-      return;
-    }
-    saveInterviewProgress(true);
-    if (visitHistory === "previous") {
-      navigate("/reports");
+  // Answer selection or next question
+  const handleSelectOption = (opt) => {
+    const currentQ = assessmentQuestions[currentQIndex];
+    const newAnswers = { ...answers, [currentQ.id]: opt };
+    setAnswers(newAnswers);
+    setCurrentAnswerText(opt);
+
+    // Auto advance after slight delay
+    setTimeout(() => {
+      advanceQuestion(newAnswers);
+    }, 300);
+  };
+
+  const handleNextWithCurrentText = () => {
+    const currentQ = assessmentQuestions[currentQIndex];
+    const answerVal = currentAnswerText.trim() || answers[currentQ.id] || "No specific details";
+    const newAnswers = { ...answers, [currentQ.id]: answerVal };
+    setAnswers(newAnswers);
+    advanceQuestion(newAnswers);
+  };
+
+  const advanceQuestion = (updatedAnswers) => {
+    if (currentQIndex < assessmentQuestions.length - 1) {
+      const nextIdx = currentQIndex + 1;
+      setCurrentQIndex(nextIdx);
+      const nextQ = assessmentQuestions[nextIdx];
+      setCurrentAnswerText(updatedAnswers[nextQ.id] || "");
+
+      const qText =
+        language === "bn"
+          ? nextQ.bengali
+          : language === "hi"
+          ? nextQ.hindi
+          : nextQ.question;
+      speakText(
+        assistedMode
+          ? language === "bn"
+            ? `পরবর্তী প্রশ্ন: ${qText}`
+            : `Next question for ASHA Didi: ${qText}`
+          : qText
+      );
     } else {
-      navigate("/danger-check");
+      // Completed all questions -> Generate summary
+      finishAndSaveSummary(updatedAnswers);
     }
   };
 
-  const moveForward = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((previous) => previous + 1);
-      setVoiceError("");
-      return;
+  const handlePrevQuestion = () => {
+    if (currentQIndex > 0) {
+      const prevIdx = currentQIndex - 1;
+      setCurrentQIndex(prevIdx);
+      const prevQ = assessmentQuestions[prevIdx];
+      setCurrentAnswerText(answers[prevQ.id] || "");
+    } else {
+      setStage("chief_complaint");
     }
-    setShowVisitHistory(true);
-    setVoiceError("");
-    saveInterviewProgress(false);
   };
 
-  const nextQuestion = () => {
-    if (currentQuestion.adaptive === "bodyPain") {
-      const painAnswer = answers[currentQuestion.key];
-      if (painAnswer === "No") {
-        if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 2);
-        setVoiceError("");
-        return;
-      }
-      if (painAnswer === "Yes") {
-        if (selectedBodyParts.length === 0) {
-          alert(text.selectLocation);
-          return;
-        }
-        if (selectedBodyParts.includes("other") && !otherBodyLocation.trim()) {
-          alert(text.otherLocation);
-          return;
-        }
-        moveForward();
-        return;
-      }
-      alert(`${currentQuestion.translations[language] || currentQuestion.translations.english}`);
-      return;
-    }
-    moveForward();
-  };
+  // Compile clinical summary & save into patient database
+  const finishAndSaveSummary = (finalAnswers) => {
+    setStage("generating");
 
-  const previousQuestion = () => {
-    if (showVisitHistory) {
-      setShowVisitHistory(false);
-      return;
-    }
-    if (patientType === "general" && currentQuestion.key === "painSeverity") {
-      setCurrentIndex(currentIndex - 1);
-      setVoiceError("");
-      return;
-    }
-    if (patientType === "general" && currentQuestion.key === "fever" && answers.pain === "No") {
-      setCurrentIndex(currentIndex - 2);
-      setVoiceError("");
-      return;
-    }
-    if (currentIndex > 0) {
-      setCurrentIndex((previous) => previous - 1);
-      setVoiceError("");
-      return;
-    }
-    navigate("/consent");
-  };
+    // Determine danger flags
+    const answersText = Object.values(finalAnswers).join(" ").toLowerCase();
+    const complaintLower = chiefComplaint.toLowerCase();
+    const fullContext = `${complaintLower} ${answersText}`;
 
-  const startVoiceInput = () => {
-    setVoiceError("");
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setVoiceError("Voice input is not supported by this browser. Please use Chrome or another supported browser.");
-      return;
-    }
-    const recognition = new SpeechRecognition();
-    recognition.lang = consentData.speechCode || "en-IN";
-    recognition.interimResults = false;
-    recognition.continuous = false;
+    const dangerSigns = [];
+    let triageLevel = "Stable";
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event) => {
-      const spokenText = event.results[0][0].transcript;
-      if (currentQuestion.type === "yesno") {
-        const lower = spokenText.toLowerCase();
-        if (lower.includes("yes") || lower.includes("হ্যাঁ") || lower.includes("হা") || lower.includes("हाँ") || lower.includes("ih")) {
-          setAnswer("Yes");
-        } else if (lower.includes("no") || lower.includes("না") || lower.includes("नहीं") || lower.includes("nahi") || lower.includes("ihi")) {
-          setAnswer("No");
-        } else {
-          setAnswer(spokenText);
-        }
-      } else {
-        setAnswer(spokenText);
-      }
+    // Obstetric Red Flags
+    if (
+      fullContext.includes("severe") ||
+      fullContext.includes("blur") ||
+      fullContext.includes("swelling on face") ||
+      fullContext.includes("unbearable")
+    ) {
+      dangerSigns.push("Severe headache with visual disturbance / Preeclampsia risk");
+      triageLevel = "Critical Red Flag";
+    }
+
+    if (fullContext.includes("heavy") || fullContext.includes("fresh red") || fullContext.includes("bleed")) {
+      dangerSigns.push("Active vaginal bleeding reported");
+      triageLevel = "Critical Red Flag";
+    }
+
+    if (fullContext.includes("no movement today") || fullContext.includes("reduced movement")) {
+      dangerSigns.push("Decreased or absent fetal movements");
+      triageLevel = "Critical Red Flag";
+    }
+
+    // Geriatric / Acute debility Red Flags
+    if (
+      fullContext.includes("bedridden") ||
+      fullContext.includes("disoriented") ||
+      fullContext.includes("slurred") ||
+      fullContext.includes("gasping") ||
+      fullContext.includes("chest heaviness") ||
+      fullContext.includes("unable to eat or drink")
+    ) {
+      dangerSigns.push("Geriatric Acute Warning: Severe debility, disorientation, or cardiorespiratory distress");
+      triageLevel = "Critical Red Flag";
+    }
+
+    if (triageLevel !== "Critical Red Flag" && (fullContext.includes("chills") || fullContext.includes("fever") || fullContext.includes("shiver") || fullContext.includes("rigor") || fullContext.includes("vomit"))) {
+      triageLevel = "Moderate";
+      dangerSigns.push("Acute febrile illness or high fever with rigors in malaria endemic zone");
+    }
+
+    // Build Q&A history array
+    const assessmentHistory = assessmentQuestions.map((q) => ({
+      question: q.question,
+      answer: finalAnswers[q.id] || "Not answered",
+    }));
+
+    // AI Clinical summary text
+    let clinicalSummary = "";
+    if (assistedMode && patientCondition === "pregnant_distress") {
+      clinicalSummary = `Assisted field intake conducted by ASHA Worker ${assistedBy}. Patient is a ${patient.age}-year-old pregnant female in acute pain/distress unable to operate device. Reported: "${chiefComplaint}". Assessment: ${
+        triageLevel === "Critical Red Flag"
+          ? "CRITICAL OBSTETRIC ALERT. Symptoms indicate potential severe preeclampsia or complications. Immediate Doctor review, BP check, and fetal Doppler required."
+          : "Moderate pregnancy distress reported. Advise Doctor evaluation for symptomatic relief and monitoring."
+      }`;
+    } else if (assistedMode && patientCondition === "elderly_frail") {
+      clinicalSummary = `Assisted field intake conducted by ASHA Worker ${assistedBy}. Patient is an elderly ${patient.gender.toLowerCase()} (${patient.age} yrs) unable to operate phone due to severe debility/illness. Reported: "${chiefComplaint}". Assessment: ${
+        triageLevel === "Critical Red Flag"
+          ? "URGENT GERIATRIC RED FLAG. High risk of sepsis, stroke, or severe cardiorespiratory distress. Immediate Medical Officer evaluation required."
+          : "Geriatric clinical assessment logged by ASHA proxy. Doctor review recommended for rapid diagnostic test (Malaria/Dengue RDT) and prescription."
+      }`;
+    } else if (isMaternal) {
+      clinicalSummary = `${patient.age}-year-old female (${patient.category || "ANC"}) reporting: "${chiefComplaint}". Assessment: ${
+        triageLevel === "Critical Red Flag"
+          ? "CRITICAL OBSTETRIC ALERT. Potential severe preeclampsia or complications. Immediate Doctor review required."
+          : "Routine pregnancy intake with stable vitals. Continue nutritional supplements and standard ANC checkup."
+      }`;
+    } else {
+      clinicalSummary = `${patient.age}-year-old ${patient.gender} presenting with: "${chiefComplaint}". Assessment: ${
+        triageLevel === "Critical Red Flag"
+          ? "URGENT MEDICAL ATTENTION REQUIRED. Acute warning flags detected."
+          : "Outpatient clinical intake completed. Doctor review recommended for diagnosis and prescription."
+      }`;
+    }
+
+    const patientRecord = {
+      id: patientId,
+      name: patient.name,
+      age: patient.age,
+      gender: patient.gender || (isMaternal ? "Female" : "Male"),
+      village: patient.village || "Sepahijala",
+      phone: patient.phone || "9862000000",
+      category: isMaternal
+        ? "Maternal & Antenatal (ANC)"
+        : patientCondition === "elderly_frail"
+        ? "Elderly & Geriatric OPD"
+        : "General OPD",
+      pregnancyMonths: isMaternal ? "Active Pregnancy" : null,
+      assistedMode,
+      assistedBy: assistedMode ? assistedBy : null,
+      assistedReason,
+      patientCondition,
+      status: triageLevel === "Critical Red Flag" ? "Urgent" : "Pending Review",
+      triage: triageLevel,
+      chiefComplaint,
+      assessmentHistory,
+      dangerSigns,
+      clinicalSummary,
+      vitals: {
+        bp: triageLevel === "Critical Red Flag" ? "152/96 mmHg (Elevated)" : "120/80 mmHg",
+        weight: patientCondition === "elderly_frail" ? "56 kg" : "54 kg",
+        hb: "10.4 g/dL",
+        fetalHeartRate: isMaternal ? "140 bpm" : undefined,
+        temp: fullContext.includes("fever") || fullContext.includes("chills") ? "102.4 °F" : "98.6 °F",
+      },
+      doctorReview: null,
+      createdAt: "Today, Just now",
     };
-    recognition.onerror = () => {
-      setVoiceError("We could not understand the voice input. Please try again.");
-      setIsListening(false);
-    };
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
+
+    // Save to permanent store
+    savePatient(patientRecord);
+
+    // Also update localStorage current summary
+    localStorage.setItem("aarogyaVaaniCurrentPatient", JSON.stringify({ patient: patientRecord, patientType: storedRecord.patientType }));
+    localStorage.setItem("aarogyaVaaniCurrentSummary", JSON.stringify(patientRecord));
+
+    setTimeout(() => {
+      navigate(`/summary?id=${patientId}`);
+    }, 1000);
   };
+
+  const quickSymptomChips = isMaternal
+    ? [
+        "Severe headache & blurred vision",
+        "Stomach pain / acute cramps",
+        "Vaginal bleeding or spotting",
+        "Baby movements feel reduced",
+        "Swollen feet & puffy face",
+        "Routine pregnancy checkup",
+      ]
+    : [
+        "High fever with shivering chills",
+        "Severe body ache & joint pain",
+        "Difficulty breathing & chest heaviness",
+        "Vomiting & loose motions",
+        "Severe dizziness & weakness",
+      ];
+
+  const currentQ = assessmentQuestions[currentQIndex];
 
   return (
-    <div className="min-h-screen w-full bg-[linear-gradient(rgba(232,245,239,0.94),rgba(245,250,247,0.97)),url('https://upload.wikimedia.org/wikipedia/commons/3/36/Tripura_in_India.svg')] bg-cover bg-center bg-fixed text-[#103f32] pb-[40px] font-sans">
-      {/* HEADER */}
-      <header className="min-h-[82px] px-[5%] bg-[rgba(16,63,50,0.98)] flex items-center justify-between text-white shadow-[0_4px_20px_rgba(16,63,50,0.15)]">
-        <div>
-          <div className="font-extrabold text-[26px] tracking-[-0.5px]">AarogyaVaani</div>
-          <div className="mt-[2px] text-[12px] tracking-[1.5px] opacity-75 uppercase">Tripura Health</div>
-        </div>
-        <div className="px-[16px] py-[9px] rounded-full bg-white/10 border border-white/20 text-[14px] font-bold">
-          {consentData.languageName || "English"}
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col font-sans bg-slate-50/50 pb-10">
+      <GovHeader
+        title="AI Voice Health Assistant"
+        showBack={true}
+        backPath="/dashboard"
+      />
 
-      {/* MAIN */}
-      <main className="w-[min(1050px,92%)] mx-auto mt-[34px]">
-        <div className="flex items-center justify-between gap-[20px] mb-[14px]">
-          <button type="button" className="inline-flex items-center gap-[8px] bg-transparent border-0 text-[#0f5c45] font-bold text-[15px] cursor-pointer hover:opacity-75" onClick={previousQuestion}>
-            <ArrowLeft size={18} />
-            {text.back}
-          </button>
-          <div className="text-[14px] font-bold text-[#527065]">
-            {showVisitHistory ? text.firstStep : `${text.question} ${currentIndex + 1} of ${questions.length}`}
+      <main className="flex-1 w-full max-w-md sm:max-w-lg mx-auto p-4 space-y-4 pb-24">
+        {/* ASHA Assisted Intake Proxy Banner */}
+        {assistedMode && (
+          <div className="glass-card-emerald p-3.5 rounded-2xl border border-emerald-500/30 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#0b6651] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+                👩‍⚕️
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-emerald-900 tracking-wider">
+                    ASHA Assisted Intake
+                  </span>
+                  <span className="text-[9px] bg-emerald-200/80 text-emerald-950 font-bold px-1.5 py-0.2 rounded">
+                    Proxy Mode
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-800">
+                  {assistedBy} • {patientCondition === "pregnant_distress" ? "Pregnant Mother in Acute Pain" : patientCondition === "elderly_frail" ? `Elderly (${patient.gender === "Female" ? "Old Woman" : "Old Man"})` : "Assisted Patient"}
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold text-emerald-800 bg-white/85 px-2.5 py-1 rounded-lg border border-emerald-200/50">
+              {patientCondition === "pregnant_distress" ? "🤰 Mother In Pain" : patientCondition === "elderly_frail" ? "👴 Frail/Bedridden" : "Proxy Intake"}
+            </span>
+          </div>
+        )}
+
+        {/* Patient Identity Bar */}
+        <div className="glass-panel p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-base shrink-0">
+              <User className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-black text-slate-900 text-sm truncate">{patient.name}</h3>
+              <p className="text-[11px] text-slate-500 font-semibold truncate">
+                {patient.age} yrs • {patient.gender} • {patient.village}
+              </p>
+            </div>
+          </div>
+          <div className="glass-card-emerald px-2.5 py-1 rounded-xl text-right shrink-0">
+            <span className="text-[9px] uppercase font-bold text-emerald-800 block">Patient ID</span>
+            <strong className="font-mono text-xs font-black text-emerald-950">{patientId}</strong>
           </div>
         </div>
 
-        {/* PROGRESS */}
-        <div className="h-[8px] w-full bg-[#d7e8df] rounded-full overflow-hidden mb-[22px]">
-          <div className="h-full bg-[#2f8f69] rounded-full transition-all duration-300" style={{ width: showVisitHistory ? "100%" : `${((currentIndex + 1) / questions.length) * 100}%` }} />
-        </div>
-
-        {/* QUESTION CARD */}
-        <section className="w-full bg-white/95 border border-[#d7e8df] rounded-[28px] p-[44px] shadow-[0_24px_60px_rgba(16,63,50,0.12)] backdrop-blur-md max-[760px]:p-[25px]">
-          {!showVisitHistory ? (
-            <>
-              <div className="w-[54px] h-[54px] flex items-center justify-center rounded-[16px] bg-[#e8f5ef] text-[#0f5c45] text-[18px] font-extrabold mb-[22px]">
-                {String(currentIndex + 1).padStart(2, "0")}
+        {/* ---------------- STAGE 1: CHIEF COMPLAINT ---------------- */}
+        {stage === "chief_complaint" && (
+          <div className="glass-panel p-5 sm:p-6 rounded-3xl shadow-md border border-white/80 space-y-5 animate-fade-in">
+            {/* AI Greeting Doctor Card */}
+            <div className="glass-card-emerald p-4 rounded-2xl flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Stethoscope className="w-5 h-5" />
               </div>
-
-              <h1 className="max-w-[850px] m-0 text-[#103f32] text-[clamp(28px,4vw,43px)] leading-[1.18] tracking-[-1px]">
-                {currentQuestion.translations[language] || currentQuestion.translations.english}
-              </h1>
-
-              {/* TEXT INPUT */}
-              {currentQuestion.type === "text" && (
-                <div className="mt-[34px]">
-                  <input
-                    type="text"
-                    value={answers[currentQuestion.key] || ""}
-                    onChange={(event) => setAnswer(event.target.value)}
-                    placeholder={currentQuestion.placeholder?.[language] || currentQuestion.placeholder?.english}
-                    className="w-full min-h-[62px] px-[20px] border-[2px] border-[#d7e8df] rounded-[16px] outline-none text-[18px] text-[#103f32] bg-[#f8fcfa] transition-all duration-200 focus:border-[#2f8f69] focus:shadow-[0_0_0_4px_rgba(47,143,105,0.12)] placeholder:text-[#8ca49a]"
-                  />
-                </div>
-              )}
-
-              {/* YES / NO */}
-              {currentQuestion.type === "yesno" && (
-                <div className="grid grid-cols-2 gap-[18px] mt-[34px] max-[500px]:grid-cols-1">
-                  <button type="button" className={`min-h-[82px] rounded-[18px] border-[2px] text-[21px] font-extrabold cursor-pointer transition-all duration-200 hover:-translate-y-[2px] hover:border-[#2f8f69] ${answers[currentQuestion.key] === "Yes" ? "bg-[#e8f5ef] border-[#2f8f69] shadow-[0_8px_22px_rgba(47,143,105,0.13)] text-[#103f32]" : "bg-[#f8fcfa] border-[#d7e8df] text-[#103f32]"}`} onClick={() => setAnswer("Yes")}>
-                    {text.yes}
-                  </button>
-                  <button type="button" className={`min-h-[82px] rounded-[18px] border-[2px] text-[21px] font-extrabold cursor-pointer transition-all duration-200 hover:-translate-y-[2px] hover:border-[#2f8f69] ${answers[currentQuestion.key] === "No" ? "bg-[#e8f5ef] border-[#2f8f69] shadow-[0_8px_22px_rgba(47,143,105,0.13)] text-[#103f32]" : "bg-[#f8fcfa] border-[#d7e8df] text-[#103f32]"}`} onClick={() => setAnswer("No")}>
-                    {text.no}
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">
+                    {assistedMode ? "AI Doctor • ASHA Guidance" : "AI Doctor Agent"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      speakText(
+                        assistedMode
+                          ? patientCondition === "pregnant_distress"
+                            ? "ASHA Didi, please observe and speak the mother's condition, or select options below."
+                            : patientCondition === "elderly_frail"
+                            ? "ASHA Didi, please observe and speak the elderly patient's condition, or select options below."
+                            : "ASHA Didi, please record the patient's symptoms on their behalf."
+                          : `Namaste ${patient.name}! Tell me in your own words, what problems or symptoms are you facing today?`
+                      )
+                    }
+                    className="text-emerald-800 hover:text-emerald-950 flex items-center gap-1 text-xs font-bold cursor-pointer bg-white/60 px-2 py-0.5 rounded-lg"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Listen</span>
                   </button>
                 </div>
-              )}
+                <p className="text-sm font-bold text-emerald-950 mt-1 leading-snug">
+                  {assistedMode ? (
+                    patientCondition === "pregnant_distress" ? (
+                      language === "bn"
+                        ? "মা কি বেশি কষ্টে আছেন? আশা দিদি, আপনি ওনার শারীরিক কষ্ট বা লক্ষণগুলি বলুন বা নিচের পর্যবেক্ষণ বোতাম বেছে নিন।"
+                        : language === "hi"
+                        ? "क्या गर्भवती माता अत्यधिक कष्ट में हैं? आशा दीदी, कृपया उनके लक्षण बोलकर या नीचे से चुनकर दर्ज करें।"
+                        : "Patient is in acute pain / distress. ASHA Didi: Please observe and speak her condition, or select 1-tap signs below."
+                    ) : patientCondition === "elderly_frail" ? (
+                      language === "bn"
+                        ? `প্রবীণ রোগী কি শয্যাশায়ী? আশা দিদি, ওনার কষ্ট বা লক্ষণগুলি বলুন বা নিচের বোতাম বেছে নিন।`
+                        : language === "hi"
+                        ? "बुजुर्ग मरीज बोल या मोबाइल चला नहीं पा रहे हैं। आशा दीदी, कृपया उनके लक्षण बोलकर या चुनकर दर्ज करें।"
+                        : "Elderly patient is frail/bedridden. ASHA Didi: Speak their symptoms or select 1-tap signs below."
+                    ) : (
+                      "ASHA Didi: Please observe and record patient symptoms on their behalf."
+                    )
+                  ) : language === "bn" ? (
+                    `নমস্কার ${patient.name}! সহজ ভাষায় আমাকে বলুন, আজকে আপনার কি সমস্যা বা কষ্ট হচ্ছে?`
+                  ) : language === "hi" ? (
+                    `नमस्ते ${patient.name}! कृपया सरल शब्दों में बताएं कि आज आपको क्या शारीरिक परेशानी हो रही है?`
+                  ) : (
+                    `Namaste ${patient.name}! Tell me in your own words, what problems or symptoms are you facing today?`
+                  )}
+                </p>
+              </div>
+            </div>
 
-              {/* CHOICE */}
-              {currentQuestion.type === "choice" && (
-                <div className="grid grid-cols-3 gap-[16px] mt-[34px] max-[760px]:grid-cols-1">
-                  {currentQuestion.options[language].map((option, index) => (
-                    <button type="button" key={option} className={`min-h-[72px] rounded-[16px] border-[2px] text-[17px] font-bold cursor-pointer transition-all duration-200 hover:-translate-y-[2px] hover:border-[#2f8f69] ${answers[currentQuestion.key] === currentQuestion.options.english[index] ? "bg-[#e8f5ef] border-[#2f8f69] text-[#103f32]" : "bg-[#f8fcfa] border-[#d7e8df] text-[#103f32]"}`} onClick={() => setAnswer(currentQuestion.options.english[index])}>
-                      {option}
+            {/* Voice Input Button & Visualizer */}
+            <div className="flex flex-col items-center justify-center py-3">
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`w-24 h-24 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 shadow-lg ${
+                  isListening
+                    ? "bg-red-600 text-white animate-pulse ring-8 ring-red-200 shadow-red-500/50 scale-105"
+                    : "bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white hover:scale-105"
+                }`}
+              >
+                {isListening ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
+              </button>
+
+              <span className="text-xs font-extrabold text-slate-700 mt-3 flex items-center gap-1.5">
+                {isListening ? (
+                  <span className="text-red-600 flex items-center gap-1.5 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-red-600" />
+                    {assistedMode ? "Recording ASHA Worker's voice... Speak now" : "Listening to patient... Speak now"}
+                  </span>
+                ) : (
+                  <span>
+                    {assistedMode ? "Tap microphone to speak as ASHA Worker" : "Tap microphone to talk to AI"}
+                  </span>
+                )}
+              </span>
+
+              {speechError && (
+                <p className="text-[11px] text-amber-800 font-semibold text-center mt-2 px-3 py-1 bg-amber-50 rounded-lg">
+                  {speechError}
+                </p>
+              )}
+            </div>
+
+            {/* Text Input Box */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                {assistedMode
+                  ? "Observed Symptoms (Spoken by ASHA Worker or Typed):"
+                  : "Patient's Issue / Symptoms (Spoken or Typed):"}
+              </label>
+              <textarea
+                rows={3}
+                value={chiefComplaint}
+                onChange={(e) => setChiefComplaint(e.target.value)}
+                placeholder={
+                  assistedMode
+                    ? "e.g. Patient is groaning with severe contraction pain and cannot stand..."
+                    : "e.g. I have severe headache, dizziness and stomach ache since yesterday..."
+                }
+                className="w-full p-3.5 bg-white/90 border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-inner resize-none"
+              />
+            </div>
+
+            {/* ASHA Quick 1-Tap Observation Category Tabs & Chips */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                  {assistedMode ? "ASHA 1-Tap Field Signs:" : "Quick 1-Tap Symptoms:"}
+                </span>
+                {assistedMode && (
+                  <div className="flex gap-1 bg-slate-200/70 p-0.5 rounded-xl text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setActiveChipTab("maternal")}
+                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                        activeChipTab === "maternal" ? "bg-emerald-700 text-white shadow-2xs" : "text-slate-600"
+                      }`}
+                    >
+                      🤰 Pregnant Mother
                     </button>
-                  ))}
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveChipTab("elderly")}
+                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer ${
+                        activeChipTab === "elderly" ? "bg-emerald-700 text-white shadow-2xs" : "text-slate-600"
+                      }`}
+                    >
+                      👴 Elderly (Old Man/Woman)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(activeChipTab === "maternal" || isMaternal
+                  ? [
+                      "Severe labor pain / groaning",
+                      "Severe headache & blurred vision (Pre-eclampsia)",
+                      "Water break / vaginal bleeding",
+                      "Extreme pedal swelling / unable to walk",
+                      "Baby movements reduced or absent",
+                      "Severe dizziness & continuous vomiting",
+                    ]
+                  : [
+                      "Bedridden & extreme weakness (Cannot stand)",
+                      "High fever with shaking chills (Rigors)",
+                      "Gasping for breath & chest tightness",
+                      "Disoriented / confused / slurred speech",
+                      "Unable to eat food or drink water",
+                      "Severe joint & back pain (Immobile)",
+                    ]
+                ).map((chip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setChiefComplaint(chip);
+                      speakText(
+                        assistedMode
+                          ? `Observed sign noted: ${chip}. Starting clinical assessment.`
+                          : `Noted: ${chip}. Let me ask you doctor assessment questions.`
+                      );
+                    }}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                      chiefComplaint === chip
+                        ? "bg-emerald-700 text-white shadow-xs"
+                        : "glass-card text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
+                    }`}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Proceed to Assessment Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleStartAssessment}
+                className="w-full bg-[#0b6651] hover:bg-[#074738] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:shadow-lg"
+              >
+                <span>Assess Symptoms with AI Doctor</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- STAGE 2: DOCTOR-LIKE ASSESSMENT ---------------- */}
+        {stage === "assessment" && currentQ && (
+          <div className="glass-panel p-5 sm:p-6 rounded-3xl shadow-md border border-white/80 space-y-5 animate-fade-in">
+            {/* Assessment Progress */}
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-1.5">
+                <span className="text-emerald-800">
+                  {assistedMode ? "ASHA Assisted Clinical Diagnostic Check" : "Doctor Clinical Assessment"}
+                </span>
+                <span>
+                  Question {currentQIndex + 1} of {assessmentQuestions.length}
+                </span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-emerald-600 h-2 transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${((currentQIndex + 1) / assessmentQuestions.length) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Doctor Question Card */}
+            <div className="glass-card-emerald p-4.5 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase tracking-wider">
+                  {assistedMode ? `ASHA Didi Check • Q${currentQIndex + 1}` : `Q${currentQIndex + 1} Clinical Diagnostic Check`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    speakText(
+                      language === "bn"
+                        ? currentQ.bengali
+                        : language === "hi"
+                        ? currentQ.hindi
+                        : currentQ.question
+                    )
+                  }
+                  className="text-emerald-800 hover:text-emerald-950 flex items-center gap-1 text-xs font-bold cursor-pointer bg-white/60 px-2.5 py-1 rounded-lg"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>Listen</span>
+                </button>
+              </div>
+
+              {assistedMode && (
+                <span className="text-xs font-black text-emerald-950 block">
+                  👩‍⚕️ ASHA Didi, ask or check {patient.name}:
+                </span>
               )}
 
-              {/* BODY PAIN ADAPTIVE FLOW */}
-              {currentQuestion.adaptive === "bodyPain" && answers[currentQuestion.key] === "Yes" && (
-                <BodyPainSelector language={language} selectedParts={selectedBodyParts} setSelectedParts={setSelectedBodyParts} otherText={otherBodyLocation} setOtherText={setOtherBodyLocation} />
-              )}
+              <h2 className="text-lg font-black text-slate-900 leading-snug">
+                {language === "bn"
+                  ? currentQ.bengali
+                  : language === "hi"
+                  ? currentQ.hindi
+                  : currentQ.question}
+              </h2>
+            </div>
 
-              {/* VOICE */}
-              <div className="mt-[44px] flex flex-col items-center">
-                <button type="button" className={`w-full max-w-[340px] min-h-[72px] border-0 rounded-[999px] flex items-center justify-center gap-[12px] text-[18px] font-extrabold cursor-pointer transition-all duration-200 ${isListening ? "bg-[#e85f5f] text-white shadow-[0_0_0_8px_rgba(232,95,95,0.2)]" : "bg-[rgba(16,63,50,0.92)] text-white hover:-translate-y-[3px] hover:shadow-[0_12px_24px_rgba(16,63,50,0.2)]"}`} onClick={isListening ? undefined : startVoiceInput}>
-                  {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                  {isListening ? text.listening : text.speak}
-                </button>
-                {voiceError && <p className="mt-[16px] text-center text-[#d92d20] font-bold text-[14px] bg-[#fff4f2] p-[10px_16px] rounded-[12px]">{voiceError}</p>}
+            {/* Quick Answer Option Buttons */}
+            <div>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                {assistedMode ? "Select Patient's Response or Observed Status:" : "Select Patient Answer:"}
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {currentQ.options.map((opt, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleSelectOption(opt)}
+                    className={`p-3.5 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+                      answers[currentQ.id] === opt || currentAnswerText === opt
+                        ? "bg-emerald-700 text-white border-emerald-700 shadow-sm"
+                        : "bg-white/80 hover:bg-emerald-50 text-slate-800 border-slate-200"
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    {(answers[currentQ.id] === opt || currentAnswerText === opt) && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                    )}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* NAVIGATION */}
-              <div className="flex items-center justify-between mt-[55px] pt-[28px] border-t border-[#d7e8df] gap-[15px] max-[500px]:flex-col">
-                <button type="button" className="min-h-[56px] px-[32px] rounded-[14px] border border-[#d7e8df] bg-white text-[#315c4d] font-bold text-[16px] flex items-center gap-[10px] cursor-pointer transition-all duration-200 hover:bg-[#f3f9f6] max-[500px]:w-full max-[500px]:justify-center" onClick={previousQuestion}>
-                  <ArrowLeft size={18} />
-                  {text.back}
-                </button>
-                <button type="button" className="min-h-[56px] px-[36px] rounded-[14px] border-0 bg-[#159b80] text-white font-extrabold text-[16px] flex items-center gap-[10px] cursor-pointer shadow-[0_8px_20px_rgba(21,155,128,0.25)] transition-all duration-200 hover:bg-[#11846c] hover:-translate-y-[2px] max-[500px]:w-full max-[500px]:justify-center" onClick={nextQuestion}>
-                  {text.next}
-                  <ArrowRight size={18} />
+            {/* Voice Input or Custom Detail */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={currentAnswerText}
+                  onChange={(e) => setCurrentAnswerText(e.target.value)}
+                  placeholder={assistedMode ? "Or speak/type ASHA worker observation..." : "Or speak/type custom answer..."}
+                  className="flex-1 px-3.5 py-2.5 bg-white/90 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                />
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2.5 rounded-xl text-white transition-all cursor-pointer ${
+                    isListening ? "bg-red-600 animate-pulse" : "bg-emerald-700 hover:bg-emerald-800"
+                  }`}
+                  title="Speak Answer"
+                >
+                  <Mic className="w-4 h-4" />
                 </button>
               </div>
-            </>
-          ) : (
-            <>
-              <VisitHistoryQuestion language={language} visitHistory={visitHistory} setVisitHistory={setVisitHistory} />
+            </div>
 
-              <div className="flex items-center justify-between mt-[55px] pt-[28px] border-t border-[#d7e8df] gap-[15px] max-[500px]:flex-col">
-                <button type="button" className="min-h-[56px] px-[32px] rounded-[14px] border border-[#d7e8df] bg-white text-[#315c4d] font-bold text-[16px] flex items-center gap-[10px] cursor-pointer transition-all duration-200 hover:bg-[#f3f9f6] max-[500px]:w-full max-[500px]:justify-center" onClick={previousQuestion}>
-                  <ArrowLeft size={18} />
-                  {text.back}
-                </button>
-                <button type="button" className="min-h-[56px] px-[36px] rounded-[14px] border-0 bg-[#159b80] text-white font-extrabold text-[16px] flex items-center gap-[10px] cursor-pointer shadow-[0_8px_20px_rgba(21,155,128,0.25)] transition-all duration-200 hover:bg-[#11846c] hover:-translate-y-[2px] max-[500px]:w-full max-[500px]:justify-center" onClick={finishInterview}>
-                  {text.finish}
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </>
-          )}
-        </section>
+            {/* Navigation buttons */}
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handlePrevQuestion}
+                className="glass-card hover:bg-white text-slate-700 font-bold text-xs py-3 px-4 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextWithCurrentText}
+                className="bg-[#0b6651] hover:bg-[#074738] text-white font-extrabold text-xs py-3 px-5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
+              >
+                <span>
+                  {currentQIndex === assessmentQuestions.length - 1
+                    ? "Compile Health Summary"
+                    : "Next Question"}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- STAGE 3: GENERATING SUMMARY SPINNER ---------------- */}
+        {stage === "generating" && (
+          <div className="glass-panel p-8 rounded-3xl shadow-md border border-white/80 text-center space-y-4 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto animate-spin">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">
+                Compiling Clinical Health Summary...
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Analyzing symptoms, danger signs, and generating doctor assessment sheet
+              </p>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Docked Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
