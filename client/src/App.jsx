@@ -1,58 +1,54 @@
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import NewPatient from "./pages/NewPatient";
-import Consent from "./pages/Consent";
-import Interview from "./pages/Interview";
-import DangerCheck from "./pages/DangerCheck";
-import Summary from "./pages/Summary";
-import DoctorReview from "./pages/DoctorReview";
-import Reports from "./pages/Reports";
+import { lazy, Suspense } from "react";
+import { Routes, Route } from "react-router-dom";
 
-import Patients from "./pages/Patients";
-import PatientDetails from "./pages/PatientDetails";
-import ActiveSessions from "./pages/ActiveSessions";
-import DangerAlerts from "./pages/DangerAlerts";
-import Settings from "./pages/Settings";
-import SignupStatus from "./pages/SignupStatus";
-import SyncStatus from "./pages/SyncStatus";
+const Landing = lazy(() => import("./pages/Landing/Landing"));
+const Login = lazy(() => import("./pages/Login/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
+const NewPatient = lazy(() => import("./pages/NewPatient/NewPatient"));
+const Consent = lazy(() => import("./pages/Consent/Consent"));
+const Interview = lazy(() => import("./pages/Interview/Interview"));
+const DangerCheck = lazy(() => import("./pages/DangerCheck/DangerCheck"));
+const Summary = lazy(() => import("./pages/Summary/Summary"));
+const ActiveSessions = lazy(() => import("./pages/ActiveSessions/ActiveSessions"));
+const Patients = lazy(() => import("./pages/Patients/Patients"));
+const PatientDetails = lazy(() => import("./pages/PatientDetails/PatientDetails"));
+const DangerAlerts = lazy(() => import("./pages/DangerAlerts/DangerAlerts"));
+const DoctorReview = lazy(() => import("./pages/DoctorReview/DoctorReview"));
+const Reports = lazy(() => import("./pages/Reports/Reports"));
+const SyncStatus = lazy(() => import("./pages/SyncStatus/SyncStatus"));
+const SignupStatus = lazy(() => import("./pages/SignupStatus/SignupStatus"));
+const Settings = lazy(() => import("./pages/Settings/Settings"));
+
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#f5f9f8]">
+    <div className="w-[40px] h-[40px] border-4 border-[#e2ece9] border-t-[#159b80] rounded-full animate-spin"></div>
+  </div>
+);
 
 function App() {
-  const path = window.location.pathname;
-
-  if (path === "/login") return <Login />;
-
-  if (path === "/dashboard") return <Dashboard />;
-
-  if (path === "/new-patient") return <NewPatient />;
-
-  if (path === "/consent") return <Consent />;
-
-  if (path === "/interview") return <Interview />;
-
-  if (path === "/danger-check") return <DangerCheck />;
-
-  if (path === "/summary") return <Summary />;
-
-  if (path === "/doctor-review") return <DoctorReview />;
-
-  if (path === "/reports") return <Reports />;
-
-  if (path === "/patients") return <Patients />;
-
-  if (path === "/patient-details") return <PatientDetails />;
-
-  if (path === "/active-sessions") return <ActiveSessions />;
-
-  if (path === "/danger-alerts") return <DangerAlerts />;
-
-  if (path === "/settings") return <Settings />;
-
-  if (path === "/signup-status") return <SignupStatus />;
-
-  if (path === "/sync-status") return <SyncStatus />;
-
-  return <Landing />;
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/new-patient" element={<NewPatient />} />
+        <Route path="/consent" element={<Consent />} />
+        <Route path="/interview" element={<Interview />} />
+        <Route path="/danger-check" element={<DangerCheck />} />
+        <Route path="/summary" element={<Summary />} />
+        <Route path="/active-sessions" element={<ActiveSessions />} />
+        <Route path="/patients" element={<Patients />} />
+        <Route path="/patient-details" element={<PatientDetails />} />
+        <Route path="/danger-alerts" element={<DangerAlerts />} />
+        <Route path="/doctor-review" element={<DoctorReview />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/sync-status" element={<SyncStatus />} />
+        <Route path="/signup-status" element={<SignupStatus />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
+    </Suspense>
+  );
 }
 
 export default App;
