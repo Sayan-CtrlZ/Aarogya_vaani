@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
   ArrowRight,
   AudioLines,
   Building2,
   CheckCircle2,
+  ChevronRight,
   HeartPulse,
   Languages,
   Leaf,
