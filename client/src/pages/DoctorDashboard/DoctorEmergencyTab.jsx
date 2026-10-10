@@ -54,7 +54,7 @@ export default function DoctorEmergencyTab() {
                   {p.name}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  {p.age} yrs • {p.gender} • {p.village} • Phone: {p.phone}
+                  {p.age} yrs • {p.gender} • Phone: {p.phone}
                 </p>
               </div>
 
@@ -73,7 +73,7 @@ export default function DoctorEmergencyTab() {
                 Chief Danger Symptoms:
               </span>
               <p className="text-slate-800 font-semibold leading-relaxed">
-                "{p.chiefComplaint}"
+                {p.chiefComplaint}
               </p>
             </div>
 

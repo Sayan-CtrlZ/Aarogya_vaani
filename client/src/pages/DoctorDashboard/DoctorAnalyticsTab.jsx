@@ -16,8 +16,7 @@ export default function DoctorAnalyticsTab() {
     } catch {}
     return {
       userName: "Dr. S. Roy",
-      facility: "Bishalgarh CHC",
-      district: "Sepahijala District",
+      facility: "Clinical Workspace",
       workerId: "MO-8841",
     };
   }, []);
@@ -121,14 +120,14 @@ export default function DoctorAnalyticsTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
             <span className="text-[10px] font-bold uppercase text-slate-400 block">Facility Name</span>
-            <strong className="text-slate-900 text-sm block mt-0.5">{doctorProfile.facility || "Bishalgarh CHC"}</strong>
+            <strong className="text-slate-900 text-sm block mt-0.5">{doctorProfile.facility || "Clinical Workspace"}</strong>
             <span className="text-slate-500 text-[11px]">Primary Health Care Facility</span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-            <span className="text-[10px] font-bold uppercase text-slate-400 block">District Jurisdiction</span>
-            <strong className="text-slate-900 text-sm block mt-0.5">{doctorProfile.district || "Sepahijala District"}</strong>
-            <span className="text-slate-500 text-[11px]">State Health Administration</span>
+            <span className="text-[10px] font-bold uppercase text-slate-400 block">Clinical Department</span>
+            <strong className="text-slate-900 text-sm block mt-0.5">General & Community Health</strong>
+            <span className="text-slate-500 text-[11px]">Clinical Services</span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">

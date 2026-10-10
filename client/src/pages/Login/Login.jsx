@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import UniversalNavbar from "../../components/UniversalNavbar";
 import {
   Activity,
   Stethoscope,
@@ -60,8 +61,8 @@ export default function Login() {
   // Common credentials (Pre-filled by default)
   const [pin, setPin] = useState("1234");
   const [showPin, setShowPin] = useState(false);
-  const [district, setDistrict] = useState("Sepahijala District");
-  const [facility, setFacility] = useState("Bishalgarh CHC");
+  const [district, setDistrict] = useState("West District");
+  const [facility, setFacility] = useState("Mohanpur PHC");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,7 +165,7 @@ export default function Login() {
         workerId: patientPhone,
         age: "27",
         gender: "Female",
-        village: "Sepahijala",
+        village: "",
         abhaId: "",
         isDoctor: false,
         isPatient: true,
@@ -187,7 +188,7 @@ export default function Login() {
             age: "27",
             gender: "Female",
             phone: patientPhone,
-            village: "Sepahijala",
+            village: "",
             district,
             abhaId: "",
           },
@@ -201,7 +202,7 @@ export default function Login() {
 
       setTimeout(() => {
         setIsSubmitting(false);
-        navigate("/new-patient");
+        navigate("/patient");
       }, 600);
     } else {
       // Doctor sign-in
@@ -253,11 +254,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row font-sans text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900">
-      {/* ========================================================
-          LEFT IMAGE SHOWCASE PANEL (Desktop & Tablet)
-          ======================================================== */}
-      <aside className="hidden lg:flex lg:w-5/12 xl:w-5/12 relative overflow-hidden bg-emerald-950 text-white flex-col justify-start p-8 xl:p-10 shadow-2xl z-10">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900">
+      <UniversalNavbar showBack backPath="/" />
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* ========================================================
+            LEFT IMAGE SHOWCASE PANEL (Desktop & Tablet)
+            ======================================================== */}
+        <aside className="hidden lg:flex lg:w-5/12 xl:w-5/12 relative overflow-hidden bg-emerald-950 text-white flex-col justify-start p-8 xl:p-10 shadow-2xl z-10">
         {/* Loading skeleton / shimmer placeholder */}
         {!imageLoaded && (
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 animate-pulse flex flex-col items-center justify-center gap-3">
@@ -772,6 +775,7 @@ export default function Login() {
           <span>Ayushman Bharat Digital Mission (ABDM) • DPDP Act 2023 Compliant</span>
         </div>
       </main>
+      </div>
     </div>
   );
 }

@@ -15,12 +15,29 @@ import {
   ArrowRight,
   ShieldCheck,
   Pill,
+  KeyRound,
+  ShieldAlert,
+  Lock,
+  Eye,
+  Download,
+  X,
+  Layers,
+  Phone,
+  Activity,
+  Calendar,
+  Check,
 } from "lucide-react";
 import {
   getAllPatients,
   getPatientById,
   updatePatientReview,
+  getPatientDocuments,
+  addPatientDocument,
 } from "../../utils/patientStore";
+import {
+  verifyAccessCode,
+  logAuditEvent,
+} from "../../utils/accessCodeStore";
 
 const QUICK_MEDS = [
   "Tab Paracetamol 650mg SOS",
@@ -46,6 +63,14 @@ export default function DoctorReviewTab() {
   const [prescription, setPrescription] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [activeAccessCodeData, setActiveAccessCodeData] = useState(null);
+  const [codeLookupError, setCodeLookupError] = useState("");
+
+  // Clinical Sub-tab in Left Column: "summary" | "history" | "documents"
+  const [activeClinicalTab, setActiveClinicalTab] = useState("summary");
+
+  // Document preview modal
+  const [previewingDoc, setPreviewingDoc] = useState(null);
 
   // Sync with searchParams
   useEffect(() => {
@@ -60,6 +85,28 @@ export default function DoctorReviewTab() {
   const currentPatient = useMemo(() => {
     return getPatientById(selectedPatientId) || patientsList[0] || null;
   }, [selectedPatientId, patientsList]);
+
+  // Documents for the current patient
+  const patientDocs = useMemo(() => {
+    if (!currentPatient) return [];
+    return getPatientDocuments(currentPatient.id);
+  }, [currentPatient]);
+
+  // Compute permissions based on active access code
+  const canAccessHistory = useMemo(() => {
+    if (!activeAccessCodeData) return true; // Direct clinic login has full access
+    return !!activeAccessCodeData.scope?.medicalHistory;
+  }, [activeAccessCodeData]);
+
+  const canAccessReports = useMemo(() => {
+    if (!activeAccessCodeData) return true; // Direct clinic login has full access
+    return !!activeAccessCodeData.scope?.selectedReports;
+  }, [activeAccessCodeData]);
+
+  const canAccessCurrentVisit = useMemo(() => {
+    if (!activeAccessCodeData) return true;
+    return !!activeAccessCodeData.scope?.currentVisit;
+  }, [activeAccessCodeData]);
 
   // Pre-fill doctor notes & Rx
   useEffect(() => {
@@ -136,15 +183,37 @@ export default function DoctorReviewTab() {
 
     updatePatientReview(currentPatient.id, {
       doctorName: "Dr. S. Roy (Medical Officer)",
+      facility: "Bishalgarh Community Health Centre",
       notes: doctorNotes,
       prescription: prescription,
+    });
+
+    // Automatically issue verified prescription document to patient vault
+    addPatientDocument({
+      patientId: currentPatient.id,
+      title: `Official OPD Prescription Slip - Dr. S. Roy`,
+      fileName: `Prescription_${currentPatient.id}_Signed.pdf`,
+      category: "Prescription",
+      facility: "Bishalgarh Community Health Centre",
+      fileSize: "480 KB",
+    });
+
+    // Log the clinical audit trail
+    logAuditEvent({
+      patientId: currentPatient.id,
+      code: activeAccessCodeData ? activeAccessCodeData.code : "CLINICAL_PORTAL",
+      accessorRole: "Doctor",
+      accessorName: "Dr. S. Roy",
+      facility: "Bishalgarh Community Health Centre",
+      action: "REVIEW_SAVED",
+      details: `Prescription & clinical orders issued for ${currentPatient.name}. Synced to patient health vault.`,
     });
 
     const refreshed = getAllPatients();
     setPatientsList(refreshed);
 
-    setToastMessage(`Prescription & Review saved for ${currentPatient.name} (${currentPatient.id})`);
-    setTimeout(() => setToastMessage(""), 3500);
+    setToastMessage(`✓ Prescription & Review issued to ${currentPatient.name} (${currentPatient.id})`);
+    setTimeout(() => setToastMessage(""), 4000);
   };
 
   const isUrgent =
@@ -160,7 +229,7 @@ export default function DoctorReviewTab() {
         </div>
       )}
 
-      {/* Quick Patient Selector Bar */}
+      {/* Quick Patient Selector & Code Entry Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
@@ -174,7 +243,10 @@ export default function DoctorReviewTab() {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => handleSelectPatient(p.id)}
+                  onClick={() => {
+                    setActiveAccessCodeData(null);
+                    handleSelectPatient(p.id);
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
                     isSelected
                       ? "bg-blue-700 text-white shadow-xs font-black"
@@ -194,34 +266,159 @@ export default function DoctorReviewTab() {
           </div>
         </div>
 
-        {/* Patient Lookup Input */}
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const match = getPatientById(searchQuery.trim().toUpperCase());
+        {/* Patient / Access Code Lookup Input */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCodeLookupError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const query = searchQuery.trim().toUpperCase();
+                  if (!query) return;
+
+                  // 1. First test if it is a temporary patient-shared code
+                  const codeCheck = verifyAccessCode(query);
+                  if (codeCheck.valid) {
+                    const codeData = codeCheck.codeData;
+                    const match = getPatientById(codeData.patientId);
+                    if (match) {
+                      setActiveAccessCodeData(codeData);
+                      handleSelectPatient(match.id);
+                      logAuditEvent({
+                        patientId: match.id,
+                        code: codeData.code,
+                        accessorRole: "Doctor",
+                        accessorName: "Dr. S. Roy",
+                        facility: "Bishalgarh Community Health Centre",
+                        action: "RECORD_ACCESSED",
+                        details: `Doctor entered valid temporary access code ${codeData.code}. Authorized scope: ${Object.keys(codeData.scope).filter((k) => codeData.scope[k]).join(", ")}.`,
+                      });
+                      setToastMessage(`✓ Valid Code ${query}! Unlocked records for ${match.name}`);
+                      setTimeout(() => setToastMessage(""), 4000);
+                      return;
+                    }
+                  } else if (query.startsWith("AV-") && query.length >= 8) {
+                    setCodeLookupError(codeCheck.error || "Invalid or expired temporary access code.");
+                    return;
+                  }
+
+                  // 2. Fallback to direct Patient ID match
+                  const directMatch = getPatientById(query);
+                  if (directMatch) {
+                    setActiveAccessCodeData(null);
+                    handleSelectPatient(directMatch.id);
+                    setToastMessage(`Loaded patient ${directMatch.id}`);
+                    setTimeout(() => setToastMessage(""), 2500);
+                  } else {
+                    setCodeLookupError("No patient or valid access code found for this input.");
+                  }
+                }
+              }}
+              placeholder="Enter Patient Code (e.g. AV-7K4P-92)"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const query = searchQuery.trim().toUpperCase();
+              if (!query) return;
+              const codeCheck = verifyAccessCode(query);
+              if (codeCheck.valid) {
+                const codeData = codeCheck.codeData;
+                const match = getPatientById(codeData.patientId);
                 if (match) {
+                  setActiveAccessCodeData(codeData);
                   handleSelectPatient(match.id);
-                  setToastMessage(`Loaded patient ${match.id}`);
-                  setTimeout(() => setToastMessage(""), 2500);
+                  setToastMessage(`✓ Valid Code ${query}! Unlocked records for ${match.name}`);
+                  setTimeout(() => setToastMessage(""), 4000);
+                }
+              } else {
+                const directMatch = getPatientById(query);
+                if (directMatch) {
+                  setActiveAccessCodeData(null);
+                  handleSelectPatient(directMatch.id);
+                } else {
+                  setCodeLookupError(codeCheck.error || "Invalid code or ID.");
                 }
               }
             }}
-            placeholder="Jump to Patient ID (e.g. AV-9012)"
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-          />
+            className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0"
+          >
+            Access
+          </button>
         </div>
       </div>
+
+      {codeLookupError && (
+        <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-rose-600" />
+            <span>{codeLookupError}</span>
+          </div>
+          <button
+            onClick={() => setCodeLookupError("")}
+            className="text-rose-500 hover:text-rose-800 cursor-pointer text-xs"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* 2-Column Clinical Desk Layout */}
       {currentPatient ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column (7 cols): Patient Case Data */}
           <div className="lg:col-span-7 space-y-5">
+            {/* Active Code Scope Notice Banner */}
+            {activeAccessCodeData && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold shrink-0">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-900 block">
+                      Patient-Authorized Temporary Access: {activeAccessCodeData.code}
+                    </span>
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-800 font-semibold mt-0.5">
+                      <span>Expires: {new Date(activeAccessCodeData.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>•</span>
+                      <span>Scopes:</span>
+                      <span className="inline-flex gap-1">
+                        <span className={`px-1.5 py-0.2 rounded ${canAccessCurrentVisit ? "bg-emerald-200 text-emerald-900 font-bold" : "bg-slate-200 text-slate-500 line-through"}`}>
+                          Current Visit
+                        </span>
+                        <span className={`px-1.5 py-0.2 rounded ${canAccessReports ? "bg-emerald-200 text-emerald-900 font-bold" : "bg-slate-200 text-slate-500 line-through"}`}>
+                          Reports
+                        </span>
+                        <span className={`px-1.5 py-0.2 rounded ${canAccessHistory ? "bg-emerald-200 text-emerald-900 font-bold" : "bg-slate-200 text-slate-500 line-through"}`}>
+                          Past History
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-200 text-emerald-900">
+                    DPDP Audit Logged
+                  </span>
+                  <button
+                    onClick={() => setActiveAccessCodeData(null)}
+                    className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                  >
+                    Clear Code
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Patient Profile Card */}
             <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
               <div className="flex items-start justify-between gap-4">
@@ -248,7 +445,7 @@ export default function DoctorReviewTab() {
                       {currentPatient.name}
                     </h2>
                     <p className="text-xs text-slate-500 font-medium">
-                      {currentPatient.age} yrs • {currentPatient.gender} • {currentPatient.village}
+                      {currentPatient.age} yrs • {currentPatient.gender}
                     </p>
                   </div>
                 </div>
@@ -327,50 +524,344 @@ export default function DoctorReviewTab() {
               )}
             </div>
 
-            {/* Chief Complaint & AI Clinical Impression */}
-            <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
-              <div>
-                <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
-                  Reported Chief Complaint:
-                </span>
-                <p className="text-xs font-bold text-slate-900 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 italic leading-relaxed">
-                  "{currentPatient.chiefComplaint}"
-                </p>
-              </div>
+            {/* Sub-Tabs Selector for Left Column */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-200/60 rounded-2xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setActiveClinicalTab("summary")}
+                className={`flex-1 py-2 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeClinicalTab === "summary"
+                    ? "bg-white text-slate-900 shadow-sm font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5 text-blue-700" />
+                <span>Current Intake & AI</span>
+              </button>
 
-              <div>
-                <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
-                  AI Clinical Impression & Triage:
-                </span>
-                <p className="text-xs font-medium text-slate-800 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/70 leading-relaxed">
-                  {currentPatient.clinicalSummary}
-                </p>
-              </div>
-
-              {/* Question and Answer History */}
-              {currentPatient.assessmentHistory && (
-                <div className="pt-2">
-                  <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-2">
-                    Symptom Assessment Responses ({currentPatient.assessmentHistory.length}):
+              <button
+                type="button"
+                onClick={() => setActiveClinicalTab("history")}
+                className={`flex-1 py-2 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeClinicalTab === "history"
+                    ? "bg-white text-slate-900 shadow-sm font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {canAccessHistory ? (
+                  <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                )}
+                <span>Medical History</span>
+                {!canAccessHistory && (
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-bold">
+                    Locked
                   </span>
-                  <div className="space-y-2">
-                    {currentPatient.assessmentHistory.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-slate-50 p-3 rounded-2xl text-xs border border-slate-100"
-                      >
-                        <p className="font-semibold text-slate-600">
-                          {idx + 1}. {item.question}
-                        </p>
-                        <p className="font-black text-slate-900 mt-1 pl-3 text-xs">
-                          ↳ {item.answer}
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveClinicalTab("documents")}
+                className={`flex-1 py-2 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeClinicalTab === "documents"
+                    ? "bg-white text-slate-900 shadow-sm font-black"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {canAccessReports ? (
+                  <FileText className="w-3.5 h-3.5 text-indigo-700" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                )}
+                <span>Reports Vault ({patientDocs.length})</span>
+                {!canAccessReports && (
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-bold">
+                    Locked
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* TAB 1: CURRENT INTAKE & AI TRIAGE */}
+            {activeClinicalTab === "summary" && (
+              <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                <div>
+                  <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
+                    Reported Chief Complaint:
+                  </span>
+                  <p className="text-xs font-bold text-slate-900 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60 leading-relaxed">
+                    {currentPatient.chiefComplaint}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
+                    AI Clinical Impression & Triage:
+                  </span>
+                  <p className="text-xs font-medium text-slate-800 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/70 leading-relaxed">
+                    {currentPatient.clinicalSummary}
+                  </p>
+                </div>
+
+                {/* Question and Answer History */}
+                {currentPatient.assessmentHistory && (
+                  <div className="pt-2">
+                    <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-2">
+                      Symptom Assessment Responses ({currentPatient.assessmentHistory.length}):
+                    </span>
+                    <div className="space-y-2">
+                      {currentPatient.assessmentHistory.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-slate-50 p-3 rounded-2xl text-xs border border-slate-100"
+                        >
+                          <p className="font-semibold text-slate-600">
+                            {idx + 1}. {item.question}
+                          </p>
+                          <p className="font-black text-slate-900 mt-1 pl-3 text-xs">
+                            ↳ {item.answer}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: PAST MEDICAL HISTORY */}
+            {activeClinicalTab === "history" && (
+              <div className="space-y-4">
+                {!canAccessHistory ? (
+                  <div className="bg-amber-50/90 border border-amber-300 p-6 rounded-3xl text-amber-950 space-y-3 shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-amber-950">
+                          Medical History Restricted by Patient Consent Scope
+                        </h4>
+                        <p className="text-xs text-amber-800 mt-0.5">
+                          India DPDP Act 2023 Enforced Gate
                         </p>
                       </div>
-                    ))}
+                    </div>
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      Patient <strong>{currentPatient.name}</strong> generated temporary access code <strong>{activeAccessCodeData?.code}</strong> without the <em>"Complete Medical History"</em> permission scope. To view prior visits, allergies, and chronic conditions, request the patient to regenerate a temporary code with full history scope.
+                    </p>
                   </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Clinical Profile & Allergies */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                        Critical Medical Flags & Profile
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">Blood Group</span>
+                          <span className="font-black text-slate-900 block mt-0.5">{currentPatient.bloodGroup || "B Positive (Rh+)"}</span>
+                        </div>
+
+                        <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200">
+                          <span className="text-[10px] font-black uppercase text-rose-700 block">Known Allergies</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {currentPatient.allergies?.map((al, i) => (
+                              <span key={i} className="px-2 py-0.5 rounded-md bg-rose-600 text-white font-bold text-[10px]">
+                                {al}
+                              </span>
+                            )) || <span className="text-slate-600">None documented</span>}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">Chronic Conditions</span>
+                          <span className="font-bold text-slate-800 block mt-0.5">
+                            {currentPatient.chronicConditions?.join(", ") || "None"}
+                          </span>
+                        </div>
+
+                        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 block">Emergency Contact</span>
+                            <span className="font-bold text-slate-800 block mt-0.5">
+                              {currentPatient.emergencyContact?.name || "Family Member"}
+                            </span>
+                          </div>
+                          {currentPatient.emergencyContact?.phone && (
+                            <a
+                              href={`tel:${currentPatient.emergencyContact.phone}`}
+                              className="px-2.5 py-1.5 bg-blue-100 text-blue-900 rounded-xl font-bold text-[11px] flex items-center gap-1"
+                            >
+                              <Phone className="w-3 h-3 text-blue-700" />
+                              <span>Call</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Active Medications List */}
+                      {currentPatient.currentMedications && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                            Active Medications ({currentPatient.currentMedications.length}):
+                          </span>
+                          <div className="space-y-1.5">
+                            {currentPatient.currentMedications.map((m, idx) => (
+                              <div
+                                key={idx}
+                                className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Pill className="w-3.5 h-3.5 text-blue-700" />
+                                  <span className="font-bold text-slate-900">{m.name}</span>
+                                  <span className="text-slate-500 text-[11px]">({m.dose})</span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  {m.purpose}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Prior Facility Consultations Timeline */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-3">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                        Past Clinic Consultations ({currentPatient.priorVisits?.length || 0})
+                      </h4>
+
+                      <div className="space-y-3">
+                        {currentPatient.priorVisits?.map((visit, i) => (
+                          <div
+                            key={i}
+                            className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-black text-slate-900 text-xs block">
+                                  {visit.type}
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  {visit.facility} • {visit.doctor}
+                                </span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[10px]">
+                                {visit.date}
+                              </span>
+                            </div>
+
+                            <p className="text-slate-700 text-xs bg-white p-2.5 rounded-xl border border-slate-100">
+                              {visit.summary}
+                            </p>
+
+                            {visit.prescription && (
+                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-900 bg-emerald-50 px-2 py-1 rounded-lg">
+                                <Stethoscope className="w-3 h-3 text-emerald-700" />
+                                <span>Rx: {visit.prescription}</span>
+                              </div>
+                            )}
+                          </div>
+                        )) || (
+                          <p className="text-xs text-slate-500 italic">No prior visits recorded.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: DIAGNOSTIC REPORTS VAULT */}
+            {activeClinicalTab === "documents" && (
+              <div className="space-y-4">
+                {!canAccessReports ? (
+                  <div className="bg-amber-50/90 border border-amber-300 p-6 rounded-3xl text-amber-950 space-y-3 shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-amber-950">
+                          Diagnostic Reports Vault Restricted by Patient
+                        </h4>
+                        <p className="text-xs text-amber-800 mt-0.5">
+                          India DPDP Act 2023 Enforced Gate
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      Patient <strong>{currentPatient.name}</strong> did not authorize the <em>"Diagnostic Reports & Uploaded Documents"</em> scope under code <strong>{activeAccessCodeData?.code}</strong>.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900">
+                          Digital Health Records Vault
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          ABDM & DigiLocker Verified Diagnostic Documents
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-900 border border-indigo-200">
+                        {patientDocs.length} Documents
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {patientDocs.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-blue-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-slate-900 block">
+                                {doc.title}
+                              </span>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                                <span>{doc.facility}</span>
+                                <span>•</span>
+                                <span>{doc.date}</span>
+                                <span>•</span>
+                                <span className="font-mono text-[10px] bg-slate-200/70 px-1.5 py-0.2 rounded">
+                                  {doc.category}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-center">
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                              ABDM Verified ✓
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewingDoc(doc)}
+                              className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>View</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Column (5 cols): Doctor Orders & Rx */}
@@ -466,7 +957,10 @@ export default function DoctorReviewTab() {
                   return (
                     <div
                       key={p.id}
-                      onClick={() => handleSelectPatient(p.id)}
+                      onClick={() => {
+                        setActiveAccessCodeData(null);
+                        handleSelectPatient(p.id);
+                      }}
                       className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isCurrent
                           ? "bg-blue-50 border border-blue-300 shadow-2xs"
@@ -508,6 +1002,128 @@ export default function DoctorReviewTab() {
       ) : (
         <div className="bg-white p-12 text-center rounded-3xl border border-slate-200">
           <p className="text-slate-500 font-bold text-sm">No patient selected.</p>
+        </div>
+      )}
+
+      {/* ========================================================
+          DOCUMENT PREVIEW MODAL
+          ======================================================== */}
+      {previewingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 p-6 space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    {previewingDoc.title}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {previewingDoc.facility} • {previewingDoc.date}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewingDoc(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document Details Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Patient</span>
+                <span className="font-black text-slate-900">{currentPatient.name} ({currentPatient.id})</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Document ID</span>
+                <span className="font-mono text-slate-700">{previewingDoc.id}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">File Name</span>
+                <span className="font-mono text-blue-900 font-bold">{previewingDoc.fileName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Digital Verification</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black text-[10px]">
+                  ABDM Verified & Encrypted
+                </span>
+              </div>
+            </div>
+
+            {/* Document Content Simulation */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                Clinical Content Summary:
+              </span>
+
+              {previewingDoc.category === "Prescription" ? (
+                <div className="space-y-1 text-slate-800">
+                  <p className="font-bold text-blue-900">Issued by: Dr. S. Roy (Medical Officer)</p>
+                  <p>Prescription: {currentPatient?.doctorReview?.prescription || "Routine Antenatal Support Regimen."}</p>
+                  <p className="text-slate-500 text-[11px]">Next Follow-up: 4 Weeks at Bishalgarh CHC.</p>
+                </div>
+              ) : previewingDoc.category === "Lab Report" ? (
+                <div className="space-y-1.5 text-slate-800">
+                  <div className="flex justify-between py-0.5 border-b border-slate-100">
+                    <span>Hemoglobin (Hb):</span>
+                    <strong className="font-mono">10.4 g/dL (Mild Anaemia)</strong>
+                  </div>
+                  <div className="flex justify-between py-0.5 border-b border-slate-100">
+                    <span>Blood Sugar (Fasting):</span>
+                    <strong className="font-mono">88 mg/dL (Normal)</strong>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span>Urine Albumin / Sugar:</span>
+                    <strong className="font-mono text-emerald-800">Nil / Negative</strong>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5 text-slate-800">
+                  <div className="flex justify-between py-0.5 border-b border-slate-100">
+                    <span>Tetanus Toxoid (TT-1):</span>
+                    <strong className="text-emerald-800 font-bold">Administered (14-Jul-2026)</strong>
+                  </div>
+                  <div className="flex justify-between py-0.5 border-b border-slate-100">
+                    <span>TT Booster / TT-2:</span>
+                    <strong className="text-emerald-800 font-bold">Scheduled (Next Visit)</strong>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span>IFA Distribution:</span>
+                    <strong className="text-slate-900 font-bold">100 Tablets Issued</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.print();
+                  setPreviewingDoc(null);
+                }}
+                className="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Document</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPreviewingDoc(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -23,7 +23,6 @@ import {
   Building2,
 } from "lucide-react";
 import PublicHeader from "../../components/PublicHeader";
-import BottomNav from "../../components/BottomNav";
 
 const HERO_SLIDES = [
   {
@@ -79,6 +78,8 @@ export default function Landing() {
         setActiveUser(parsed);
         if (parsed.role === "doctor") {
           navigate("/doctor/review", { replace: true });
+        } else {
+          navigate("/patient", { replace: true });
         }
       }
     } catch {
@@ -148,7 +149,7 @@ export default function Landing() {
       tag: "For Patients",
       desc: "Patients answer simple spoken questions about their symptoms or tap easy pictures. Takes only a couple of minutes.",
       icon: Mic,
-      targetPath: "/new-patient",
+      targetPath: "/patient",
       iconColor: "text-emerald-700 bg-emerald-500/10 border border-emerald-500/20",
       badgeColor: "bg-emerald-500/10 text-emerald-800 border-emerald-500/20",
       cardBorder: "border-slate-200/90 hover:border-emerald-500/40",
@@ -168,7 +169,7 @@ export default function Landing() {
       tag: "Urgent Care",
       desc: "Patients with serious or high-risk symptoms are highlighted at the top of the clinic queue so they get immediate medical attention.",
       icon: ShieldAlert,
-      targetPath: "/danger-alerts",
+      targetPath: "/doctor/emergency",
       iconColor: "text-rose-700 bg-rose-500/10 border border-rose-500/20",
       badgeColor: "bg-rose-500/10 text-rose-800 border-rose-500/20",
       cardBorder: "border-slate-200/90 hover:border-rose-500/40",
@@ -178,7 +179,7 @@ export default function Landing() {
       tag: "Health Records",
       desc: "Keeps past visit summaries and doctor prescriptions neatly organized so patients and doctors can look up past care anytime.",
       icon: UsersRound,
-      targetPath: "/patients",
+      targetPath: "/patient",
       iconColor: "text-teal-700 bg-teal-500/10 border border-teal-500/20",
       badgeColor: "bg-teal-500/10 text-teal-800 border-teal-500/20",
       cardBorder: "border-slate-200/90 hover:border-teal-500/40",
@@ -612,31 +613,6 @@ export default function Landing() {
           </div>
         </footer>
       </main>
-
-      {/* 9. Docked Mobile Bottom Bar */}
-      {activeUser ? (
-        <div className="lg:hidden">
-          <BottomNav />
-        </div>
-      ) : (
-        /* Mobile Visitor Bottom Bar */
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-lg flex items-center gap-2.5">
-          <button
-            onClick={() => navigate("/login?role=patient")}
-            className="flex-1 bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 font-bold text-xs py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 shadow-xs"
-          >
-            <User className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Patient Login</span>
-          </button>
-          <button
-            onClick={() => navigate("/login?role=doctor")}
-            className="flex-1 bg-[#0b6651] hover:bg-[#074738] text-white font-black text-xs py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 shadow-xs"
-          >
-            <Stethoscope className="w-3.5 h-3.5" />
-            <span>Doctor Portal</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

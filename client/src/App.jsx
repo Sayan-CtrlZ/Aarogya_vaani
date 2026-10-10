@@ -4,21 +4,11 @@ import DoctorGuard from "./pages/DoctorDashboard/DoctorGuard";
 
 const Landing = lazy(() => import("./pages/Landing/Landing"));
 const Login = lazy(() => import("./pages/Login/Login"));
-const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
-const NewPatient = lazy(() => import("./pages/NewPatient/NewPatient"));
-const Consent = lazy(() => import("./pages/Consent/Consent"));
-const Interview = lazy(() => import("./pages/Interview/Interview"));
-const DangerCheck = lazy(() => import("./pages/DangerCheck/DangerCheck"));
-const Summary = lazy(() => import("./pages/Summary/Summary"));
-const ActiveSessions = lazy(() => import("./pages/ActiveSessions/ActiveSessions"));
-const Patients = lazy(() => import("./pages/Patients/Patients"));
-const PatientDetails = lazy(() => import("./pages/PatientDetails/PatientDetails"));
-const DangerAlerts = lazy(() => import("./pages/DangerAlerts/DangerAlerts"));
-const Reports = lazy(() => import("./pages/Reports/Reports"));
-const SyncStatus = lazy(() => import("./pages/SyncStatus/SyncStatus"));
-const SignupStatus = lazy(() => import("./pages/SignupStatus/SignupStatus"));
-const Settings = lazy(() => import("./pages/Settings/Settings"));
-const RoutesDirectory = lazy(() => import("./pages/RoutesDirectory/RoutesDirectory"));
+const PatientDashboard = lazy(() => import("./pages/PatientDashboard/PatientDashboard"));
+const PatientAIDoctorPage = lazy(() => import("./pages/PatientDashboard/PatientAIDoctorPage"));
+const PatientConsultationsPage = lazy(() => import("./pages/PatientDashboard/PatientConsultationsPage"));
+const PatientSharePage = lazy(() => import("./pages/PatientDashboard/PatientSharePage"));
+const PatientDocumentsPage = lazy(() => import("./pages/PatientDashboard/PatientDocumentsPage"));
 
 // Doctor Portal Layout & Subpages
 const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard/DoctorDashboard"));
@@ -28,8 +18,8 @@ const DoctorPatientsTab = lazy(() => import("./pages/DoctorDashboard/DoctorPatie
 const DoctorAnalyticsTab = lazy(() => import("./pages/DoctorDashboard/DoctorAnalyticsTab"));
 
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-[#f5f9f8]">
-    <div className="w-[40px] h-[40px] border-4 border-[#e2ece9] border-t-[#159b80] rounded-full animate-spin"></div>
+  <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+    <div className="w-[42px] h-[42px] border-4 border-[#e2ece9] border-t-[#0b6651] rounded-full animate-spin"></div>
   </div>
 );
 
@@ -37,21 +27,21 @@ function App() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
+        {/* Public Landing & Login */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/routes" element={<RoutesDirectory />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/new-patient" element={<NewPatient />} />
-        <Route path="/consent" element={<Consent />} />
-        <Route path="/interview" element={<Interview />} />
-        <Route path="/danger-check" element={<DangerCheck />} />
-        <Route path="/summary" element={<Summary />} />
-        <Route path="/active-sessions" element={<ActiveSessions />} />
-        <Route path="/patients" element={<Patients />} />
-        <Route path="/patient-details" element={<PatientDetails />} />
-        <Route path="/danger-alerts" element={<DangerAlerts />} />
 
-        {/* Doctor Portal: Role-guarded at parent route, with nested subpages */}
+        {/* Patient Dashboard and Dedicated Feature Pages */}
+        <Route path="/patient" element={<PatientDashboard />} />
+        <Route path="/patient/ai-doctor" element={<PatientAIDoctorPage />} />
+        <Route path="/patient/consultations" element={<PatientConsultationsPage />} />
+        <Route path="/patient/share" element={<PatientSharePage />} />
+        <Route path="/patient/documents" element={<PatientDocumentsPage />} />
+        <Route path="/dashboard" element={<Navigate to="/patient" replace />} />
+        <Route path="/new-patient" element={<Navigate to="/patient" replace />} />
+        <Route path="/patients" element={<Navigate to="/patient" replace />} />
+
+        {/* Doctor Portal: Role-guarded at parent route, with subpages */}
         <Route
           path="/doctor"
           element={
@@ -71,10 +61,8 @@ function App() {
         <Route path="/doctor-review" element={<Navigate to="/doctor/review" replace />} />
         <Route path="/doctor-dashboard" element={<Navigate to="/doctor/review" replace />} />
 
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/sync-status" element={<SyncStatus />} />
-        <Route path="/signup-status" element={<SignupStatus />} />
-        <Route path="/settings" element={<Settings />} />
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   );

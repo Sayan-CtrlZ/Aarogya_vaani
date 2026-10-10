@@ -19,7 +19,7 @@ export const TRANSLATIONS = {
     // Roles & Facilities
     healthWorker: "ASHA / ANM Health Worker",
     doctor: "Medical Officer (Doctor)",
-    facilityDefault: "Bishalgarh CHC, Sepahijala",
+    facilityDefault: "Community Health Centre",
 
     // Landing Page
     landingTitle: "Voice-First Offline Clinical Intake",
