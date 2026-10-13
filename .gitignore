@@ -37,6 +37,11 @@ ehthumbs.db
 # Documents and binaries not intended for repo
 *.pdf
 
+# Databases & Local SQLite
+*.db
+*.sqlite
+*.sqlite3
+
 # Python
 .venv/
 venv/
@@ -45,9 +50,11 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Environment variables & secrets
 *.env
 .env
 .env.local
 .env.*.local
+!.env.example

@@ -204,18 +204,67 @@ export function getCurrentPatient() {
     const active = localStorage.getItem("aarogyaVaaniActiveUser");
     if (active) {
       const parsed = JSON.parse(active);
-      if (parsed.patientId) {
-        const found = getPatientById(parsed.patientId);
+      const patId = parsed.patient_ref || parsed.patientId || parsed.id;
+      if (patId) {
+        const found = getPatientById(patId);
         if (found) {
           const { village, abhaNumber, ...cleanFound } = found;
-          return cleanFound;
+          return {
+            ...cleanFound,
+            id: patId,
+            patient_ref: patId,
+            name: parsed.userName || parsed.name || cleanFound.name,
+            phone: parsed.phone || cleanFound.phone,
+            gender: parsed.gender || cleanFound.gender || "Female",
+            age: parsed.age || cleanFound.age || "28",
+            village: parsed.village || parsed.district || cleanFound.village || "",
+            district: parsed.district || parsed.village || "",
+          };
         }
+        // If not in static demo list, return the real authenticated user profile
+        const realName = parsed.userName || parsed.name || "Patient";
+        return {
+          id: patId,
+          patient_ref: patId,
+          name: realName,
+          phone: parsed.phone || "",
+          age: parsed.age || "28",
+          gender: parsed.gender || "Female",
+          village: parsed.village || parsed.district || "",
+          district: parsed.district || parsed.village || "",
+          facility: parsed.facility || "Community Health Centre",
+          category: parsed.category || "General",
+          bloodGroup: parsed.bloodGroup || "B Positive",
+          allergies: parsed.allergies || [],
+          chronicConditions: parsed.chronicConditions || [],
+          currentMedications: parsed.currentMedications || [],
+          status: "Active",
+          triage: "Stable",
+          chiefComplaint: parsed.chiefComplaint || "Routine Health Intake",
+          ...parsed,
+        };
       }
     }
   } catch {}
-  const def = getPatientById("AV-8921") || INITIAL_PATIENTS[0];
-  const { village, abhaNumber, ...cleanDef } = def;
-  return cleanDef;
+  return {
+    id: "NEW_PATIENT",
+    patient_ref: "NEW_PATIENT",
+    name: "New Patient",
+    phone: "",
+    age: "",
+    gender: "",
+    village: "",
+    district: "",
+    facility: "Primary Health Centre",
+    category: "General",
+    allergies: [],
+    chronicConditions: [],
+    currentMedications: [],
+    isNewPatient: true,
+    chiefComplaint: "",
+    status: "Active",
+    triage: "Stable",
+  };
 }
 
 export function getAllPatients() {
@@ -257,20 +306,37 @@ export function getPatientById(id) {
   if (!id) return null;
   const patients = getAllPatients();
   const cleanId = String(id).trim().toUpperCase();
-  return patients.find((p) => p.id?.toUpperCase() === cleanId) || null;
+  return patients.find((p) => (p.id || p.patient_ref)?.toUpperCase() === cleanId) || null;
 }
 
 export function savePatient(newPatient) {
   const patients = getAllPatients();
-  const existingIndex = patients.findIndex((p) => p.id === newPatient.id);
+  const patId = newPatient.patient_ref || newPatient.id || newPatient.patientId;
+  const existingIndex = patients.findIndex(
+    (p) => (p.patient_ref || p.id)?.toUpperCase() === patId?.toUpperCase()
+  );
   let updated;
   if (existingIndex >= 0) {
     updated = [...patients];
-    updated[existingIndex] = { ...updated[existingIndex], ...newPatient };
+    updated[existingIndex] = { ...updated[existingIndex], ...newPatient, id: patId };
   } else {
-    updated = [newPatient, ...patients];
+    updated = [{ ...newPatient, id: patId }, ...patients];
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+  // Also keep activeUser in sync if it's the current user
+  try {
+    const active = localStorage.getItem("aarogyaVaaniActiveUser");
+    if (active) {
+      const parsed = JSON.parse(active);
+      const activeId = parsed.patient_ref || parsed.patientId || parsed.id;
+      if (!activeId || activeId?.toUpperCase() === patId?.toUpperCase()) {
+        const mergedActive = { ...parsed, ...newPatient, id: patId, patientId: patId };
+        localStorage.setItem("aarogyaVaaniActiveUser", JSON.stringify(mergedActive));
+      }
+    }
+  } catch {}
+
   return newPatient;
 }
 
