@@ -41,7 +41,9 @@ import {
   getCurrentPatient,
   getPatientDocuments,
   addPatientDocument,
+  savePatient,
 } from "../../utils/patientStore";
+import { updatePatient } from "../../services/api";
 import {
   getAccessCodes,
   generateTemporaryCode,
@@ -55,9 +57,30 @@ export default function PatientDashboard() {
 
   // Active User Profile
   const [patient, setPatient] = useState(() => getCurrentPatient());
-  const [documents, setDocuments] = useState(() => getPatientDocuments(patient.id));
+  const [documents, setDocuments] = useState(() => getPatientDocuments(patient?.id || patient?.patient_ref));
   const [accessCodes, setAccessCodes] = useState(() => getAccessCodes());
   const [auditLogs, setAuditLogs] = useState(() => getAuditLogs());
+
+  // Profile Edit State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(patient?.name || "");
+  const [editAge, setEditAge] = useState(patient?.age || "28");
+  const [editGender, setEditGender] = useState(patient?.gender || "Female");
+  const [editDistrict, setEditDistrict] = useState(patient?.district || patient?.village || "West District");
+  const [editPhone, setEditPhone] = useState(patient?.phone || "");
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+
+  // Sync profile on mount
+  useEffect(() => {
+    const cur = getCurrentPatient();
+    setPatient(cur);
+    setEditName(cur?.name || "");
+    setEditAge(cur?.age || "28");
+    setEditGender(cur?.gender || "Female");
+    setEditDistrict(cur?.district || cur?.village || "West District");
+    setEditPhone(cur?.phone || "");
+    setDocuments(getPatientDocuments(cur?.id || cur?.patient_ref));
+  }, []);
 
   // Active Modals: "none" | "ai-assistant" | "health-records" | "consultations" | "share-doctor" | "upload-docs" | "profile-privacy"
   const [activeModal, setActiveModal] = useState("none");
@@ -126,6 +149,45 @@ export default function PatientDashboard() {
     sessionStorage.clear();
     localStorage.removeItem("aarogyaVaaniActiveUser");
     navigate("/login?role=patient");
+  };
+
+  // Handle Save Edited Profile
+  const handleSaveProfile = async (e) => {
+    if (e) e.preventDefault();
+    if (!editName.trim()) return;
+
+    const patId = patient?.patient_ref || patient?.id;
+    const updated = {
+      ...patient,
+      name: editName.trim(),
+      userName: editName.trim(),
+      age: editAge.trim() || patient?.age || "28",
+      gender: editGender || patient?.gender || "Female",
+      district: editDistrict.trim() || patient?.district || "Tripura",
+      village: editDistrict.trim() || patient?.village || "Tripura",
+      phone: editPhone.trim() || patient?.phone || "",
+    };
+
+    setPatient(updated);
+    savePatient(updated);
+
+    try {
+      if (patId) {
+        await updatePatient(patId, {
+          name: editName.trim(),
+          age: editAge.trim(),
+          gender: editGender,
+          village: editDistrict.trim(),
+          phone: editPhone.trim(),
+        });
+      }
+    } catch (err) {
+      console.warn("[UPDATE_PATIENT_API_WARN]", err);
+    }
+
+    setProfileSuccessMsg("Profile details updated successfully!");
+    setIsEditingProfile(false);
+    setTimeout(() => setProfileSuccessMsg(""), 3500);
   };
 
   // AI Assistant Handler
@@ -269,8 +331,23 @@ export default function PatientDashboard() {
         <section className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200/80 pb-4">
             <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  ID: {patient.patient_ref || patient.id || "AV-2026"}
+                </span>
+                {patient.gender && (
+                  <span className="text-[11px] font-bold text-slate-500">
+                    • {patient.age ? `${patient.age} Yrs` : ""} {patient.gender}
+                  </span>
+                )}
+                {patient.district && (
+                  <span className="text-[11px] font-medium text-slate-400 hidden sm:inline">
+                    • {patient.district}
+                  </span>
+                )}
+              </div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
-                Namaste, {patient.name || "Mamta Debbarma"}
+                Namaste, {patient.name || "Patient"}
               </h1>
               <p className="text-base sm:text-lg font-bold text-slate-700 mt-1">
                 How can we help you today?
@@ -278,6 +355,24 @@ export default function PatientDashboard() {
               <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1 leading-relaxed">
                 Your personal health companion • Speak your symptoms, view health records, or share with your doctor.
               </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditName(patient.name || "");
+                  setEditAge(patient.age || "28");
+                  setEditGender(patient.gender || "Female");
+                  setEditDistrict(patient.district || patient.village || "Tripura");
+                  setEditPhone(patient.phone || "");
+                  setActiveModal("profile-privacy");
+                }}
+                className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5 text-emerald-700" />
+                <span>My Profile & ID</span>
+              </button>
             </div>
           </div>
 
@@ -407,18 +502,19 @@ export default function PatientDashboard() {
                 </div>
               </div>
               <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 font-black text-xs border border-emerald-300/80 shadow-2xs">
-                {patient.status || "Reviewed"}
+                {patient.status || (patient.chiefComplaint ? "Reviewed" : "Active")}
               </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-white/90 border border-emerald-200/80 shadow-2xs space-y-1.5">
               <p className="text-[11px] font-black text-emerald-800 uppercase tracking-wider">Stated Complaint</p>
               <p className="text-sm text-slate-800 font-semibold leading-relaxed">
-                {patient.chiefComplaint}
+                {patient.chiefComplaint ||
+                  "No active symptom intake recorded yet. You can speak to your AI Health Assistant or visit your nearest primary health center to begin."}
               </p>
             </div>
 
-            {patient.doctorReview && (
+            {patient.doctorReview && patient.doctorReview.notes ? (
               <div className="p-4 rounded-2xl bg-emerald-100/60 border-2 border-emerald-300 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
@@ -436,6 +532,21 @@ export default function PatientDashboard() {
                   <Pill className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Rx: {patient.doctorReview.prescription}</span>
                 </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-white/70 border border-emerald-200/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-600">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Clinical Status: New Patient Intake • No pending doctor prescriptions</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigate("/patient/ai-doctor")}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-700 text-white font-bold hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>Start AI Consultation</span>
+                </button>
               </div>
             )}
           </div>
@@ -1093,29 +1204,143 @@ export default function PatientDashboard() {
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
               
-              {/* Personal Details */}
+              {/* Success Banner */}
+              {profileSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{profileSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Personal Details & Edit Form */}
               <div className="space-y-3">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                  Personal Demographics
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-bold block">Mobile Number</span>
-                    <span className="font-bold text-slate-900">{patient.phone}</span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      Personal Demographics
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Patient Ref: {patient.patient_ref || patient.id}
+                    </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-bold block">Age & Gender</span>
-                    <span className="font-bold text-slate-900">{patient.age} Yrs • {patient.gender}</span>
-                  </div>
-                  {patient.emergencyContact && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(!isEditingProfile)}
+                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+                  >
+                    {isEditingProfile ? "Cancel" : "Edit Profile"}
+                  </button>
+                </div>
+
+                {isEditingProfile ? (
+                  <form onSubmit={handleSaveProfile} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651]"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                          Age (Years)
+                        </label>
+                        <input
+                          type="number"
+                          value={editAge}
+                          onChange={(e) => setEditAge(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                          Gender
+                        </label>
+                        <select
+                          value={editGender}
+                          onChange={(e) => setEditGender(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651]"
+                        >
+                          <option value="Female">Female</option>
+                          <option value="Male">Male</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        District / Area
+                      </label>
+                      <input
+                        type="text"
+                        value={editDistrict}
+                        onChange={(e) => setEditDistrict(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Mobile Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651]"
+                      />
+                    </div>
+
+                    <div className="pt-1 flex gap-2">
+                      <button
+                        type="submit"
+                        className="flex-1 py-2 rounded-xl bg-[#0b6651] hover:bg-[#084e3e] text-white text-xs font-black shadow-xs cursor-pointer transition-colors"
+                      >
+                        Save Profile Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingProfile(false)}
+                        className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-bold block">Mobile Number</span>
+                      <span className="font-bold text-slate-900">{patient.phone}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-bold block">Age & Gender</span>
+                      <span className="font-bold text-slate-900">{patient.age} Yrs • {patient.gender}</span>
+                    </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 col-span-2">
-                      <span className="text-[10px] text-slate-400 font-bold block">Emergency Contact</span>
+                      <span className="text-[10px] text-slate-400 font-bold block">District / Health Center</span>
                       <span className="font-bold text-slate-900">
-                        {patient.emergencyContact.name} ({patient.emergencyContact.phone})
+                        {patient.district || patient.village || "West District"}
                       </span>
                     </div>
-                  )}
-                </div>
+                    {patient.emergencyContact && (
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 col-span-2">
+                        <span className="text-[10px] text-slate-400 font-bold block">Emergency Contact</span>
+                        <span className="font-bold text-slate-900">
+                          {patient.emergencyContact.name} ({patient.emergencyContact.phone})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Privacy & Consent Toggles */}

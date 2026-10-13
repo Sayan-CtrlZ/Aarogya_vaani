@@ -1,24 +1,31 @@
-"""AarogyaVaani Medical Intelligence Backend API."""
-
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.db.database import init_db
+from app.db.supabase_client import get_supabase_client
 from app.api.documents import router as documents_router
 from app.api.prescriptions import router as prescriptions_router
 from app.api.lab_reports import router as lab_reports_router
 from app.api.xray_radiology import router as xray_radiology_router
 from app.api.patients import router as patients_router
+from app.api.orchestrator import router as orchestrator_router
+from app.api.auth import router as auth_router
+from app.api.ai_doctor import router as ai_doctor_router
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database tables and resources on startup."""
-    init_db()
-    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    """Verify Supabase Cloud connectivity on application boot."""
+    try:
+        client = get_supabase_client()
+        logger.info("[STARTUP] Supabase Cloud connected successfully.")
+    except Exception as e:
+        logger.warning("[STARTUP_WARNING] Supabase Cloud connection check: %s", e)
     yield
 
 
@@ -54,6 +61,9 @@ app.include_router(prescriptions_router, prefix=settings.API_PREFIX)
 app.include_router(lab_reports_router, prefix=settings.API_PREFIX)
 app.include_router(xray_radiology_router, prefix=settings.API_PREFIX)
 app.include_router(patients_router, prefix=settings.API_PREFIX)
+app.include_router(orchestrator_router, prefix=settings.API_PREFIX)
+app.include_router(auth_router, prefix=settings.API_PREFIX)
+app.include_router(ai_doctor_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/", tags=["Health & Status"])

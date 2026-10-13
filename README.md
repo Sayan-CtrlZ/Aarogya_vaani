@@ -1,16 +1,81 @@
-# React + Vite
+# AarogyaVaani (आरोग्यवाणी / আরোগ্যবাণী)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **Voice-First Vernacular Clinical Intake & Offline Healthcare Triage Portal for Primary Health Centres (PHCs) in Tripura**  
+> *Built for Hack for Social Good 2026 • Powered by LiveKit, Sarvam AI, Google Gemini, Groq, and Supabase Cloud*
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📖 Complete Technical Documentation
 
-## React Compiler
+- 📘 **[Complete System Architecture & API Reference Manual](docs/SYSTEM_ARCHITECTURE_AND_API_REFERENCE.md)**  
+  *Detailed guide covering all 18+ REST endpoints, WebRTC Voice Agent internals, Frontend wiring maps, and teammate quick-start instructions.*
+- 🔑 **[Credentials, Environment Variables & Git Push Guide](docs/CREDENTIALS_AND_PUSH_GUIDE.md)**  
+  *Full reference for all API keys, `.env.example` setup, security ignore rules, and step-by-step GitHub push instructions.*
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## ⚡ Quick Start (Launch All 3 Services)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+From the root directory, simply run:
+
+```bash
+chmod +x start_all.sh
+./start_all.sh
+```
+
+This single command boots up:
+1. **FastAPI Backend Server** (`http://localhost:8001`) • Interactive API Docs at `http://localhost:8001/docs`
+2. **LiveKit Voice Agent Worker** (`ai_service`) • Real-time Indic speech (Bengali, Hindi, English) with Sarvam AI & Groq
+3. **React Vite Frontend** (`http://localhost:5173`) • Vernacular clinical intake, Medical Drive, and Doctor Dashboard
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+                      ┌────────────────────────────────────────┐
+                      │          React Vite Frontend           │
+                      │         (http://localhost:5173)        │
+                      └──────────────┬──────────────────┬──────┘
+                                     │                  │
+                         HTTP REST   │                  │ WebRTC Stream &
+                         Requests    │                  │ Data Channel
+                                     ▼                  ▼
+┌────────────────────────────────────────┐          ┌────────────────────────────────────────┐
+│             FastAPI Server             │          │       LiveKit AI Voice Agent           │
+│        (http://localhost:8001)         │          │              (ai_service)              │
+│                                        │          │                                        │
+│ • Phone + PIN Auth (/api/auth)         │          │ • Silero Voice Activity Detection      │
+│ • Medical Drive Vault (/api/documents) │          │ • Sarvam AI STT (Saarika v2.5)         │
+│ • Gemini Flash Vision Analyzers        │◄─────────┤ • Groq Fast Clinical LLM               │
+│ • LiveKit Token & Agent Dispatch       │   Sync   │ • Sarvam AI TTS (Bulbul v3)            │
+│ • Doctor EMR Review & Approval         │  Turns   │ • Supabase Clinical Tools & EMR Sync   │
+└───────────────────┬────────────────────┘          └───────────────────┬────────────────────┘
+                    │                                                   │
+                    └─────────────────────┬─────────────────────────────┘
+                                          │
+                                          ▼
+                      ┌────────────────────────────────────────┐
+                      │             Supabase Cloud             │
+                      │  • PostgreSQL: patients, records,      │
+                      │                consultations           │
+                      │  • Storage: private 'medical-vault'    │
+                      └────────────────────────────────────────┘
+```
+
+---
+
+## 🧪 Running Automated Tests
+
+- **Backend Clinical & Medical Routes:**
+  ```bash
+  cd server && PYTHONPATH=. .venv/bin/pytest -v
+  ```
+- **Voice Agent Intake & Language Locking:**
+  ```bash
+  cd ai_service && uv run pytest -v
+  ```
+- **Frontend Production Build:**
+  ```bash
+  cd client && npm run build
+  ```

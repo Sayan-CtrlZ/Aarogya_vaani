@@ -38,6 +38,10 @@ import {
   verifyAccessCode,
   logAuditEvent,
 } from "../../utils/accessCodeStore";
+import {
+  getPatientConsultations,
+  submitDoctorReview,
+} from "../../services/api";
 
 const QUICK_MEDS = [
   "Tab Paracetamol 650mg SOS",
@@ -85,6 +89,21 @@ export default function DoctorReviewTab() {
   const currentPatient = useMemo(() => {
     return getPatientById(selectedPatientId) || patientsList[0] || null;
   }, [selectedPatientId, patientsList]);
+
+  // Cloud-synced Supabase consultations
+  const [supabaseConsultations, setSupabaseConsultations] = useState([]);
+
+  useEffect(() => {
+    if (currentPatient?.id) {
+      const pId = currentPatient.id;
+      const normalizedPId = pId.startsWith("AV-") && pId.length === 7 ? `AV-2026-${pId.slice(3)}` : pId;
+      getPatientConsultations(normalizedPId)
+        .then((data) => {
+          if (Array.isArray(data)) setSupabaseConsultations(data);
+        })
+        .catch(() => {});
+    }
+  }, [currentPatient?.id]);
 
   // Documents for the current patient
   const patientDocs = useMemo(() => {
@@ -208,6 +227,28 @@ export default function DoctorReviewTab() {
       action: "REVIEW_SAVED",
       details: `Prescription & clinical orders issued for ${currentPatient.name}. Synced to patient health vault.`,
     });
+
+    // Sync review to Supabase consultation
+    if (supabaseConsultations && supabaseConsultations.length > 0) {
+      const pendingConsult =
+        supabaseConsultations.find((c) => c.doctor_status === "PENDING") ||
+        supabaseConsultations[0];
+      if (pendingConsult?.id) {
+        submitDoctorReview(pendingConsult.id, {
+          doctor_notes: doctorNotes,
+          prescription: prescription,
+          doctor_name: "Dr. S. Roy (Medical Officer)",
+        })
+          .then(() => {
+            const pId = currentPatient.id;
+            const normalizedPId = pId.startsWith("AV-") && pId.length === 7 ? `AV-2026-${pId.slice(3)}` : pId;
+            getPatientConsultations(normalizedPId).then((data) => {
+              if (Array.isArray(data)) setSupabaseConsultations(data);
+            });
+          })
+          .catch((err) => console.warn("[API] Supabase review sync notice:", err));
+      }
+    }
 
     const refreshed = getAllPatients();
     setPatientsList(refreshed);
@@ -623,6 +664,93 @@ export default function DoctorReviewTab() {
                           <p className="font-black text-slate-900 mt-1 pl-3 text-xs">
                             ↳ {item.answer}
                           </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* LiveKit Voice Consultation & Supabase Records */}
+                {supabaseConsultations && supabaseConsultations.length > 0 && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3">
+                    <span className="text-[11px] uppercase font-black text-blue-700 tracking-wider flex items-center gap-1.5">
+                      <Stethoscope className="w-3.5 h-3.5 text-blue-600" />
+                      Live Voice Consultations in Supabase ({supabaseConsultations.length})
+                    </span>
+
+                    <div className="space-y-3">
+                      {supabaseConsultations.map((consult) => (
+                        <div
+                          key={consult.id}
+                          className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2.5 text-xs"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-bold text-[11px] text-blue-900">
+                              {consult.id} ({consult.language_used || "bn-IN"})
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full font-black text-[10px] ${
+                                consult.triage_level === "EMERGENCY"
+                                  ? "bg-rose-100 text-rose-800 border border-rose-300"
+                                  : consult.triage_level === "MONITOR"
+                                  ? "bg-amber-100 text-amber-800 border border-amber-300"
+                                  : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              }`}
+                            >
+                              {consult.triage_level}
+                            </span>
+                          </div>
+
+                          {/* Dedicated Patient Name Row */}
+                          <div className="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-white border border-blue-100 text-xs shadow-2xs">
+                            <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                              <User className="w-3 h-3" />
+                            </div>
+                            <span className="font-semibold text-slate-500 text-[11px]">Patient Name:</span>
+                            <span className="font-bold text-slate-900">
+                              {consult.user_name || currentPatient?.name || "Mamta Debbarma"}
+                            </span>
+                            <span className="ml-auto font-mono text-[10px] text-slate-400 font-semibold">
+                              ID: {consult.patient_id || currentPatient?.id}
+                            </span>
+                          </div>
+
+                          {consult.danger_signs && consult.danger_signs.length > 0 && (
+                            <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 font-semibold text-[11px] space-y-1">
+                              <span className="font-black flex items-center gap-1 text-rose-700">
+                                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                Red-Flag Alert Detected:
+                              </span>
+                              {consult.danger_signs.map((ds, i) => (
+                                <p key={i} className="pl-4 text-[10px]">
+                                  • {ds.alert_message || ds.rule_id} ({ds.severity})
+                                </p>
+                              ))}
+                            </div>
+                          )}
+
+                          {consult.transcript && Array.isArray(consult.transcript) && consult.transcript.length > 0 && (
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                              <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                                Spoken Audio Transcript:
+                              </span>
+                              {consult.transcript.map((t, tidx) => (
+                                <div
+                                  key={tidx}
+                                  className={`p-2 rounded-xl text-[11px] leading-relaxed ${
+                                    t.role === "user"
+                                      ? "bg-white border border-slate-200/70 text-slate-900 font-medium ml-2"
+                                      : "bg-blue-100/60 border border-blue-200 text-blue-950 font-normal mr-2"
+                                  }`}
+                                >
+                                  <span className="font-bold block text-[10px] uppercase text-slate-500 mb-0.5">
+                                    {t.role === "user" ? "Patient" : "AarogyaVaani Voice Assistant"}
+                                  </span>
+                                  {t.text}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -44,6 +44,7 @@ class MedicalRecordResponse(BaseModel):
     visit_date: str | None = None
     file_name: str
     file_url: str
+    signed_url: str | None = None
     file_size: str | None = None
     mime_type: str | None = None
     analysis_status: str = "COMPLETED"

@@ -1,6 +1,9 @@
+import asyncio
 import dataclasses
 import logging
 import time
+import uuid
+from typing import Any
 from dotenv import load_dotenv
 
 from livekit import agents
@@ -30,6 +33,17 @@ from language_manager import (
     detect_language_intent,
     normalize_language_code,
 )
+from intake_workflow import (
+    IntakeState,
+    initialize_intake_state,
+    process_intake_turn,
+)
+from orchestrator_client import save_voice_consultation, get_patient_dossier
+from tools.medical_tools import (
+    query_prescription_medicines,
+    query_xray_findings,
+    query_lab_results,
+)
 
 load_dotenv()
 
@@ -38,16 +52,138 @@ class AarogyaVaaniAssistant(Agent):
     """Clinical Intake AI Assistant for AarogyaVaani.
 
     Maintains session-isolated language state and enforces strict language locking
-    across LLM, STT, and TTS pipelines.
+    across LLM, STT, and TTS pipelines with Supabase consultation persistence.
     """
 
-    def __init__(self, session_state: LanguageSessionState | None = None) -> None:
+    def __init__(
+        self,
+        session_state: LanguageSessionState | None = None,
+        patient_id: str = "AV-2026-8921",
+        dossier: dict | None = None,
+        room: Any = None,
+        patient_name: str | None = None,
+    ) -> None:
         self.session_state = session_state or LanguageSessionState()
-        super().__init__(
-            instructions=build_system_prompt(
-                self.session_state.current_language,
-                self.session_state.is_language_selected,
-            ),
+        self.patient_id = patient_id
+        self.dossier = dossier or {}
+        self.transcript: list[dict] = []
+        self.room = room
+
+        # Resolve patient display name without forcing old static fallbacks
+        resolved_name = patient_name
+        if not resolved_name and self.dossier and self.dossier.get("patient"):
+            p_name = self.dossier.get("patient", {}).get("name")
+            if p_name and not p_name.startswith("Patient AV"):
+                resolved_name = p_name
+        self.patient_name = resolved_name or "Patient"
+
+        self.consultation_id = f"con_{uuid.uuid4().hex[:10]}"
+        self.session_start_time = time.time()
+
+        # Initialize shared clinical intake workflow state
+        self.intake_state = initialize_intake_state(
+            patient_id=self.patient_id,
+            patient_name=self.patient_name,
+            dossier=self.dossier,
+            language=self.session_state.current_language,
+            consultation_id=self.consultation_id,
+        )
+
+        base_prompt = build_system_prompt(
+            current_language=self.session_state.current_language,
+            is_language_selected=self.session_state.is_language_selected,
+            is_new_patient=self.intake_state.is_new_patient,
+        )
+        if self.dossier and not self.intake_state.is_new_patient:
+            p_brief = (
+                self.dossier.get("voice_brief", {}).get(self.session_state.current_language[:2])
+                or self.dossier.get("voice_brief", {}).get("en")
+                or ""
+            )
+            base_prompt += (
+                f"\n\n[PATIENT CLINICAL DOSSIER FROM SUPABASE]\n{p_brief}\n"
+                "You have access to tools: 'check_prescription_medicines', 'check_xray_findings', 'check_lab_results'. "
+                "Always consult these tools to verify medications, dosages, and test results from official records."
+            )
+
+        super().__init__(instructions=base_prompt)
+
+    async def sync_turn_to_backend(self) -> None:
+        """Asynchronously sync real-time consultation turns to Supabase so every turn is saved immediately."""
+        try:
+            duration = int(time.time() - self.session_start_time)
+            await save_voice_consultation(
+                patient_id=self.patient_id,
+                user_name=self.patient_name,
+                transcript=self.transcript,
+                language_used=self.session_state.current_language,
+                duration_seconds=duration,
+                consultation_id=self.consultation_id,
+                chief_complaint=self.intake_state.chief_complaint,
+                symptoms_timeline=self.intake_state.symptoms_timeline,
+                danger_signs=self.intake_state.danger_flags,
+                triage_level=self.intake_state.triage_level,
+            )
+            logging.info(
+                f"[CONSULTATION_REALTIME_SYNC] Saved turn {len(self.transcript)} for patient '{self.patient_name}' "
+                f"({self.patient_id}) [ID: {self.consultation_id}, Triage: {self.intake_state.triage_level}]"
+            )
+        except Exception as e:
+            logging.warning(f"[CONSULTATION_REALTIME_SYNC_WARN] Failed to sync turn: {e}")
+
+    async def broadcast_transcript(self, role: str, text: str) -> None:
+        """Publish real-time text transcript packet to LiveKit room participants."""
+        if self.room and hasattr(self.room, "local_participant") and self.room.local_participant:
+            try:
+                import json
+                is_ai = role in ["agent", "ai", "assistant"]
+                packet = json.dumps({
+                    "type": "transcript",
+                    "speaker": "assistant" if is_ai else "user",
+                    "role": "assistant" if is_ai else "user",
+                    "text": text,
+                    "timestamp": time.time(),
+                }).encode("utf-8")
+                await self.room.local_participant.publish_data(packet, reliable=True, topic="transcript")
+            except Exception as e:
+                logging.debug(f"[TRANSCRIPT_BROADCAST_WARN] {e}")
+
+    @llm.function_tool
+    async def check_prescription_medicines(self, medicine_name: str = "") -> str:
+        """Check the patient's verified active prescriptions, exact dosages, frequency, and instructions from Supabase records.
+        Call this when the patient asks about which medicines to take, when to take them, or if a medicine is prescribed.
+
+        Args:
+            medicine_name: Optional name of the specific medicine (e.g. 'IFA', 'Iron', 'Calcium', 'Paracetamol'). Leave blank to check all active medicines.
+        """
+        return query_prescription_medicines(
+            self.dossier,
+            medicine_query=medicine_name,
+            language_code=self.session_state.current_language,
+        )
+
+    @llm.function_tool
+    async def check_xray_findings(self) -> str:
+        """Check the patient's verified radiology imaging (Chest X-Ray, ultrasound) findings and doctor impressions from Supabase records.
+        Call this when the patient asks about their scan or X-ray reports.
+        """
+        return query_xray_findings(
+            self.dossier,
+            language_code=self.session_state.current_language,
+        )
+
+    @llm.function_tool
+    async def check_lab_results(self, test_name: str = "") -> str:
+        """Check the patient's verified pathology lab reports (Hemoglobin, blood tests, etc.) from Supabase records.
+        Call this when the patient asks about their blood test, hemoglobin, or laboratory results.
+
+        Args:
+            test_name: Optional specific test name (e.g. 'hemoglobin', 'Hb', 'blood sugar').
+        """
+        return query_lab_results(
+            self.dossier,
+            test_query=test_name,
+            language_code=self.session_state.current_language,
         )
 
     @llm.function_tool
@@ -112,8 +248,25 @@ class AarogyaVaaniAssistant(Agent):
         except Exception as e:
             logging.warning(f"[STT_UPDATE_SKIPPED] Could not update session STT options: {e}")
 
+        self.intake_state.language = code
+
         # 3. Update agent system instructions
-        new_prompt = build_system_prompt(code, is_language_selected=True)
+        new_prompt = build_system_prompt(
+            current_language=code,
+            is_language_selected=True,
+            is_new_patient=self.intake_state.is_new_patient,
+        )
+        if self.dossier and not self.intake_state.is_new_patient:
+            p_brief = (
+                self.dossier.get("voice_brief", {}).get(code[:2])
+                or self.dossier.get("voice_brief", {}).get("en")
+                or ""
+            )
+            new_prompt += (
+                f"\n\n[PATIENT CLINICAL DOSSIER FROM SUPABASE]\n{p_brief}\n"
+                "You have access to tools: 'check_prescription_medicines', 'check_xray_findings', 'check_lab_results'. "
+                "Always consult these tools to verify medications, dosages, and test results from official records."
+            )
         try:
             await self.update_instructions(new_prompt)
             logging.info(f"[INSTRUCTIONS_UPDATED] Agent instructions updated for '{code}'")
@@ -168,6 +321,37 @@ class AarogyaVaaniAssistant(Agent):
                 f"you MUST respond in {curr_info['name']} ({curr_info['style']}). Do NOT switch languages."
             )
 
+        # Process user utterance through shared clinical intake workflow engine
+        intake_decision = process_intake_turn(
+            state=self.intake_state,
+            user_text=user_text,
+            dossier=self.dossier,
+        )
+
+        if intake_decision["action"] == "ESCALATE":
+            guidance = intake_decision.get("emergency_guidance") or ""
+            intake_directive_note = (
+                f"\n[CRITICAL SAFETY BRAKE: {intake_decision['directive']}]\n"
+                f"SPOKEN EMERGENCY GUIDANCE TO CONVEY IMMEDIATELY: '{guidance}'\n"
+                f"STOP ALL ROUTINE QUESTIONS. Deliver this emergency hospital referral now."
+            )
+        elif intake_decision["action"] == "COMPLETE_INTAKE":
+            intake_directive_note = f"\n[CLINICAL INTAKE COMPLETED]: {intake_decision['directive']}"
+        else:
+            intake_directive_note = f"\n[INTAKE FLOW DIRECTIVE]: {intake_decision['directive']}"
+
+        turn_note += f" {intake_directive_note}"
+
+        # Record user turn in conversation transcript
+        if user_text.strip():
+            self.transcript.append({
+                "role": "user",
+                "text": user_text.strip(),
+                "timestamp": time.time(),
+            })
+            await self.broadcast_transcript("user", user_text.strip())
+            asyncio.create_task(self.sync_turn_to_backend())
+
         # Inject turn directive to guarantee LLM receives the current session language on every turn
         directive = build_turn_directive(
             current_language=self.session_state.current_language,
@@ -183,7 +367,7 @@ class AarogyaVaaniAssistant(Agent):
         model_settings: ModelSettings,
     ):
         """Pipeline node for LLM inference. Ensures the active session language directive
-        is present in chat_ctx before generating response.
+        is present in chat_ctx before generating response and records assistant turns.
         """
         curr_lang = self.session_state.current_language
         is_sel = self.session_state.is_language_selected
@@ -197,8 +381,25 @@ class AarogyaVaaniAssistant(Agent):
         if not has_directive:
             chat_ctx.add_message(role="system", content=[directive])
 
+        full_chunks = []
         async for chunk in Agent.default.llm_node(self, chat_ctx, tools, model_settings):
+            if hasattr(chunk, "text") and chunk.text:
+                full_chunks.append(chunk.text)
+            elif isinstance(chunk, str):
+                full_chunks.append(chunk)
             yield chunk
+
+        # Record agent turn in conversation transcript
+        if full_chunks:
+            full_text = "".join(full_chunks).strip()
+            if full_text:
+                self.transcript.append({
+                    "role": "agent",
+                    "text": full_text,
+                    "timestamp": time.time(),
+                })
+                await self.broadcast_transcript("agent", full_text)
+                asyncio.create_task(self.sync_turn_to_backend())
 
 
 server = AgentServer()
@@ -214,16 +415,63 @@ async def entrypoint(ctx: JobContext):
     # Track End of Utterance timing
     last_eou_metrics: metrics.EOUMetrics | None = None
 
-    # STT initialized consistently with initial Bengali language
-    stt_provider = sarvam.STT(language=DEFAULT_LANGUAGE_CODE)
+    # 1. Extract patient identity and language preferences from dispatch or room metadata
+    init_lang = DEFAULT_LANGUAGE_CODE
+    patient_id = "NEW_PATIENT"
+    patient_name = None
+
+    if ctx.room and ctx.room.name:
+        if "consultation_" in ctx.room.name:
+            cand = ctx.room.name.split("consultation_")[-1]
+            if cand:
+                patient_id = cand.replace("_", "-")
+
+    # Check job metadata (from agent dispatch) or room metadata
+    raw_meta = getattr(ctx.job, "metadata", None) or (ctx.room.metadata if ctx.room else None)
+    if raw_meta:
+        try:
+            import json
+            meta = json.loads(raw_meta) if isinstance(raw_meta, str) else raw_meta
+            if isinstance(meta, dict):
+                if meta.get("language"):
+                    norm_l = normalize_language_code(meta["language"])
+                    if norm_l:
+                        init_lang = norm_l
+                if meta.get("patient_id"):
+                    patient_id = meta["patient_id"]
+                if meta.get("user_name"):
+                    patient_name = meta["user_name"]
+        except Exception as e:
+            logging.warning(f"[AGENT_METADATA_PARSE_WARN] {e}")
+
+    # Load patient clinical dossier from Supabase / FastAPI (skip for NEW_PATIENT)
+    dossier = None
+    if patient_id and patient_id != "NEW_PATIENT" and not patient_id.startswith("NEW_"):
+        try:
+            dossier = await get_patient_dossier(patient_id)
+            logging.info(f"[DOSSIER_LOADED] Loaded clinical dossier for {patient_id}: {dossier.get('patient', {}).get('name') if dossier else 'None'}")
+        except Exception as e:
+            logging.warning(f"[DOSSIER_LOAD_WARN] Failed to load dossier for {patient_id}: {e}")
+            dossier = None
+
+    # Patient display name from dossier if known and not already set
+    if not patient_name and dossier and dossier.get("patient"):
+        p_name = dossier.get("patient", {}).get("name")
+        if p_name and not p_name.startswith("Patient AV"):
+            patient_name = p_name
+
+    logging.info(f"[AGENT_INIT] Starting session for patient='{patient_name or patient_id}' with initial language='{init_lang}'")
+
+    # 2. STT initialized with preferred initial language
+    stt_provider = sarvam.STT(language=init_lang)
 
     # Groq (via OpenAI plugin) for fast LLM reasoning
     llm_provider = openai.LLM(model="openai/gpt-oss-120b")
 
-    # TTS initialized with initial Bengali language and Option B speaker (roopa)
-    initial_speaker = LANGUAGE_SPEAKERS.get(DEFAULT_LANGUAGE_CODE, "roopa")
+    # 3. TTS initialized with preferred initial language and matched speaker
+    initial_speaker = LANGUAGE_SPEAKERS.get(init_lang, "roopa")
     tts_provider = sarvam.TTS(
-        target_language_code=DEFAULT_LANGUAGE_CODE,
+        target_language_code=init_lang,
         speaker=initial_speaker,
     )
 
@@ -237,8 +485,21 @@ async def entrypoint(ctx: JobContext):
         preemptive_generation=False,  # Disabled to eliminate audio race conditions during dynamic language changes
     )
 
+    # Track session start timestamp
+    session_start_time = time.time()
+
     # Create session-isolated assistant
-    assistant = AarogyaVaaniAssistant()
+    session_state = LanguageSessionState(
+        current_language=init_lang,
+        is_language_selected=True,
+    )
+    assistant = AarogyaVaaniAssistant(
+        session_state=session_state,
+        patient_id=patient_id,
+        dossier=dossier,
+        room=ctx.room,
+        patient_name=patient_name,
+    )
 
     # Start the session with noise cancellation enabled
     await session.start(
@@ -286,14 +547,95 @@ async def entrypoint(ctx: JobContext):
     def on_error(event):
         logging.error(f"[DIAGNOSTIC] Error: {event}")
 
-    async def log_usage():
+    async def log_usage_and_save_consultation():
         summary = usage_collector.get_summary()
         logging.info(f"Usage summary: {summary}")
 
-    ctx.add_shutdown_callback(log_usage)
+        # Persist completed voice consultation to Supabase
+        duration = int(time.time() - session_start_time)
+        try:
+            await save_voice_consultation(
+                patient_id=assistant.patient_id,
+                user_name=assistant.patient_name or patient_name or "Patient",
+                transcript=assistant.transcript,
+                language_used=assistant.session_state.current_language,
+                duration_seconds=duration,
+                consultation_id=assistant.consultation_id,
+                chief_complaint=assistant.intake_state.chief_complaint,
+                symptoms_timeline=assistant.intake_state.symptoms_timeline,
+                danger_signs=assistant.intake_state.danger_flags,
+                triage_level=assistant.intake_state.triage_level,
+            )
+            logging.info(
+                f"[CONSULTATION_PERSISTED] Saved session {assistant.consultation_id} with {len(assistant.transcript)} turns "
+                f"for patient '{assistant.patient_name}' ({assistant.patient_id}) [Triage: {assistant.intake_state.triage_level}]"
+            )
+        except Exception as e:
+            logging.error(f"[CONSULTATION_PERSIST_ERROR] Could not save consultation: {e}")
 
-    # 1. Begin session with a Bengali greeting asking patient to select Bengali, Hindi, or English
-    await session.say(INITIAL_GREETING_TEXT)
+    # Immediately persist when participant disconnects or room closes
+    @ctx.room.on("participant_connected")
+    def on_participant_connected(p):
+        logging.info(f"[PARTICIPANT_CONNECTED] {p.identity} (Name: {p.name})")
+        if p.name and (not assistant.patient_name or assistant.patient_name == "Patient"):
+            assistant.patient_name = p.name
+
+    @ctx.room.on("participant_disconnected")
+    def on_participant_disconnected(p):
+        logging.info(f"[PARTICIPANT_DISCONNECTED] {p.identity} left room. Triggering consultation save...")
+        asyncio.create_task(log_usage_and_save_consultation())
+
+    @ctx.room.on("disconnected")
+    def on_room_disconnected():
+        logging.info("[ROOM_DISCONNECTED] LiveKit room disconnected. Triggering consultation save...")
+        asyncio.create_task(log_usage_and_save_consultation())
+
+    ctx.add_shutdown_callback(log_usage_and_save_consultation)
+
+    # 1. Begin session with greeting in the user's preferred language (Bengali, Hindi, or English)
+    clean_pname = assistant.patient_name if (assistant.patient_name and assistant.patient_name not in ["Patient", "New Patient"]) else ""
+    if init_lang == "hi-IN":
+        if clean_pname:
+            initial_greeting = (
+                f"नमस्ते {clean_pname}, आरोग्यवाणी में आपका स्वागत है। आप कैसा महसूस कर रहे हैं और आज आपको क्या स्वास्थ्य समस्या है? "
+                "यदि आप चाहें तो हम हिंदी, বাংলা (Bengali), या English में बात कर सकते हैं।"
+            )
+        else:
+            initial_greeting = (
+                "नमस्ते, आरोग्यवाणी में आपका स्वागत है। आप कैसा महसूस कर रहे हैं और आज आपको क्या स्वास्थ्य समस्या है? "
+                "यदि आप चाहें तो हम हिंदी, বাংলা (Bengali), या English में बात कर सकते हैं।"
+            )
+    elif init_lang == "en-IN":
+        if clean_pname:
+            initial_greeting = (
+                f"Hello {clean_pname}, welcome to AarogyaVaani. How are you feeling today and what health concern brings you in? "
+                "We can also converse in English, বাংলা (Bengali), or हिन्दी (Hindi)."
+            )
+        else:
+            initial_greeting = (
+                "Hello, welcome to AarogyaVaani. How are you feeling today and what health concern brings you in? "
+                "We can also converse in English, বাংলা (Bengali), or हिन्दी (Hindi)."
+            )
+    else:  # bn-IN
+        if clean_pname:
+            initial_greeting = (
+                f"নমস্কার {clean_pname}, আরোগ্যবাণীতে আপনাকে স্বাগতম। আপনি কেমন অনুভব করছেন এবং আজ কী সমস্যা হচ্ছে? "
+                "আপনার সুবিধার জন্য আপনি কি বাংলায়, হিন্দিতে (Hindi), নাকি ইংরেজিতে (English) কথা বলতে চান?"
+            )
+        else:
+            initial_greeting = (
+                "নমস্কার, আরোগ্যবাণীতে আপনাকে স্বাগতম। আপনি কেমন অনুভব করছেন এবং আজ আপনার কী শারীরিক সমস্যা হচ্ছে? "
+                "আপনার সুবিধার জন্য আপনি কি বাংলায়, হিন্দিতে (Hindi), নাকি ইংরেজিতে (English) কথা বলতে চান?"
+            )
+
+    assistant.transcript.append({
+        "role": "agent",
+        "text": initial_greeting,
+        "timestamp": time.time(),
+    })
+    await assistant.broadcast_transcript("agent", initial_greeting)
+    asyncio.create_task(assistant.sync_turn_to_backend())
+    await session.say(initial_greeting)
 
 
 if __name__ == "__main__":

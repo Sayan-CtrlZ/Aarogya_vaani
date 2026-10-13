@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     SUPABASE_PUBLISHABLE_KEY: str | None = None
     SUPABASE_SECRET_KEY: str | None = None
     SUPABASE_JWKS_URL: str | None = None
+
+    # LiveKit WebRTC Configuration
+    LIVEKIT_URL: str | None = None
+    LIVEKIT_API_KEY: str | None = None
+    LIVEKIT_API_SECRET: str | None = None
     
     # Server Host / Port
     HOST: str = "0.0.0.0"

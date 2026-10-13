@@ -213,11 +213,75 @@ def detect_language_intent(
         if not has_symptoms:
             return LanguageIntent(is_explicit_change=True, target_language=found_langs[0], reason="initial_selection_mention")
 
+    # 8. If language is not yet selected, mirror patient's dominant language if clearly spoken
+    if not is_selected:
+        dominant = detect_utterance_dominant_language(t)
+        if dominant and dominant != current_language:
+            return LanguageIntent(
+                is_explicit_change=True,
+                target_language=dominant,
+                reason=f"dominant_language_mirroring_{dominant}",
+            )
+
     return LanguageIntent(is_explicit_change=False, target_language=None, reason="normal_utterance")
 
 
-def build_system_prompt(current_language: str = DEFAULT_LANGUAGE_CODE, is_language_selected: bool = False) -> str:
-    """Build the comprehensive clinical intake system prompt enforcing the locked language."""
+def detect_utterance_dominant_language(text: str) -> str | None:
+    """Detect if an utterance is dominantly and unambiguously spoken/written in Bengali, Hindi, or English."""
+    if not text or not text.strip():
+        return None
+    t = text.strip()
+    if re.search(r"[\u0980-\u09FF]", t):
+        return "bn-IN"
+    if re.search(r"[\u0900-\u097F]", t):
+        return "hi-IN"
+
+    low = t.lower()
+    words = re.findall(r"\b[a-z]+\b", low)
+    if len(words) < 2:
+        return None
+
+    hinglish_words = {
+        "mujhe", "mera", "meri", "mere", "hai", "hain", "kya", "kyun", "kaise",
+        "bukhar", "dard", "sirdard", "sar", "pet", "dawa", "dawai", "karo", "kijiye",
+        "batao", "bataye", "theek", "thik", "nahi", "nahin", "bohot", "bahut", "tez",
+        "ulti", "dast", "khansi", "chhati", "saans", "chakkar"
+    }
+    banglish_words = {
+        "amar", "amake", "ache", "achhe", "hoyeche", "hoche", "ki", "keno", "kivabe",
+        "jor", "byatha", "matha", "pet", "oshudh", "bolun", "bhalo", "kharap",
+        "bomi", "kashi", "shwash", "shashkosto"
+    }
+    english_words = {
+        "i", "have", "my", "me", "am", "is", "are", "feeling", "feel", "fever", "pain",
+        "headache", "stomach", "ache", "cough", "cold", "body", "days", "day", "yesterday",
+        "today", "since", "high", "low", "severe", "mild", "doctor", "medicine", "tablet",
+        "help", "what", "how", "can", "should", "do", "please", "vomiting", "weakness",
+        "chest", "throat", "blood", "bleed", "pregnant", "pregnancy", "test", "report",
+        "hello", "hi", "hey", "good", "morning", "afternoon", "evening", "with", "from",
+        "take", "taking", "getting", "and", "or", "for", "in", "on", "at", "to"
+    }
+
+    h_count = sum(1 for w in words if w in hinglish_words)
+    b_count = sum(1 for w in words if w in banglish_words)
+    e_count = sum(1 for w in words if w in english_words)
+
+    if h_count >= 2 and h_count > e_count:
+        return "hi-IN"
+    if b_count >= 2 and b_count > e_count:
+        return "bn-IN"
+    if e_count >= 2 and e_count > (h_count + b_count):
+        return "en-IN"
+
+    return None
+
+
+def build_system_prompt(
+    current_language: str = DEFAULT_LANGUAGE_CODE,
+    is_language_selected: bool = False,
+    is_new_patient: bool = False,
+) -> str:
+    """Build the comprehensive clinical intake system prompt enforcing the locked language and patient context."""
     lang_info = SUPPORTED_LANGUAGES.get(current_language, SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE_CODE])
     lang_name = lang_info["name"]
     lang_style = lang_info["style"]
@@ -228,6 +292,21 @@ def build_system_prompt(current_language: str = DEFAULT_LANGUAGE_CODE, is_langua
         f"LOCKED to {lang_name} ({current_language})"
         if is_language_selected
         else f"INITIAL STATE (Default: {lang_name} [{current_language}], awaiting patient choice)"
+    )
+
+    patient_context_section = (
+        """# Patient Record Status: NEW PATIENT (No Prior Medical Records)
+- This patient is registering or consulting for the first time. You do NOT have prior medical history in the database.
+- Do NOT pretend to know past prescriptions or lab tests. Acknowledge this honestly if asked.
+- In early turns, alongside their current symptom, briefly and gently check baseline context:
+  (1) Name and age (if not known).
+  (2) If female adult, whether currently pregnant.
+  (3) Any known existing health conditions, allergies, or regular medications."""
+        if is_new_patient
+        else """# Patient Record Status: RETURNING PATIENT (Verified Records Available)
+- This patient has medical records on file in Supabase (see attached clinical dossier).
+- Address them by their verified name. Skip basic registration questions and jump directly to today's complaint.
+- When they inquire about their medications, dosages, or lab results, use your official medical tools to provide exact records."""
     )
 
     prompt = f"""# Role and Identity
@@ -241,29 +320,28 @@ Your personality is methodical, clear, and formally empathetic. You explicitly i
 - UNDERSTAND MIXED INPUT, RESPOND IN LOCKED LANGUAGE: Accurately understand what the patient describes, but phrase 100% of your response in {lang_name} ({lang_style}).
 - EXAMPLE RESPONSE: "{example}"
 
+{patient_context_section}
+
 # Language Change Policy
 - You are ONLY permitted to change languages when the patient EXPLICITLY requests a language change to Bengali, Hindi, or English.
 - When an explicit request is made, use the `set_language` tool to execute the validated change.
-- Never switch languages on ambiguous statements (e.g., 'I know a little Hindi', 'My doctor speaks English', 'Do you speak French?'). If ambiguous, clarify in {lang_name} that you support Bengali, Hindi, and English.
-- Language selection is completely separate from clinical intake consent.
+- Never switch languages on ambiguous statements. Clarify in {lang_name} that you support Bengali, Hindi, and English.
 
-# Strict Conversation Rules (CRITICAL)
-1. ASK ONLY ONE QUESTION AT A TIME. Wait for their answer.
-2. NEVER REPEAT A QUESTION. Review conversation history. If the patient has already provided a symptom or severity, do NOT ask for it again.
-3. Be an active listener. Briefly acknowledge their statement professionally before moving on.
-4. Follow this logical flow. Skip any step the patient has already answered:
-   - Step 1: Identify the main symptom.
-   - Step 2: Ask when it started (Onset).
-   - Step 3: Ask how severe it is (Severity: 1-10 scale or mild/moderate/severe).
-   - Step 4: Ask if there are any related symptoms (like cough, body ache, fever, etc.).
-5. Once complete, summarize their condition professionally and state that a human doctor will review the file. End the conversation.
+# Strict Adaptive Clinical Intake Rules (CRITICAL)
+1. ASK EXACTLY ONE FOCUSED QUESTION PER TURN. Never combine two questions in one message.
+2. NEVER REPEAT A QUESTION. If the patient has already stated their symptom or timeline, acknowledge it and move to the next missing dimension.
+3. Be an active listener. Briefly acknowledge their statement in 1 short sentence before asking the next question.
+4. Adaptive clinical flow:
+   - Step 1: Identify main symptom / today's complaint.
+   - Step 2: Onset and duration ("When did this start?").
+   - Step 3: Severity and intensity (temperature reading, pain scale 1-10, or mild/moderate/severe).
+   - Step 4: Associated symptoms and relevant baseline context.
+5. Soft question limit: Collect sufficient information within 4 to 6 questions.
+6. Once intake is complete or if danger signs appear, summarize the findings and advise appropriate clinical follow-up at the health center.
 
-# Topical Guardrails & Safety (CRITICAL)
-- You are EXCLUSIVELY a clinical intake assistant.
-- If the user asks about ANYTHING unrelated to their health or symptoms (politics, general knowledge, entertainment, etc.), politely refuse in {lang_name} and steer the conversation back to their health.
-
-# Medical Boundaries
-You are an AI gathering intake information. You CANNOT officially diagnose or prescribe medicine. If symptoms sound severe (e.g., extreme chest pain, acute breathlessness), calmly and firmly advise them to seek emergency medical care immediately.
+# Medical Boundaries & Emergency Escalation
+You are an AI gathering intake information. You CANNOT officially diagnose or prescribe medicine.
+If red-flag emergency symptoms are detected (crushing chest pain, severe breathlessness, vaginal bleeding in pregnancy, high fever >103°F with convulsions), immediately stop routine questioning and calmly instruct the patient to seek urgent emergency care at the nearest hospital or call 108.
 """
     return prompt.strip()
 
