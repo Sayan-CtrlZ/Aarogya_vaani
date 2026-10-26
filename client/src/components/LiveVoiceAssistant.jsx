@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   Plus,
   Mic,
@@ -45,7 +45,7 @@ import {
   User,
 } from "lucide-react";
 import { AudioLinesIcon } from "@animateicons/react/lucide";
-import { Room, RoomEvent, Track } from "livekit-client";
+import { Room, RoomEvent, Track, createLocalAudioTrack } from "livekit-client";
 import { useLanguage } from "../context/LanguageContext";
 import defaultQuestionsData from "../data/assessmentQuestions.json";
 import { getCurrentPatient, savePatient } from "../utils/patientStore";
@@ -188,9 +188,10 @@ export default function LiveVoiceAssistant({
   patientName = "Patient",
   questionsData = defaultQuestionsData,
   onSaveAssessment,
-  roomName: initialRoomName,
   embedded = false,
   initialMode = "portal",
+  autoConnect = false,
+  hideTopHeader = false,
 }) {
   const { language, setLanguage } = useLanguage();
 
@@ -202,6 +203,7 @@ export default function LiveVoiceAssistant({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   // Real-time Speech Transcripts
   const [interimUserText, setInterimUserText] = useState("");
@@ -250,7 +252,7 @@ export default function LiveVoiceAssistant({
   const textInputRef = useRef(null);
 
   // Patient Identity
-  const currentPat = getCurrentPatient();
+  const currentPat = useMemo(() => getCurrentPatient(), []);
   const isRealNewPatient = currentPat?.isNewPatient || !currentPat?.id || currentPat?.id === "NEW_PATIENT";
   const patientDisplayName = isRealNewPatient
     ? (patientName && patientName !== "Patient" ? patientName : "New Patient")
@@ -634,17 +636,34 @@ export default function LiveVoiceAssistant({
   const disconnectLiveKitRoom = useCallback(() => {
     if (livekitRoomRef.current) {
       try {
+        const localPart = livekitRoomRef.current.localParticipant;
+        if (localPart) {
+          localPart.trackPublications?.forEach((pub) => {
+            if (pub.track) {
+              try {
+                pub.track.stop();
+              } catch {}
+            }
+          });
+        }
         livekitRoomRef.current.disconnect();
+        console.log("[LIVEKIT] Successfully disconnected LiveKit room");
       } catch (err) {
-        console.warn("[LIVEKIT DISCONNECT NOTICE]", err);
+        console.error("[LIVEKIT DISCONNECT ERROR]", err);
       }
       livekitRoomRef.current = null;
     }
     setLivekitConnected(false);
     setLivekitConnecting(false);
+    setIsMuted(false);
   }, []);
 
   const connectLiveKitRoom = useCallback(async () => {
+    if (livekitConnecting || livekitRoomRef.current?.state === "connected") {
+      console.log("[LIVEKIT] Already connecting or connected. Skipping redundant connect call.");
+      return;
+    }
+
     try {
       setLivekitConnecting(true);
       setMicError(null);
@@ -653,7 +672,7 @@ export default function LiveVoiceAssistant({
         language === "hi" ? "hi-IN" : language === "bn" ? "bn-IN" : "en-IN";
       const targetRoomName =
         initialRoomName ||
-        `consultation_${(normalizedPatientId || "guest").replace(/[^a-zA-Z0-9_]/g, "_")}`;
+        `consultation_${(normalizedPatientId || "guest").replace(/[^a-zA-Z0-9_]/g, "_")}_${Date.now()}`;
 
       const tokenData = await fetchLiveKitToken(
         normalizedPatientId,
@@ -673,27 +692,87 @@ export default function LiveVoiceAssistant({
       });
       livekitRoomRef.current = room;
 
-      // 1. Audio track subscription from AI Doctor Agent (agent.py)
+      // 1. Connection & WebSocket lifecycle diagnostics
+      room.on(RoomEvent.ConnectionStateChanged, (state) => {
+        console.log("[LIVEKIT CONNECTION STATE]", state);
+        if (state === "disconnected") {
+          console.error("[LIVEKIT WEBSOCKET ERROR] LiveKit connection state changed to DISCONNECTED");
+        }
+      });
+
+      room.on(RoomEvent.Reconnecting, () => {
+        console.warn("[LIVEKIT WARNING] WebSocket connection lost. Reconnecting to LiveKit...");
+      });
+
+      room.on(RoomEvent.Reconnected, () => {
+        console.log("[LIVEKIT RECONNECTED] LiveKit WebSocket connection successfully re-established");
+        setLivekitConnected(true);
+      });
+
+      room.on(RoomEvent.Disconnected, (reason) => {
+        console.error("[LIVEKIT DISCONNECTED] LiveKit room disconnected. Reason:", reason);
+        setLivekitConnected(false);
+        setIsSpeaking(false);
+        setIsListening(false);
+      });
+
+      // 2. Audio track subscription from AI Doctor Agent (agent.py)
       room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        console.log("[LIVEKIT] Remote track subscribed:", track.kind, participant?.identity);
+        console.log(`[LIVEKIT TRACK SUBSCRIBED] Kind: ${track.kind}, Source: ${publication?.source}, Participant: ${participant?.identity}`);
         if (track.kind === Track.Kind.Audio) {
-          if (remoteAudioRef.current) {
-            track.attach(remoteAudioRef.current);
-          } else {
-            const el = track.attach();
-            el.autoplay = true;
-            document.body.appendChild(el);
+          try {
+            if (remoteAudioRef.current) {
+              track.attach(remoteAudioRef.current);
+              remoteAudioRef.current.play?.().catch((e) => console.warn("[LIVEKIT] Autoplay playback note:", e));
+              console.log("[LIVEKIT] Attached remote AI doctor audio track to remoteAudioRef and initiated playback");
+            } else {
+              const el = track.attach();
+              el.autoplay = true;
+              el.playsInline = true;
+              document.body.appendChild(el);
+              el.play?.().catch((e) => console.warn("[LIVEKIT] Autoplay playback note:", e));
+              console.log("[LIVEKIT] Attached remote audio track to dynamically mounted DOM element");
+            }
+          } catch (attachErr) {
+            console.error("[LIVEKIT AUDIO ATTACH ERROR] Failed attaching remote audio track:", attachErr);
           }
         }
       });
 
-      room.on(RoomEvent.TrackUnsubscribed, (track) => {
-        try {
-          track.detach();
-        } catch {}
+      room.on(RoomEvent.TrackSubscriptionFailed, (trackSid, participant, reason) => {
+        console.error(
+          `[LIVEKIT TRACK SUBSCRIPTION ERROR] Failed to subscribe to track '${trackSid}' from '${participant?.identity}':`,
+          reason
+        );
       });
 
-      // 2. Real-time Transcript broadcast packets from agent.py
+      room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+        console.log(`[LIVEKIT TRACK UNSUBSCRIBED] Kind: ${track.kind}, Participant: ${participant?.identity}`);
+        try {
+          track.detach();
+        } catch (detachErr) {
+          console.error("[LIVEKIT TRACK DETACH ERROR]", detachErr);
+        }
+      });
+
+      // 3. Local track publishing events
+      room.on(RoomEvent.LocalTrackPublished, (publication, participant) => {
+        console.log(
+          `[LIVEKIT LOCAL TRACK PUBLISHED] Kind: ${publication.kind}, Source: ${publication.source}, TrackSid: ${publication.trackSid}`
+        );
+      });
+
+      room.on(RoomEvent.LocalTrackUnpublished, (publication, participant) => {
+        console.warn(
+          `[LIVEKIT LOCAL TRACK UNPUBLISHED] Kind: ${publication.kind}, Source: ${publication.source}, TrackSid: ${publication.trackSid}`
+        );
+      });
+
+      room.on(RoomEvent.MediaDevicesError, (err) => {
+        console.error("[LIVEKIT MEDIA ERROR] Media device capture error (microphone/camera):", err);
+      });
+
+      // 4. Real-time Transcript broadcast packets from agent.py
       room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
         try {
           const text = new TextDecoder().decode(payload);
@@ -751,7 +830,7 @@ export default function LiveVoiceAssistant({
         }
       });
 
-      // 3. Dynamic active speakers pulse
+      // 5. Dynamic active speakers pulse
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
         const localId = room.localParticipant?.identity;
         const remoteSpeaking = speakers.some((s) => s.identity !== localId);
@@ -766,77 +845,116 @@ export default function LiveVoiceAssistant({
         }
       });
 
-      room.on(RoomEvent.Disconnected, () => {
-        console.log("[LIVEKIT] Disconnected from room");
-        setLivekitConnected(false);
-        setIsSpeaking(false);
-        setIsListening(false);
-      });
-
-      // 4. Connect to LiveKit Cloud Room
+      // 6. Connect to LiveKit Cloud Room via WebSocket
+      console.log("[LIVEKIT] Connecting WebSocket to LiveKit Room:", targetRoomName);
       await room.connect(tokenData.url, tokenData.token);
+      console.log("[LIVEKIT] Room WebSocket connected successfully. Room Name:", room.name);
       setLivekitConnected(true);
       setLivekitConnecting(false);
 
-      // 5. Enable patient microphone
-      await room.localParticipant.setMicrophoneEnabled(true);
-      setIsListening(true);
+      // 7. Request and publish Track.Source.Microphone
+      try {
+        console.log("[LIVEKIT] Requesting and publishing microphone track (Track.Source.Microphone)...");
+        let micPublication = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+        if (!micPublication) {
+          try {
+            micPublication = await room.localParticipant.setMicrophoneEnabled(true, {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            });
+            console.log(
+              "[LIVEKIT] Local microphone published via setMicrophoneEnabled:",
+              micPublication?.trackSid,
+              micPublication?.source || Track.Source.Microphone
+            );
+          } catch (pubErr) {
+            console.error("[LIVEKIT MIC PUBLISH ERROR] setMicrophoneEnabled failed, attempting createLocalAudioTrack fallback:", pubErr);
+            const audioTrack = await createLocalAudioTrack({
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            });
+            micPublication = await room.localParticipant.publishTrack(audioTrack, {
+              source: Track.Source.Microphone,
+            });
+            console.log(
+              "[LIVEKIT] Local microphone published via createLocalAudioTrack fallback:",
+              micPublication?.trackSid,
+              micPublication?.source || Track.Source.Microphone
+            );
+          }
+        } else if (micPublication.isMuted) {
+          await micPublication.unmute();
+          console.log("[LIVEKIT] Existing microphone publication unmuted successfully");
+        }
+
+        setIsMuted(false);
+        setIsListening(true);
+      } catch (micPublishErr) {
+        console.error("[LIVEKIT MIC PUBLISH ERROR] Failed to enable/publish microphone track:", micPublishErr);
+        setMicError("denied");
+        setIsMuted(true);
+      }
     } catch (err) {
-      console.warn("[LIVEKIT CONNECT NOTICE] Using fallback Web Speech / REST mode:", err);
+      console.error("[LIVEKIT WEBSOCKET / CONNECTION FAILURE] Failed connecting to LiveKit room:", err);
       setLivekitConnecting(false);
       setLivekitConnected(false);
-      startSpeechRecognition();
+      setMicError("livekit_connection_failed");
     }
-  }, [normalizedPatientId, patientDisplayName, language, initialRoomName, startSpeechRecognition]);
+  }, [normalizedPatientId, patientDisplayName, language, initialRoomName]);
 
-  // Mic Toggle with browser permission check
+  // Mic Toggle with LiveKit LocalParticipant track control
   const handleToggleMic = async () => {
     setMicError(null);
+    const targetMuted = !isMuted;
+    const shouldEnable = !targetMuted;
+    console.log(
+      `[LIVEKIT] Toggling mic: currently ${isMuted ? "MUTED" : "UNMUTED"} -> setting to ${targetMuted ? "MUTED" : "UNMUTED"}`
+    );
 
     // If connected via LiveKit WebRTC, toggle the participant audio track
-    if (livekitRoomRef.current && livekitConnected) {
-      try {
-        const currentEnabled = livekitRoomRef.current.localParticipant.isMicrophoneEnabled;
-        await livekitRoomRef.current.localParticipant.setMicrophoneEnabled(!currentEnabled);
-        setIsListening(!currentEnabled);
-        return;
-      } catch (err) {
-        console.warn("[LIVEKIT MIC TOGGLE ERROR]", err);
-      }
-    }
-
-    if (isListening) {
-      stopSpeechRecognition();
-      return;
-    }
-
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setMicError("unsupported");
-      return;
-    }
-
     if (
-      !micPermissionRequested &&
-      navigator.mediaDevices &&
-      navigator.mediaDevices.getUserMedia
+      livekitRoomRef.current &&
+      (livekitConnected || livekitRoomRef.current.state === "connected")
     ) {
       try {
-        setMicPermissionRequested(true);
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (err) {
-        console.warn("[MIC_PERMISSION_FAILED]", err);
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setMicError("denied");
-          return;
+        const localPart = livekitRoomRef.current.localParticipant;
+        await localPart.setMicrophoneEnabled(shouldEnable, {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        });
+
+        // Ensure track publication mute status is aligned
+        const micPub = localPart.getTrackPublication(Track.Source.Microphone);
+        if (micPub) {
+          if (shouldEnable && micPub.isMuted) {
+            await micPub.unmute();
+          } else if (!shouldEnable && !micPub.isMuted) {
+            await micPub.mute();
+          }
         }
+
+        setIsMuted(targetMuted);
+        console.log(
+          `[LIVEKIT] Local microphone is now ${shouldEnable ? "ENABLED (Unmuted)" : "DISABLED (Muted)"}`
+        );
+        return;
+      } catch (err) {
+        console.error("[LIVEKIT MIC TOGGLE ERROR] Failed to toggle local audio track:", err);
+        setMicError("error");
       }
     }
 
-    startSpeechRecognition();
+    // Fallback mode (REST / Web Speech)
+    if (!targetMuted) {
+      startSpeechRecognition();
+      setIsMuted(false);
+    } else {
+      stopSpeechRecognition();
+      setIsMuted(true);
+    }
   };
 
   // Webcam Management for PIP Tile
@@ -900,8 +1018,17 @@ export default function LiveVoiceAssistant({
   // Launch Live Voice Agent (triggered when clicking circular ( O ) button in portal)
   const handleLaunchLiveVoiceAgent = () => {
     setActiveMode("voice");
+    setIsMuted(false);
     connectLiveKitRoom();
   };
+
+  // Automatically connect LiveKit room when entering voice mode
+  useEffect(() => {
+    if (activeMode === "voice" && !livekitConnected && !livekitConnecting && !micError) {
+      console.log("[LIVEKIT] Voice mode active - auto-connecting to LiveKit Room...");
+      connectLiveKitRoom();
+    }
+  }, [activeMode, livekitConnected, livekitConnecting, micError, connectLiveKitRoom]);
 
   // Persist completed consultation session to Supabase consultations table with user_name
   const persistCurrentConsultation = useCallback(async () => {
@@ -942,7 +1069,7 @@ export default function LiveVoiceAssistant({
     }
   }, [normalizedPatientId, patientDisplayName, currentPat, language]);
 
-  // End Call & Return to Intake Portal
+  // End Call & Return to Intake Portal or trigger onClose
   const handleEndCall = () => {
     persistCurrentConsultation();
     disconnectLiveKitRoom();
@@ -952,15 +1079,29 @@ export default function LiveVoiceAssistant({
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
-    setActiveMode("portal");
+    if (initialMode === "voice" && onClose) {
+      onClose();
+    } else {
+      setActiveMode("portal");
+    }
   };
 
-  // Cleanup on unmount
+  // Stable references for unmount cleanup
+  const disconnectLiveKitRoomRef = useRef(disconnectLiveKitRoom);
+  disconnectLiveKitRoomRef.current = disconnectLiveKitRoom;
+
+  const persistConsultationRef = useRef(persistCurrentConsultation);
+  persistConsultationRef.current = persistCurrentConsultation;
+
+  const stopWebcamRef = useRef(stopWebcam);
+  stopWebcamRef.current = stopWebcam;
+
+  // Cleanup ONLY on actual component unmount (empty dependency array)
   useEffect(() => {
     return () => {
-      persistCurrentConsultation();
-      disconnectLiveKitRoom();
-      stopWebcam();
+      persistConsultationRef.current?.();
+      disconnectLiveKitRoomRef.current?.();
+      stopWebcamRef.current?.();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -973,7 +1114,7 @@ export default function LiveVoiceAssistant({
         clearTimeout(speechTimeoutRef.current);
       }
     };
-  }, [disconnectLiveKitRoom, stopWebcam, persistCurrentConsultation]);
+  }, []);
 
   // Typed input submission
   const handleSendTyped = (e) => {
@@ -1375,7 +1516,15 @@ export default function LiveVoiceAssistant({
                 <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-100">
                   AarogyaVani Voice
                 </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    livekitConnected
+                      ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                      : livekitConnecting
+                      ? "bg-amber-400 animate-pulse"
+                      : "bg-red-400"
+                  }`}
+                />
               </div>
             </div>
 
@@ -1397,8 +1546,13 @@ export default function LiveVoiceAssistant({
             )}
           </header>
 
-          {/* Hidden audio element for LiveKit remote agent audio output */}
-          <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+          {/* Invisible fixed audio element for unthrottled WebRTC remote agent playback */}
+          <audio
+            ref={remoteAudioRef}
+            autoPlay
+            playsInline
+            style={{ position: "fixed", top: -9999, left: -9999, opacity: 0, pointerEvents: "none" }}
+          />
 
           {/* 2. CENTER: 5-BAR WAVEFORM ANIMATION (EXACT IMAGE 2 REPLICA) */}
           <main className="flex-1 w-full max-w-3xl mx-auto px-4 flex flex-col items-center justify-center z-20 text-center my-auto">
@@ -1424,6 +1578,34 @@ export default function LiveVoiceAssistant({
                     <span className="text-emerald-400 font-bold mr-1">Doctor:</span>
                     {streamingAiText}
                   </p>
+                </div>
+              ) : isMuted ? (
+                <p className="text-sm sm:text-base font-medium text-rose-400 tracking-wide animate-pulse">
+                  Microphone is muted • Click unmute to speak
+                </p>
+              ) : !livekitConnected ? (
+                <div className="flex flex-col items-center gap-2 animate-in fade-in">
+                  <p className="text-sm sm:text-base font-medium text-amber-300 tracking-wide">
+                    {livekitConnecting
+                      ? "Connecting to LiveKit AI Doctor... Please wait"
+                      : micError === "livekit_connection_failed"
+                      ? "Connection notice • Click Retry to reconnect"
+                      : micError === "denied"
+                      ? "Microphone access needed • Please click unmute or allow mic in browser"
+                      : "Voice Session Connecting..."}
+                  </p>
+                  {!livekitConnecting && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMicError(null);
+                        connectLiveKitRoom();
+                      }}
+                      className="px-3.5 py-1.5 bg-cyan-900/70 hover:bg-cyan-800 text-cyan-200 text-xs font-semibold rounded-lg border border-cyan-500/50 transition cursor-pointer shadow-md"
+                    >
+                      Retry Connection
+                    </button>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm sm:text-base font-medium text-slate-400 tracking-wide">
@@ -1508,13 +1690,13 @@ export default function LiveVoiceAssistant({
                   type="button"
                   onClick={handleToggleMic}
                   className={`p-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
-                    isListening
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30"
-                      : "bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30"
+                    !isMuted
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                      : "bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.25)]"
                   }`}
-                  title={isListening ? "Mute Microphone" : "Unmute Microphone"}
+                  title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
                 >
-                  {isListening ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                  {!isMuted ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
                 </button>
 
                 {/* Camera Toggle */}

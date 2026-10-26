@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Filter, UsersRound, ArrowRight, AlertTriangle, CheckCircle2, Clock, Activity } from "lucide-react";
 import { getAllPatients } from "../../utils/patientStore";
+import { getPatients } from "../../services/api";
 
 export default function DoctorPatientsTab() {
   const navigate = useNavigate();
@@ -9,12 +10,38 @@ export default function DoctorPatientsTab() {
   const paramFilter = searchParams.get("filter");
   const [patientsList, setPatientsList] = useState(() => getAllPatients());
 
-  const [registryFilter, setRegistryFilter] = useState(paramFilter || "all");
-  const [registrySearch, setRegistrySearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-
   useEffect(() => {
-    setPatientsList(getAllPatients());
+    const list = getAllPatients();
+    setPatientsList(list);
+    getPatients()
+      .then((cloudPatients) => {
+        if (Array.isArray(cloudPatients) && cloudPatients.length > 0) {
+          const mergedMap = new Map();
+          list.forEach((p) => mergedMap.set((p.id || p.patient_ref)?.toUpperCase(), p));
+          cloudPatients.forEach((cp) => {
+            const id = cp.patient_ref || cp.id;
+            if (id) {
+              const key = id.toUpperCase();
+              const existing = mergedMap.get(key) || {};
+              mergedMap.set(key, {
+                ...existing,
+                id: id,
+                patient_ref: id,
+                name: cp.name || existing.name,
+                phone: cp.phone || existing.phone,
+                age: cp.age || existing.age || "28",
+                gender: cp.gender || existing.gender || "Female",
+                district: cp.village || cp.district || existing.district || "Tripura",
+                category: cp.category || existing.category || "General",
+                triage: cp.triage || existing.triage || "Stable",
+                status: cp.status || existing.status || "Active",
+              });
+            }
+          });
+          setPatientsList(Array.from(mergedMap.values()));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

@@ -101,14 +101,9 @@ async def save_voice_consultation(
         try:
             from supabase import create_client
             supa = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
-            try:
-                res = supa.table("consultations").upsert(payload).execute()
-            except Exception as ue:
-                if "user_name" in str(ue) and "user_name" in payload:
-                    fallback_p = {k: v for k, v in payload.items() if k != "user_name"}
-                    res = supa.table("consultations").upsert(fallback_p).execute()
-                else:
-                    raise ue
+            # Strip fields not present in Supabase consultations table (e.g. user_name)
+            db_payload = {k: v for k, v in payload.items() if k != "user_name"}
+            res = supa.table("consultations").upsert(db_payload).execute()
             logger.info("[SUPABASE_DIRECT] Persisted consultation %s directly to Supabase", cid)
             return res.data[0] if res.data else payload
         except Exception as se:

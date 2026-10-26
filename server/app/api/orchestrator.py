@@ -66,6 +66,8 @@ class ConsultationReviewRequest(BaseModel):
     doctor_status: str = "REVIEWED"  # REVIEWED, REFERRED, PENDING
     doctor_notes: str | None = None
     doctor_prescription: str | None = None
+    prescription: str | None = None  # Frontend alias support
+    doctor_name: str | None = None
     triage_level: str | None = None
 
 
@@ -389,10 +391,11 @@ def review_consultation(consultation_id: str, body: ConsultationReviewRequest):
             detail=f"Consultation '{consultation_id}' not found",
         )
 
+    resolved_rx = body.doctor_prescription or body.prescription
     updates: dict[str, Any] = {
         "doctor_status": body.doctor_status,
         "doctor_notes": body.doctor_notes,
-        "doctor_prescription": body.doctor_prescription,
+        "doctor_prescription": resolved_rx,
     }
     if body.triage_level:
         updates["triage_level"] = body.triage_level

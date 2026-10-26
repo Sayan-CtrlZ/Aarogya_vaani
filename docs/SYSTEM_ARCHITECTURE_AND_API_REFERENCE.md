@@ -7,6 +7,34 @@
 
 ---
 
+## 🛠️ Complete Technology Stack
+
+| Layer / Domain | Technology | Version | Purpose & Description |
+| :--- | :--- | :--- | :--- |
+| **Frontend Framework** | **React** | `^19.2.8` | Core UI component hierarchy, declarative rendering |
+| **Build Tooling & Dev** | **Vite** | `^8.3.0` | Ultra-fast HMR and ESM bundling |
+| **Frontend Routing** | **React Router DOM** | `^7.18.4` | Single Page Application route navigation |
+| **Styling & CSS** | **Tailwind CSS** | `^4.3.3` | Utility-first responsive CSS styling with PostCSS & Autoprefixer |
+| **UI Icons & Animations**| **Lucide React** & **Framer Motion** | `^1.50.0` / `^14.0.0` | Modern SVG iconography & fluid micro-animations |
+| **WebRTC Audio Client** | **LiveKit Client SDK** | `^2.22.4` | Low-latency WebRTC media connection, Opus audio tracks, Data Channels |
+| **Backend API Framework**| **FastAPI** | `>=0.110.0` | Asynchronous Python REST microservices & automatic Swagger docs |
+| **ASGI Web Server** | **Uvicorn** | `>=0.28.0` | High-throughput asynchronous server with live reloader |
+| **Data Validation** | **Pydantic v2** & **Settings**| `>=2.6.0` / `>=2.2.0` | Strict request/response typing, serialization, and `.env` parsing |
+| **Security & Auth** | **Bcrypt** | `>=4.0.0` | Salted password & 4-digit PIN hashing |
+| **File & Image Engine** | **Pillow (PIL)** & **Multipart**| `>=10.2.0` / `>=0.0.9` | Medical scan decoding, MIME type detection, multipart processing |
+| **Real-Time Voice Worker**| **LiveKit Agents** | `~=1.8` | Real-time voice agent framework with Indic plugin ecosystem |
+| **Voice Activity (VAD)** | **Silero VAD** | Embedded | Edge voice activity detection & silence boundary filtering |
+| **Indic Speech (STT)** | **Sarvam AI Saarika** | `v2.5` | Indic Speech-to-Text for Bengali (`bn-IN`), Hindi (`hi-IN`), English (`en-IN`) |
+| **Indic Speech (TTS)** | **Sarvam AI Bulbul** | `v3` | Indic Text-to-Speech audio streaming (`roopa`, `priya`, `ishita` voices) |
+| **Clinical Reasoning** | **Groq Cloud LLM** | `openai/gpt-oss-120b` | Ultra-fast LLM inference for adaptive clinical question turns |
+| **Vision AI (OCR)** | **Google Gemini Flash** | `2.5-flash-lite` | Multi-modal OCR for prescriptions, blood test tables, and X-rays |
+| **Managed Database** | **Supabase Cloud (PostgreSQL)**| Latest Cloud | Relational database with Row-Level Security (RLS) policies |
+| **Secure Object Vault** | **Supabase Storage** | S3-Compatible | Private `medical-vault` bucket with 15-minute signed URLs |
+| **Package Management** | **uv** & **npm** | Latest | Rust-powered ultra-fast Python environment + Node package manager |
+| **Automated Testing** | **pytest** & **pytest-asyncio**| `>=8.0.0` / `>=0.23.0` | Unit & integration test suites for backend routes & agent logic |
+
+---
+
 ## 1. High-Level System Architecture
 
 AarogyaVaani is built with three distinct layers operating concurrently:

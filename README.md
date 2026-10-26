@@ -1,16 +1,16 @@
 # AarogyaVaani (आरोग्यवाणी / আরোগ্যবাণী)
 
 > **Voice-First Vernacular Clinical Intake & Offline Healthcare Triage Portal for Primary Health Centres (PHCs) in Tripura**  
-> *Built for Hack for Social Good 2026 • Powered by LiveKit, Sarvam AI, Google Gemini, Groq, and Supabase Cloud*
+> _Built for Hack for Social Good 2026 • Powered by LiveKit, Sarvam AI, Google Gemini, Groq, and Supabase Cloud_
 
 ---
 
 ## 📖 Complete Technical Documentation
 
 - 📘 **[Complete System Architecture & API Reference Manual](docs/SYSTEM_ARCHITECTURE_AND_API_REFERENCE.md)**  
-  *Detailed guide covering all 18+ REST endpoints, WebRTC Voice Agent internals, Frontend wiring maps, and teammate quick-start instructions.*
+  _Detailed guide covering all 18+ REST endpoints, WebRTC Voice Agent internals, Frontend wiring maps, and teammate quick-start instructions._
 - 🔑 **[Credentials, Environment Variables & Git Push Guide](docs/CREDENTIALS_AND_PUSH_GUIDE.md)**  
-  *Full reference for all API keys, `.env.example` setup, security ignore rules, and step-by-step GitHub push instructions.*
+  _Full reference for all API keys, `.env.example` setup, security ignore rules, and step-by-step GitHub push instructions._
 
 ---
 
@@ -30,6 +30,7 @@ chmod +x start_all.sh
 ```
 
 This single command boots up:
+
 1. **FastAPI Backend Server** (`http://localhost:8001`) • Interactive API Docs at `http://localhost:8001/docs`
 2. **LiveKit Voice Agent Worker** (`ai_service`) • Real-time Indic speech (Bengali, Hindi, English) with Sarvam AI & Groq
 3. **React Vite Frontend** (`http://localhost:5173`) • Vernacular clinical intake, Medical Drive, and Doctor Dashboard
