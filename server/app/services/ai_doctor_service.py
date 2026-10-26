@@ -464,7 +464,10 @@ async def generate_ai_doctor_chat_turn(
                 ltitle = l.get("title") or "Lab Report"
                 tests = l.get("tests") or []
                 t_str = ", ".join([f"{t.get('test_name', '')}: {t.get('result_value', '')} {t.get('unit', '')}" for t in tests if isinstance(t, dict)]) if isinstance(tests, list) else str(tests)
-                labs_lines.append(f"  * {ltitle}: {t_str}")
+                sum_en = l.get("summary_en") or ""
+                sum_bn = l.get("summary_bn") or ""
+                extra = f" | Summary: {sum_en}" if sum_en else (f" | Summary: {sum_bn}" if sum_bn else "")
+                labs_lines.append(f"  * {ltitle}: {t_str}{extra}")
         if labs_lines:
             labs_section = "\nVerified Pathology Lab Test Results:\n" + "\n".join(labs_lines)
 

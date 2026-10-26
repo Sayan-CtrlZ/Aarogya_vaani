@@ -517,12 +517,15 @@ async def entrypoint(ctx: JobContext):
     turn_detector_model = None
     if hasattr(ctx, "proc") and hasattr(ctx.proc, "userdata"):
         vad_model = ctx.proc.userdata.get("vad")
-        turn_detector_model = ctx.proc.userdata.get("turn_detector")
-
     if not vad_model:
         vad_model = silero.VAD.load()
+
     if not turn_detector_model:
-        turn_detector_model = MultilingualModel()
+        try:
+            turn_detector_model = MultilingualModel()
+        except Exception as td_err:
+            logging.warning(f"[TURN_DETECTOR_FALLBACK] Multilingual turn detector unavailable, using VAD: {td_err}")
+            turn_detector_model = None
 
     # Configure the voice pipeline with STT, LLM, TTS, VAD, and Turn Detection
     session = AgentSession(

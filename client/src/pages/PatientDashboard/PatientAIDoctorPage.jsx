@@ -353,10 +353,11 @@ export default function PatientAIDoctorPage() {
     try {
       const langCode = selectedLang === "বাংলা" ? "bn-IN" : selectedLang === "हिंदी" ? "hi-IN" : "en-IN";
       const res = await sendAIDoctorChatTurn({
-        patient_id: patient?.id || "AV-8921",
+        patient_id: patient?.patient_ref || patient?.id || "AV-2026-8921",
         user_name: patientName,
         user_message: textToSend,
         language: langCode,
+        attachedDocument: attachedDocumentRef.current || attachedDocument,
       });
 
       if (res && res.ai_message) {
@@ -1763,12 +1764,33 @@ export default function PatientAIDoctorPage() {
 
             {/* HIGH-CONTRAST TYPING AREA WITH MIC DICTATION & CALL BUTTONS */}
             <div className="p-3 bg-white border-t border-slate-200 shrink-0">
+              {attachedDocument && (
+                <div className="mb-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-medium shadow-2xs animate-in fade-in">
+                  <div className="flex items-center gap-2 truncate">
+                    <FileText className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span className="font-bold">Attached:</span>
+                    <span className="truncate font-semibold">{attachedDocument.title || attachedDocument.fileName}</span>
+                    <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-bold shrink-0">{attachedDocument.category}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachedDocument(null);
+                      attachedDocumentRef.current = null;
+                    }}
+                    className="p-1 hover:bg-emerald-100 rounded-lg text-emerald-800 transition cursor-pointer"
+                    title="Remove attached document"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
               <div className="border-2 border-slate-300 dark:border-slate-600 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-2xl bg-slate-50/70 hover:bg-white dark:bg-slate-800 shadow-sm px-3.5 py-2 flex items-center gap-2.5 transition">
                 <button
                   type="button"
-                  onClick={() => setShowUploadModal(true)}
+                  onClick={() => setShowDrivePickerModal(true)}
                   className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition p-1 cursor-pointer"
-                  title="Attach report"
+                  title="Attach report from Medical Drive"
                 >
                   <Paperclip className="w-4 h-4" />
                 </button>
