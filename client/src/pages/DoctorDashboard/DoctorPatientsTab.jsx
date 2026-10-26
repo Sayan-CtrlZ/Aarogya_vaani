@@ -44,6 +44,10 @@ export default function DoctorPatientsTab() {
       .catch(() => {});
   }, []);
 
+  const [registryFilter, setRegistryFilter] = useState(paramFilter || "all");
+  const [registrySearch, setRegistrySearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
   useEffect(() => {
     if (paramFilter) {
       setRegistryFilter(paramFilter);
