@@ -37,7 +37,7 @@ export default function BottomNav() {
     {
       id: "intake",
       label: "Assistant",
-      path: "/patient",
+      path: "/patient/ai-doctor",
       icon: Mic,
       isCenter: true,
     },

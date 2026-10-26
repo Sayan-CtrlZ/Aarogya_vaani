@@ -3,7 +3,19 @@
  * Connects React Vite UI to FastAPI (:8001) and Supabase Cloud.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+
+/**
+ * Universal Patient ID Normalizer (converts short demo IDs 'AV-8921' to official Supabase format 'AV-2026-8921')
+ */
+export function normalizePatientId(id) {
+  if (!id) return "AV-2026-8921";
+  const str = String(id).trim();
+  if (str.startsWith("AV-") && str.length === 7) {
+    return `AV-2026-${str.slice(3)}`;
+  }
+  return str;
+}
 
 /**
  * 0. Authentication APIs (Phone + 4-digit PIN)
@@ -78,7 +90,8 @@ export async function updatePatient(patientId, updates) {
 
 export async function fetchPatientDossier(patientId) {
   try {
-    const res = await fetch(`${API_BASE}/orchestrator/patient/${patientId}/dossier`);
+    const pId = normalizePatientId(patientId);
+    const res = await fetch(`${API_BASE}/orchestrator/patient/${pId}/dossier`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -201,7 +214,8 @@ export const sendVoiceChatTurn = sendAIDoctorChatTurn;
 
 export async function getPatientConsultations(patientId) {
   try {
-    const res = await fetch(`${API_BASE}/orchestrator/consultations/patient/${patientId}`);
+    const pId = normalizePatientId(patientId);
+    const res = await fetch(`${API_BASE}/orchestrator/consultations/patient/${pId}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -264,12 +278,13 @@ export async function fetchLiveKitToken(patientId, patientName, roomName, langua
  */
 export async function fetchPatientDocuments(patientId, category = null, query = null) {
   try {
+    const pId = normalizePatientId(patientId);
     const params = new URLSearchParams();
     if (category && category !== "All") params.append("category", category);
     if (query) params.append("title", query);
 
     const qs = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`${API_BASE}/documents/patient/${patientId}${qs}`);
+    const res = await fetch(`${API_BASE}/documents/patient/${pId}${qs}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {

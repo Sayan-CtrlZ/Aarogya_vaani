@@ -1,11 +1,51 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { CheckCircle2, RefreshCw, Activity, ShieldCheck, Database, Building2 } from "lucide-react";
 import { getAllPatients } from "../../utils/patientStore";
+import { getPatients } from "../../services/api";
 
 export default function DoctorAnalyticsTab() {
-  const patientsList = getAllPatients();
+  const [patientsList, setPatientsList] = useState(() => getAllPatients());
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState("Synchronized");
+
+  const syncPatients = () => {
+    const list = getAllPatients();
+    return getPatients()
+      .then((cloudPatients) => {
+        if (Array.isArray(cloudPatients) && cloudPatients.length > 0) {
+          const mergedMap = new Map();
+          list.forEach((p) => mergedMap.set((p.id || p.patient_ref)?.toUpperCase(), p));
+          cloudPatients.forEach((cp) => {
+            const id = cp.patient_ref || cp.id;
+            if (id) {
+              const key = id.toUpperCase();
+              const existing = mergedMap.get(key) || {};
+              mergedMap.set(key, {
+                ...existing,
+                id: id,
+                patient_ref: id,
+                name: cp.name || existing.name,
+                phone: cp.phone || existing.phone,
+                age: cp.age || existing.age || "28",
+                gender: cp.gender || existing.gender || "Female",
+                district: cp.village || cp.district || existing.district || "Tripura",
+                category: cp.category || existing.category || "General",
+                triage: cp.triage || existing.triage || "Stable",
+                status: cp.status || existing.status || "Active",
+              });
+            }
+          });
+          setPatientsList(Array.from(mergedMap.values()));
+        } else {
+          setPatientsList(list);
+        }
+      })
+      .catch(() => setPatientsList(list));
+  };
+
+  useEffect(() => {
+    syncPatients();
+  }, []);
 
   const doctorProfile = useMemo(() => {
     try {
@@ -33,10 +73,10 @@ export default function DoctorAnalyticsTab() {
 
   const handleTriggerSync = () => {
     setIsSyncing(true);
-    setTimeout(() => {
+    syncPatients().finally(() => {
       setIsSyncing(false);
       setSyncStatus("Synchronized just now");
-    }, 1200);
+    });
   };
 
   return (
