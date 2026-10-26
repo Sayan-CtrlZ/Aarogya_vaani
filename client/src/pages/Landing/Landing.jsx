@@ -70,17 +70,32 @@ export default function Landing() {
 
   useEffect(() => {
     try {
+      const doctorSession = sessionStorage.getItem("aarogyaVaaniDoctorSession");
+      const role = sessionStorage.getItem("aarogyaVaaniRole");
+
+      if (doctorSession || role === "doctor") {
+        navigate("/doctor/review", { replace: true });
+        return;
+      }
+
+      if (role === "patient") {
+        navigate("/patient", { replace: true });
+        return;
+      }
+
       const stored =
         sessionStorage.getItem("aarogyaVaaniUserProfile") ||
         localStorage.getItem("aarogyaVaaniActiveUser");
       if (stored) {
         const parsed = JSON.parse(stored);
-        setActiveUser(parsed);
-        if (parsed.role === "doctor") {
+        if (parsed?.role === "doctor" || parsed?.isDoctor) {
           navigate("/doctor/review", { replace: true });
-        } else {
+          return;
+        } else if (parsed?.role === "patient" || parsed?.isPatient) {
           navigate("/patient", { replace: true });
+          return;
         }
+        setActiveUser(parsed);
       }
     } catch {
       setActiveUser(null);
@@ -239,7 +254,7 @@ export default function Landing() {
     {
       step: "02",
       title: "2. Speak Your Health Problem",
-      desc: "Answer friendly questions about pain, fever, or pregnancy in your mother tongue. The app organizes everything for the clinic.",
+      desc: "Answer friendly questions about fever, pain, cough, or any health concern in your mother tongue. The app organizes everything for the clinic.",
       icon: Mic,
       iconColor: "text-rose-700 bg-rose-500/10 border-rose-500/20",
       badgeText: "Voice Intake",

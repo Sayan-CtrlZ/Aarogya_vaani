@@ -19,7 +19,15 @@ from livekit.agents import (
     room_io,
 )
 from livekit.agents.voice.agent import ModelSettings
-from livekit.plugins import noise_cancellation, openai, sarvam, silero
+
+try:
+    from livekit.plugins import noise_cancellation
+    _HAS_NOISE_CANCELLATION = True
+except Exception as e:
+    logging.warning(f"Noise cancellation plugin unavailable (bypassing): {e}")
+    _HAS_NOISE_CANCELLATION = False
+
+from livekit.plugins import openai, sarvam, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from language_manager import (
@@ -501,15 +509,20 @@ async def entrypoint(ctx: JobContext):
         patient_name=patient_name,
     )
 
-    # Start the session with noise cancellation enabled
+    # Start the session with noise cancellation enabled if available on this platform
+    audio_input_opts = None
+    if _HAS_NOISE_CANCELLATION:
+        try:
+            audio_input_opts = room_io.AudioInputOptions(
+                noise_cancellation=noise_cancellation.BVC(),
+            )
+        except Exception as e:
+            logging.warning(f"AudioFilter noise cancellation initialization skipped: {e}")
+
     await session.start(
         agent=assistant,
         room=ctx.room,
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=noise_cancellation.BVC(),
-            ),
-        ),
+        room_options=room_io.RoomOptions(audio_input=audio_input_opts) if audio_input_opts else None,
     )
 
     @session.on("user_input_transcribed")

@@ -91,19 +91,27 @@ export async function fetchPatientDossier(patientId) {
 /**
  * 2. Dedicated AI Doctor Voice & Chat REST APIs
  */
-export async function sendAIDoctorChatTurn({ consultationId, patientId, userName, userMessage, language, history, attachedDocument }) {
+export async function sendAIDoctorChatTurn(params) {
   try {
+    const consultationId = params.consultationId || params.consultation_id || null;
+    const patientId = params.patientId || params.patient_id || "NEW_PATIENT";
+    const userName = params.userName || params.user_name || null;
+    const userMessage = params.userMessage || params.user_message || "";
+    const language = params.language || "bn-IN";
+    const history = params.history || [];
+    const attachedDocument = params.attachedDocument || params.attached_document || null;
+
     const res = await fetch(`${API_BASE}/ai/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        consultation_id: consultationId || null,
-        patient_id: patientId || "NEW_PATIENT",
-        user_name: userName || null,
+        consultation_id: consultationId,
+        patient_id: patientId,
+        user_name: userName,
         user_message: userMessage,
-        language: language || "bn-IN",
-        history: history || [],
-        attached_document: attachedDocument || null,
+        language: language,
+        history: history,
+        attached_document: attachedDocument,
       }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -114,19 +122,28 @@ export async function sendAIDoctorChatTurn({ consultationId, patientId, userName
   }
 }
 
-export async function sendAIDoctorVoiceTurn({ consultationId, patientId, userName, userMessage, language, history, attachedDocument }) {
+export async function sendAIDoctorVoiceTurn(params) {
   try {
+    const consultationId = params.consultationId || params.consultation_id || null;
+    const patientId = params.patientId || params.patient_id || "NEW_PATIENT";
+    const userName = params.userName || params.user_name || null;
+    const userMessage = params.userMessage || params.user_message || "";
+    const language = params.language || "bn-IN";
+    const history = params.history || [];
+    const attachedDocument = params.attachedDocument || params.attached_document || null;
+
     const res = await fetch(`${API_BASE}/ai/voice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
       body: JSON.stringify({
-        consultation_id: consultationId || null,
-        patient_id: patientId || "NEW_PATIENT",
-        user_name: userName || null,
+        consultation_id: consultationId,
+        patient_id: patientId,
+        user_name: userName,
         user_message: userMessage,
-        language: language || "bn-IN",
-        history: history || [],
-        attached_document: attachedDocument || null,
+        language: language,
+        history: history,
+        attached_document: attachedDocument,
       }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -274,3 +291,141 @@ export async function uploadMedicalDocument(formData) {
     throw err;
   }
 }
+
+export async function deletePatientDocument(recordId) {
+  try {
+    const res = await fetch(`${API_BASE}/documents/${recordId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to delete document ${recordId}:`, err);
+    return { status: "error", error: err.message };
+  }
+}
+
+export async function deletePatientConsultation(consultationId) {
+  try {
+    const res = await fetch(`${API_BASE}/orchestrator/consultations/${consultationId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to delete consultation ${consultationId}:`, err);
+    return { status: "error", error: err.message };
+  }
+}
+
+/**
+ * 5. Appointments & Healthcare Facilities
+ */
+export async function fetchHealthcareFacilities() {
+  try {
+    const res = await fetch(`${API_BASE}/appointments/facilities`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed to fetch facilities:", err);
+    return [];
+  }
+}
+
+export async function fetchPatientAppointments(patientId) {
+  try {
+    const res = await fetch(`${API_BASE}/appointments/patient/${patientId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to fetch appointments for ${patientId}:`, err);
+    return [];
+  }
+}
+
+export async function bookPatientAppointment(appointmentData) {
+  try {
+    const res = await fetch(`${API_BASE}/appointments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(appointmentData),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.error("[API_ERROR] Failed to book appointment:", err);
+    throw err;
+  }
+}
+
+export async function cancelPatientAppointment(appointmentId) {
+  try {
+    const res = await fetch(`${API_BASE}/appointments/${appointmentId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to cancel appointment ${appointmentId}:`, err);
+    return { status: "error", error: err.message };
+  }
+}
+
+/**
+ * 6. Doctor Sharing & ABDM Temporary Passcodes
+ */
+export async function generateShareCode({ patientId, patientName, durationHours = 24, scope }) {
+  try {
+    const res = await fetch(`${API_BASE}/share/generate-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patient_id: patientId,
+        patient_name: patientName,
+        duration_hours: durationHours,
+        scope: scope,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.error("[API_ERROR] Failed to generate share code:", err);
+    throw err;
+  }
+}
+
+export async function fetchShareCodes(patientId) {
+  try {
+    const res = await fetch(`${API_BASE}/share/codes/${patientId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to fetch share codes for ${patientId}:`, err);
+    return [];
+  }
+}
+
+export async function revokeShareCode(codeId) {
+  try {
+    const res = await fetch(`${API_BASE}/share/codes/${codeId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to revoke share code ${codeId}:`, err);
+    return { status: "error", error: err.message };
+  }
+}
+
+export async function fetchShareAuditLogs(patientId) {
+  try {
+    const res = await fetch(`${API_BASE}/share/audit/${patientId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`[API] Failed to fetch audit logs for ${patientId}:`, err);
+    return [];
+  }
+}
+

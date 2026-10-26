@@ -122,6 +122,42 @@ def detect_utterance_language(user_message: str, fallback_lang: str = "bn-IN") -
     return fallback_lang or "bn-IN"
 
 
+def _extract_json_from_text(raw_text: str) -> dict[str, Any] | None:
+    """Robust JSON extraction from LLM response strings that may include markdown fences or reasoning text."""
+    if not raw_text or not raw_text.strip():
+        return None
+    cleaned = raw_text.strip()
+    # Strip markdown code blocks
+    if "```" in cleaned:
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        try:
+            val = json.loads(cleaned.strip())
+            if isinstance(val, dict):
+                return val
+        except Exception:
+            pass
+
+    # Direct json.loads
+    try:
+        val = json.loads(cleaned)
+        if isinstance(val, dict):
+            return val
+    except Exception:
+        pass
+
+    # Search for outer { ... } block
+    match = re.search(r"(\{[\s\S]*\})", raw_text)
+    if match:
+        try:
+            val = json.loads(match.group(1).strip())
+            if isinstance(val, dict):
+                return val
+        except Exception:
+            pass
+    return None
+
+
 def _build_clinical_fallback_response(
     user_message: str,
     lang_code: str,
@@ -129,11 +165,16 @@ def _build_clinical_fallback_response(
     patient_context: dict[str, Any] | None = None,
     attached_document: dict[str, Any] | None = None,
     is_voice: bool = False,
+    history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Clinical heuristic fallback if Gemini API is unreachable with smart language mirroring."""
+    """Clinical heuristic fallback if Gemini / Groq APIs are unreachable with smart language mirroring."""
     # Detect effective language from utterance
     effective_lang = detect_utterance_language(user_message, lang_code)
     lang_code = (effective_lang or lang_code or "bn-IN").lower()
+
+    # Document / Test query detector
+    msg_lower = (user_message or "").lower()
+    has_test_query = any(w in msg_lower for w in ["test", "report", "blood", "xray", "prescription", "जांच", "रिपोर्ट", "पर्चा", "পরীক্ষা"])
 
     flags = evaluate_clinical_danger_signs(user_message)
     triage_action = get_triage_decision(flags)
@@ -150,12 +191,14 @@ def _build_clinical_fallback_response(
             "danger_signs": flags,
             "suggested_options": options,
             "chief_complaint": "Acute Emergency / Red Flag",
+            "request_document": False,
         }
     triage = "MONITOR" if triage_action == "MONITOR" else "STABLE"
 
     p_info = patient_context or {}
     is_new = bool(p_info.get("is_new_patient")) or not patient_name or patient_name in ["Patient", "New Patient"]
     clean_name = "" if is_new or patient_name in ["Patient", "New Patient"] else f" {patient_name}"
+    assistant_turns_count = sum(1 for t in (history or []) if t.get("role") in ["assistant", "agent"])
 
     # Document / Report review fallback
     if attached_document:
@@ -177,6 +220,7 @@ def _build_clinical_fallback_response(
             "danger_signs": flags,
             "suggested_options": options,
             "chief_complaint": f"Document Review: {doc_title}",
+            "request_document": False,
         }
 
     # Emergency danger flags triggered
@@ -197,9 +241,8 @@ def _build_clinical_fallback_response(
             "danger_signs": flags,
             "suggested_options": options,
             "chief_complaint": "Acute Emergency Symptoms",
+            "request_document": False,
         }
-
-    msg_lower = (user_message or "").lower()
 
     # Prescription / Medication inquiry fallback
     medications = (patient_context or {}).get("active_medications") or []
@@ -226,18 +269,19 @@ def _build_clinical_fallback_response(
                 "danger_signs": flags,
                 "suggested_options": options,
                 "chief_complaint": "Prescription Review",
+                "request_document": False,
             }
 
     # Fever
     if any(k in msg_lower for k in ["fever", "জ্বর", "बुखार", "temperature", "chill", "কাঁপুনি"]):
         if "hi" in lang_code:
-            msg = f"नमस्ते{clean_name}, बुखार और बदन दर्द की तकलीफ मैंने नोट कर ली है। क्या आपने थर्मामीटर से तापमान नापा है? क्या सिरदर्द या खांसी भी है?"
+            msg = f"बुखार और बदन दर्द की तकलीफ मैंने नोट कर ली है{clean_name}। क्या आपने थर्मामीटर से तापमान नापा है? क्या सिरदर्द या खांसी भी है?"
             options = ["101°F से अधिक है", "खांसी और बदन दर्द है", "हल्का बुखार है", "दवा ले ली है"]
         elif "bn" in lang_code:
-            msg = f"নমস্কার{clean_name}, জ্বর ও গা ব্যথার বিষয়টি নোট করেছি। থার্মোমিটার দিয়ে তাপমাত্রা মেপেছেন কি? কাশি বা মাথা ব্যথা আছে?"
+            msg = f"জ্বর ও গা ব্যথার বিষয়টি নোট করেছি{clean_name}। থার্মোমিটার দিয়ে তাপমাত্রা মেপেছেন কি? কাশি বা মাথা ব্যথা আছে?"
             options = ["১০১ ডিগ্রির বেশি জ্বর", "কাশি ও গা ব্যথা আছে", "হালকা জ্বর", "প্যারাসিটামল খেয়েছি"]
         else:
-            msg = f"Hello{clean_name}, I have noted your fever and body ache. Have you checked your temperature, and are you experiencing chills or headache?"
+            msg = f"I have noted your fever and body ache{clean_name}. Have you checked your temperature, and are you experiencing chills or headache?"
             options = ["Temperature > 101°F", "Cough & body ache", "Mild low fever", "Took medication"]
 
         return {
@@ -246,6 +290,7 @@ def _build_clinical_fallback_response(
             "danger_signs": flags,
             "suggested_options": options,
             "chief_complaint": "Fever & Chills",
+            "request_document": has_test_query,
         }
 
     # Cough & Respiratory
@@ -266,6 +311,7 @@ def _build_clinical_fallback_response(
             "danger_signs": flags,
             "suggested_options": options,
             "chief_complaint": "Cough & Throat Discomfort",
+            "request_document": has_test_query,
         }
 
     # Abdominal / Digestion
@@ -286,9 +332,31 @@ def _build_clinical_fallback_response(
             "danger_signs": flags,
             "suggested_options": options,
             "chief_complaint": "Stomach Ache & Indigestion",
+            "request_document": has_test_query,
         }
 
-    # General clinical welcome / inquiry
+    # Follow-up turns (no repetitive greetings)
+    if assistant_turns_count > 0:
+        if "hi" in lang_code:
+            msg = f"आपकी इस समस्या को नोट कर लिया गया है{clean_name}। कृपया बताएं कि क्या कोई अन्य लक्षण या जांच रिपोर्ट भी आपके पास है?"
+            options = ["1-2 दिनों से है", "3-5 दिनों से है", "दवा ले रहे हैं", "जांच रिपोर्ट है"]
+        elif "bn" in lang_code:
+            msg = f"আপনার সমস্যার বিষয়টি রেকর্ড করেছি{clean_name}। দয়া করে বলুন এর সাথে অন্য কোনো লক্ষণ বা মেডিকেল রিপোর্ট আছে কি?"
+            options = ["১-২ দিন ধরে", "৩-৫ দিন ধরে", "ঔষধ খাচ্ছি", "ল্যাব রিপোর্ট আছে"]
+        else:
+            msg = f"I have noted your concern{clean_name}. Could you describe when this began, and do you have any recent medical reports or prescriptions?"
+            options = ["1-2 days", "3-5 days", "Taking medications", "Have medical report"]
+
+        return {
+            "ai_message": msg,
+            "triage_level": "STABLE",
+            "danger_signs": flags,
+            "suggested_options": options,
+            "chief_complaint": user_message[:40] or "General Consultation",
+            "request_document": has_test_query,
+        }
+
+    # General clinical welcome / inquiry (first turn only)
     if is_new:
         if "hi" in lang_code:
             msg = "नमस्ते! आरोग्यवाणी में आपका स्वागत है। आप एक नए मरीज़ हैं, इसलिए आपका कोई पिछला रिकॉर्ड नहीं है। कृपया बताएं कि आज आपको क्या शारीरिक समस्या है और यह कब से है?"
@@ -316,6 +384,7 @@ def _build_clinical_fallback_response(
         "danger_signs": flags,
         "suggested_options": options,
         "chief_complaint": user_message[:40] or "General Consultation",
+        "request_document": has_test_query,
     }
 
 
@@ -412,9 +481,10 @@ async def generate_ai_doctor_chat_turn(
             scans_section = "\nVerified Radiology Imaging & Scans:\n" + "\n".join(scans_lines)
 
     history_turns = history or []
+    assistant_turns_count = sum(1 for t in history_turns if t.get("role") in ["assistant", "agent"])
     formatted_history = "\n".join([
         f"{t.get('role', 'user').capitalize()}: {t.get('text', '')}"
-        for t in history_turns[-6:]
+        for t in history_turns[-25:]
     ])
 
     lang_instruction = "Bengali (বাংলা)"
@@ -451,29 +521,30 @@ Please inspect these document findings in relation to the patient's query and pr
         else "Keep the response concise (under 60 words), empathetic, and easy to read on mobile."
     )
 
+    is_pregnant = bool(p_preg and str(p_preg).lower() not in ["not pregnant", "none", "n/a", "no", "false", "null", ""])
+    preg_profile_line = f"- Pregnancy Status: {p_preg}\n" if is_pregnant else ""
+
     if is_new:
         patient_profile_block = """
 PATIENT STATUS: NEW PATIENT (First consultation; no database records or prior medical history exist).
-- Do NOT assume any past pregnancy, age, allergies, or chronic conditions unless the patient states them.
-- If this is an initial greeting/turn, welcome them warmly as a new patient and inquire about their chief complaint and onset.
-- Adaptively ask baseline health details only if clinically relevant to their symptom.
-- Do NOT address them by an assumed name like Mamta Debbarma. Address them simply and respectfully as the patient.
+- Comprehensive General Practice: You manage ALL primary healthcare conditions (fevers, infections, respiratory illness, diabetes, hypertension, cardiac symptoms, digestive issues, aches/injuries, dermatology, pediatric and geriatric health).
+- Do NOT assume any pregnancy or maternal status unless the patient explicitly mentions pregnancy.
+- Inquire about their chief complaint, onset, and duration.
 """
     else:
         patient_profile_block = f"""
 PATIENT STATUS: RETURNING PATIENT (Verified medical records exist in Supabase).
 - Name: {p_name}
 - Age: {p_age}, Gender: {p_gender}
-- Category: {p_category}
-- Pregnancy Status: {p_preg}
-- Allergies: {p_allergies}
+- Primary Category: {p_category}
+{preg_profile_line}- Allergies: {p_allergies}
 - Chronic Conditions: {p_chronic}
-- Address the patient by name warmly and reference active clinical context when relevant.
 """
 
     prompt = f"""
-You are AarogyaVaani AI Doctor Assistant, an empathetic primary healthcare AI doctor for rural and semi-urban patients in India.
-You speak naturally, warmly, and responsibly like an experienced tele-health doctor.
+You are AarogyaVaani AI Doctor Assistant (Dr. Preeti Sharma), an empathetic primary healthcare AI clinical officer in India.
+You provide comprehensive care for all illnesses, diseases, medications, and general health concerns across all age groups and genders.
+Maternal/pregnancy care is solely a conditional add-on for expectant mothers, not a default for general patients.
 
 {patient_profile_block}
 {meds_section}
@@ -485,13 +556,18 @@ Previous Dialogue:
 
 Current Patient Message: "{user_message}"
 
-Clinical & Anti-Hallucination Instructions:
-1. Target Language: {lang_instruction}. The patient communicated in {lang_instruction}; respond STRICTLY and NATURALLY in {lang_instruction}.
-2. Tone: Warm, reassuring, clinically safe, empathetic.
-3. {voice_instruction}
-4. Prescription Grounding: When the patient asks about their medications, dosages, timings, or prescriptions, refer strictly to the Verified Active Prescriptions listed above. Never invent medications or dosages. If an asked medicine is NOT prescribed, clarify that it is not in their records and recommend consulting their medical officer.
-5. Lab & Diagnostic Grounding: When patient asks about lab values or scans, explain their official results from the records above.
-6. Red Flag Detection: If patient reports severe headache in pregnancy, vaginal bleeding, acute chest pain, or severe breathlessness, mark triage_level as "EMERGENCY" and recommend visiting nearest PHC/Hospital immediately.
+CRITICAL CONSULTATION FLOW & RULES (STRICTLY ENFORCE):
+1. GENERAL MEDICINE SCOPE: Treat all general diseases, acute symptoms, chronic conditions, infections, and medication questions. Never assume or bring up pregnancy unless the patient's record lists pregnancy or the patient explicitly asks about it.
+2. NO REPETITIVE GREETINGS:
+   - If {assistant_turns_count} > 0: NEVER start response with "Namaste", "Hello", "Welcome". Continue dialogue directly.
+3. STRUCTURED CLINICAL PROTOCOL:
+   - Ask exactly ONE question per turn.
+   - Explore onset, duration, severity, and ask if the patient has any blood test report, X-ray, or doctor's prescription for this issue.
+   - If you ask for a medical test/report/prescription, OR if the patient mentions having one, set "request_document": true in the output JSON.
+   - If an attached medical document is present above, acknowledge it warmly and cite its specific lab findings/prescriptions to guide the patient.
+4. Target Language: {lang_instruction}. Respond strictly and naturally in {lang_instruction}.
+5. Tone: Warm, reassuring, clinically safe, empathetic. {voice_instruction}
+6. Red Flag Detection: If patient reports acute chest pain, severe breathlessness, stroke signs, massive hemorrhage, or severe preeclampsia symptoms in pregnancy, mark triage_level as "EMERGENCY" and recommend visiting nearest PHC/Hospital immediately.
 7. Provide 3 to 4 short, relevant follow-up options for the patient to easily select or say in {lang_instruction}.
 8. Return ONLY valid JSON matching this schema:
 {{
@@ -499,11 +575,98 @@ Clinical & Anti-Hallucination Instructions:
   "triage_level": "STABLE | MONITOR | EMERGENCY",
   "danger_signs": ["list of detected red flags if any"],
   "suggested_options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-  "chief_complaint": "Extracted primary health issue"
+  "chief_complaint": "Extracted primary health issue",
+  "request_document": true or false
 }}
 """
 
-    if key:
+    # 1. Ultra-Low Latency Groq LLM with full persistent conversation context
+    groq_key = settings.OPENAI_API_KEY
+    if groq_key:
+        groq_system_prompt = f"""You are AarogyaVaani AI Doctor Assistant (Dr. Preeti Sharma), an empathetic primary healthcare clinical officer.
+You treat all diseases, infections, aches, chronic conditions, and general health concerns for patients of all ages and genders.
+Maternal/pregnancy care is solely a conditional add-on for expectant mothers, not a default for general patients.
+
+{patient_profile_block}
+{meds_section}
+{labs_section}
+{scans_section}
+{doc_context}
+
+CRITICAL CLINICAL RULES:
+1. GENERAL MEDICINE FOCUS: Address the patient's specific health issue (fever, cough, digestive, pain, blood pressure, etc.). Do NOT mention pregnancy unless the patient explicitly brings it up or has an active pregnancy on file.
+2. Target Language: {lang_instruction}. Respond strictly and naturally in {lang_instruction}.
+3. Tone: Warm, reassuring, clinically safe, empathetic. {voice_instruction}
+4. Ask ONE single focused question per turn.
+5. If asking for medical tests/prescriptions or if patient mentions having one, set "request_document": true.
+6. If patient attached a document, cite its clinical findings to guide them.
+7. RED FLAGS: If patient reports red-flag signs (acute chest pain, severe breathlessness, massive hemorrhage, stroke signs, or severe preeclampsia in pregnancy), set triage_level to "EMERGENCY".
+
+OUTPUT FORMAT REQUIREMENT:
+You MUST output strictly valid JSON matching this schema:
+{{
+  "ai_message": "Spoken/text response string in {lang_instruction}",
+  "triage_level": "STABLE | MONITOR | EMERGENCY",
+  "danger_signs": ["list of detected red flags if any"],
+  "suggested_options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+  "chief_complaint": "Extracted primary health issue",
+  "request_document": true or false
+}}
+"""
+        groq_conversation = [
+            {"role": "system", "content": groq_system_prompt}
+        ]
+
+        # Feed full multi-turn persistent history
+        for turn in history_turns[-25:]:
+            r = "assistant" if turn.get("role") in ["assistant", "agent"] else "user"
+            txt = (turn.get("text") or "").strip()
+            if txt:
+                groq_conversation.append({"role": r, "content": txt})
+
+        groq_conversation.append({"role": "user", "content": user_message})
+
+        groq_models = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+        for g_model in groq_models:
+            try:
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.post(
+                        f"{settings.OPENAI_BASE_URL}/chat/completions",
+                        headers={"Authorization": f"Bearer {groq_key}"},
+                        json={
+                            "model": g_model,
+                            "messages": groq_conversation,
+                            "response_format": {"type": "json_object"},
+                            "temperature": 0.2,
+                            "max_tokens": 500,
+                        },
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        choices = data.get("choices", [])
+                        if choices and choices[0].get("message", {}).get("content"):
+                            raw_text = choices[0]["message"]["content"].strip()
+                            parsed = _extract_json_from_text(raw_text)
+                            if parsed and isinstance(parsed, dict) and "ai_message" in parsed:
+                                heuristic_flags = evaluate_clinical_danger_signs(user_message)
+                                if heuristic_flags and not parsed.get("danger_signs"):
+                                    parsed["danger_signs"] = heuristic_flags
+                                    if any(f["severity"] in ["EMERGENCY", "CRITICAL"] for f in heuristic_flags):
+                                        parsed["triage_level"] = "EMERGENCY"
+
+                                # Auto-flag request_document if tests/prescriptions mentioned
+                                user_msg_lower = user_message.lower()
+                                if any(w in user_msg_lower for w in ["test", "report", "blood", "xray", "prescription", "जांच", "रिपोर्ट", "पर्चा", "পরীক্ষা"]):
+                                    parsed["request_document"] = True
+                                elif "request_document" not in parsed:
+                                    parsed["request_document"] = False
+                                return parsed
+            except Exception as e:
+                logger.warning(f"[GROQ_FAST_LLM_SKIP] Model {g_model} notice: {e}")
+                continue
+
+    # 2. Multi-Modal Vision / Gemini Fallback
+    if key and not key.startswith("AQ."):
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.3, "maxOutputTokens": 600},
@@ -512,22 +675,22 @@ Clinical & Anti-Hallucination Instructions:
         for model in settings.GEMINI_FALLBACK_MODELS:
             url = GEMINI_API_URL_TEMPLATE.format(model=model, key=key)
             try:
-                async with httpx.AsyncClient(timeout=20.0) as client:
+                async with httpx.AsyncClient(timeout=6.0) as client:
                     resp = await client.post(url, json=payload)
                     if resp.status_code == 200:
                         data = resp.json()
                         candidates = data.get("candidates", [])
                         if candidates and candidates[0].get("content", {}).get("parts"):
                             raw_text = candidates[0]["content"]["parts"][0]["text"].strip()
-                            clean_text = raw_text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-                            parsed = json.loads(clean_text)
-                            if "ai_message" in parsed:
-                                # Validate danger signs from heuristic scanner too
+                            parsed = _extract_json_from_text(raw_text)
+                            if parsed and isinstance(parsed, dict) and "ai_message" in parsed:
                                 heuristic_flags = evaluate_clinical_danger_signs(user_message)
                                 if heuristic_flags and not parsed.get("danger_signs"):
                                     parsed["danger_signs"] = heuristic_flags
                                     if any(f["severity"] in ["EMERGENCY", "CRITICAL"] for f in heuristic_flags):
                                         parsed["triage_level"] = "EMERGENCY"
+                                if "request_document" not in parsed:
+                                    parsed["request_document"] = False
                                 return parsed
             except Exception as e:
                 logger.warning(f"[GEMINI_AI_DOCTOR_FAIL] Model {model} error: {e}")
@@ -541,4 +704,5 @@ Clinical & Anti-Hallucination Instructions:
         patient_context=patient_context,
         attached_document=attached_document,
         is_voice=is_voice,
+        history=history,
     )

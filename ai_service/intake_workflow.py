@@ -239,11 +239,12 @@ def process_intake_turn(
 
     # 3. Check for early completion signals (Patient says they're done)
     completion_phrases = [
-        "that's all", "nothing else", "no other problem", "that is it",
-        "আর কিছু নেই", "এটুকুই", "আর কোনো সমস্যা নেই", "সব ঠিক আছে",
-        "बस इतना ही", "और कुछ नहीं", "कोई अन्य समस्या नहीं"
+        "that's all", "nothing else", "no other problem", "that is it", "that's it", "thats it",
+        "finished", "done", "continue", "proceed", "go ahead",
+        "আর কিছু নেই", "এটুকুই", "আর কোনো সমস্যা নেই", "সব ঠিক আছে", "কিছু নেই", "আর নেই", "এটাই সব",
+        "बस इतना ही", "और कुछ नहीं", "कोई अन्य समस्या नहीं", "बस यही है", "बस यही", "आगे बोलो", "आगे बढ़ो", "नहीं है"
     ]
-    patient_done = any(phrase in clean_text.lower() for phrase in completion_phrases)
+    patient_done = any(phrase in clean_text.lower() or phrase in clean_text for phrase in completion_phrases)
 
     # 4. Completion Condition
     if patient_done or state.turn_count >= state.max_turns:

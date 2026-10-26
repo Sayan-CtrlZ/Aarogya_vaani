@@ -16,8 +16,14 @@
 
 ## ⚡ Quick Start (Launch All 3 Services)
 
-From the root directory, simply run:
+### On Windows (PowerShell or Command Prompt):
+Run either script from the root directory:
+```powershell
+.\start_all.ps1
+```
+*(or double-click `start_all.bat`)*
 
+### On Linux / macOS / Git Bash:
 ```bash
 chmod +x start_all.sh
 ./start_all.sh

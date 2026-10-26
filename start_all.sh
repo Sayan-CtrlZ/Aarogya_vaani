@@ -4,7 +4,6 @@
 # Launches FastAPI Backend, LiveKit Voice Agent, and React Client concurrently.
 # ==============================================================================
 
-set -e
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==========================================================================="
@@ -18,12 +17,14 @@ cleanup() {
     wait 2>/dev/null || true
     echo "All services stopped."
 }
-trap cleanup SIGINT SIGTERM EXIT
+trap cleanup SIGINT SIGTERM
 
 # 1. Start FastAPI Backend (Port 8001)
 echo "▶ Starting FastAPI Backend (http://localhost:8001)..."
 cd "$PROJECT_ROOT/server"
-if [ -d ".venv" ]; then
+if [ -d ".venv/Scripts" ]; then
+    .venv/Scripts/python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload &
+elif [ -d ".venv/bin" ]; then
     .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload &
 else
     uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload &
@@ -38,7 +39,9 @@ echo "▶ Starting LiveKit Voice Agent (Worker listening to LiveKit Cloud)..."
 cd "$PROJECT_ROOT/ai_service"
 if command -v uv >/dev/null 2>&1; then
     uv run python agent.py dev &
-elif [ -d ".venv" ]; then
+elif [ -d ".venv/Scripts" ]; then
+    .venv/Scripts/python.exe agent.py dev &
+elif [ -d ".venv/bin" ]; then
     .venv/bin/python agent.py dev &
 else
     python agent.py dev &

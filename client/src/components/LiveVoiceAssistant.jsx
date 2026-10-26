@@ -189,11 +189,13 @@ export default function LiveVoiceAssistant({
   questionsData = defaultQuestionsData,
   onSaveAssessment,
   roomName: initialRoomName,
+  embedded = false,
+  initialMode = "portal",
 }) {
   const { language, setLanguage } = useLanguage();
 
   // Active Mode: "portal" (default Excalidraw intake screen) | "voice" (LiveKit Voice Room)
-  const [activeMode, setActiveMode] = useState("portal");
+  const [activeMode, setActiveMode] = useState(initialMode || "portal");
 
   // Interaction States
   const [isListening, setIsListening] = useState(false);

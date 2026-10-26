@@ -14,6 +14,7 @@ from app.db.supabase_client import (
     get_patient_consultations,
     get_consultation_by_id,
     update_consultation,
+    delete_consultation_by_id,
     get_patient_dossier,
 )
 from app.services.gemini_analyzer import generate_conversational_health_turn
@@ -26,7 +27,7 @@ from app.rules.danger_signs import (
 logger = logging.getLogger(__name__)
 
 try:
-    from livekit.api import AccessToken, VideoGrants, LiveKitAPI, CreateAgentDispatchRequest
+    from livekit.api import AccessToken, VideoGrants, LiveKitAPI, CreateAgentDispatchRequest  # type: ignore[import-not-found, import-untyped]
     LIVEKIT_AVAILABLE = True
 except ImportError:
     LIVEKIT_AVAILABLE = False
@@ -398,6 +399,15 @@ def review_consultation(consultation_id: str, body: ConsultationReviewRequest):
 
     updated = update_consultation(consultation_id, updates)
     return updated or {**existing, **updates}
+
+
+@router.delete(
+    "/consultations/{consultation_id}",
+    summary="Delete Consultation by ID",
+)
+def delete_consultation(consultation_id: str):
+    delete_consultation_by_id(consultation_id)
+    return {"status": "ok", "message": f"Consultation '{consultation_id}' deleted"}
 
 
 # ==============================================================================

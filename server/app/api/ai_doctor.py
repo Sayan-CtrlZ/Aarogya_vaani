@@ -56,7 +56,9 @@ class AIDoctorTurnResponse(BaseModel):
     triage_level: str
     danger_signs: list[Any] = Field(default_factory=list)
     suggested_options: list[str] = Field(default_factory=list)
+    clinical_questions: list[str] = Field(default_factory=list)
     chief_complaint: str = "General Consultation"
+    request_document: bool = False
     timestamp: str
     display_time: str
 
@@ -273,7 +275,9 @@ async def ai_doctor_chat_endpoint(body: AIDoctorTurnRequest):
         triage_level=triage_lvl,
         danger_signs=danger_signs,
         suggested_options=suggested_opts,
+        clinical_questions=ai_turn.get("clinical_questions", []),
         chief_complaint=complaint,
+        request_document=bool(ai_turn.get("request_document", False)),
         timestamp=now_iso,
         display_time=display_time,
     )
@@ -355,7 +359,9 @@ async def ai_doctor_voice_endpoint(body: AIDoctorTurnRequest):
         triage_level=triage_lvl,
         danger_signs=danger_signs,
         suggested_options=suggested_opts,
+        clinical_questions=ai_turn.get("clinical_questions", []),
         chief_complaint=complaint,
+        request_document=bool(ai_turn.get("request_document", False)),
         timestamp=now_iso,
         display_time=display_time,
     )
@@ -442,6 +448,7 @@ async def ai_doctor_document_query_endpoint(body: AIDocumentQueryRequest):
         triage_level=triage_lvl,
         danger_signs=danger_signs,
         suggested_options=suggested_opts,
+        clinical_questions=ai_turn.get("clinical_questions", []),
         chief_complaint=complaint,
         timestamp=now_iso,
         display_time=display_time,

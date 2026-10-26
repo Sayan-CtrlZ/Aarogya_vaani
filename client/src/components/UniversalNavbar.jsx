@@ -106,7 +106,14 @@ export default function UniversalNavbar({
     } else if (isPatientSection) {
       navigate("/patient");
     } else {
-      navigate("/");
+      const role = sessionStorage.getItem("aarogyaVaaniRole");
+      if (role === "doctor") {
+        navigate("/doctor/review");
+      } else if (role === "patient" || activeUser) {
+        navigate("/patient");
+      } else {
+        navigate("/");
+      }
     }
   };
 
@@ -304,47 +311,6 @@ export default function UniversalNavbar({
               </NavLink>
             </div>
           )}
-
-          {/* C. PUBLIC / LANDING SECTION NAVIGATION */}
-          {!isDoctorSection && !isPatientSection && (
-            <div className="flex items-center gap-1.5">
-              <NavLink
-                to="/"
-                className={({ isActive }) =>
-                  `px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    isActive
-                      ? "bg-emerald-50 text-emerald-900 border border-emerald-300 font-extrabold"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  }`
-                }
-              >
-                Home
-              </NavLink>
-
-              <NavLink
-                to="/patient/ai-doctor"
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 text-blue-700 hover:bg-blue-50 border border-blue-200"
-              >
-                <Bot className="w-3.5 h-3.5 text-blue-600" />
-                <span>Talk to AI Doctor</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              </NavLink>
-
-              <NavLink
-                to="/patient"
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              >
-                Patient Portal
-              </NavLink>
-
-              <NavLink
-                to="/doctor/review"
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              >
-                Doctor Portal
-              </NavLink>
-            </div>
-          )}
         </nav>
 
         {/* Right: Language Switcher, User Profile / Auth, & Mobile Toggle */}
@@ -460,13 +426,15 @@ export default function UniversalNavbar({
           )}
 
           {/* Mobile Navigation Drawer Toggle */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer border border-slate-200"
-            aria-label="Toggle Navigation"
-          >
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+          {(isDoctorSection || isPatientSection) && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer border border-slate-200"
+              aria-label="Toggle Navigation"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          )}
         </div>
       </div>
 
@@ -571,49 +539,6 @@ export default function UniversalNavbar({
               >
                 <Share2 className="w-4 h-4 text-purple-600" />
                 <span>Share Access with Doctor</span>
-              </button>
-            </div>
-          )}
-
-          {/* C. PUBLIC SECTION MOBILE LINKS */}
-          {!isDoctorSection && !isPatientSection && (
-            <div className="space-y-1">
-              <button
-                onClick={() => {
-                  navigate("/");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full p-2.5 rounded-xl text-left font-bold text-xs hover:bg-slate-100 text-slate-800"
-              >
-                Home
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/patient/ai-doctor");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full p-2.5 rounded-xl text-left font-black text-xs flex items-center gap-2 text-blue-700 hover:bg-blue-50"
-              >
-                <Bot className="w-4 h-4 text-blue-600" />
-                <span>Talk to AI Doctor</span>
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/patient");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full p-2.5 rounded-xl text-left font-bold text-xs hover:bg-slate-100 text-slate-800"
-              >
-                Patient Portal
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/doctor/review");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full p-2.5 rounded-xl text-left font-bold text-xs hover:bg-slate-100 text-slate-800"
-              >
-                Doctor Portal
               </button>
             </div>
           )}

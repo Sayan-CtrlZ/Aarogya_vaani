@@ -180,22 +180,22 @@ All HTTP endpoints are hosted by FastAPI on `http://localhost:8001/api`.
 
 ## 4. Frontend Wiring Map (`client`)
 
-All network requests from the React application pass through [`client/src/services/api.js`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/services/api.js). Here is how each screen connects to the backend:
+All network requests from the React application pass through [`client/src/services/api.js`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/services/api.js). Here is how each screen connects to the backend:
 
 | Frontend Page / Component | User Action | Function in `api.js` | Endpoint Called |
 | :--- | :--- | :--- | :--- |
-| [`Login.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/Login/Login.jsx) | Patient Registers account | `registerUser(payload)` | `POST /api/auth/register` |
-| [`Login.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/Login/Login.jsx) | Patient Logs in with Phone + PIN | `loginUser(payload)` | `POST /api/auth/login` |
-| [`LiveVoiceAssistant.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Enters Live Voice Consultation | `fetchLiveKitToken(...)` | `POST /api/orchestrator/livekit/token` |
-| [`LiveVoiceAssistant.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Live Voice Communication | *WebRTC direct connection* | *LiveKit Cloud WebRTC* |
-| [`LiveVoiceAssistant.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Types text in AI chat tab | `sendAIDoctorChatTurn(...)` | `POST /api/ai/chat` |
-| [`LiveVoiceAssistant.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Ends call or clicks "Save" | `saveAIConsultation(...)` | `POST /api/ai/consultation/save` |
-| [`PatientDocumentsPage.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/PatientDashboard/PatientDocumentsPage.jsx) | Views Medical Drive files | `fetchPatientDocuments(...)` | `GET /api/documents/patient/:id` |
-| [`PatientDocumentsPage.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/PatientDashboard/PatientDocumentsPage.jsx) | Uploads Prescription / Lab / X-Ray | `uploadMedicalDocument(formData)` | `POST /api/documents/upload` |
-| [`PatientDocumentsPage.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/PatientDashboard/PatientDocumentsPage.jsx) | Asks question about uploaded file | `queryDocumentWithAI(...)` | `POST /api/ai/document-query` |
-| [`PatientConsultationsPage.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/PatientDashboard/PatientConsultationsPage.jsx) | Views past consultations | `getPatientConsultations(id)` | `GET /api/orchestrator/consultations/patient/:id` |
-| [`DoctorReviewTab.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/DoctorDashboard/DoctorReviewTab.jsx) | PHC Doctor views consultation list | `getPatients()` | `GET /api/patients` |
-| [`DoctorReviewTab.jsx`](file:///home/bappaditya/coding/2026%20Projects/hack%20for%20social2/Aarogya_vaani/client/src/pages/DoctorDashboard/DoctorReviewTab.jsx) | Doctor approves prescription & notes | `submitDoctorReview(id, data)` | `PATCH /api/orchestrator/consultations/:id/review` |
+| [`Login.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/Login/Login.jsx) | Patient Registers account | `registerUser(payload)` | `POST /api/auth/register` |
+| [`Login.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/Login/Login.jsx) | Patient Logs in with Phone + PIN | `loginUser(payload)` | `POST /api/auth/login` |
+| [`LiveVoiceAssistant.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Enters Live Voice Consultation | `fetchLiveKitToken(...)` | `POST /api/orchestrator/livekit/token` |
+| [`LiveVoiceAssistant.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Live Voice Communication | *WebRTC direct connection* | *LiveKit Cloud WebRTC* |
+| [`LiveVoiceAssistant.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Types text in AI chat tab | `sendAIDoctorChatTurn(...)` | `POST /api/ai/chat` |
+| [`LiveVoiceAssistant.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/components/LiveVoiceAssistant.jsx) | Ends call or clicks "Save" | `saveAIConsultation(...)` | `POST /api/ai/consultation/save` |
+| [`PatientDocumentsPage.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/PatientDashboard/PatientDocumentsPage.jsx) | Views Medical Drive files | `fetchPatientDocuments(...)` | `GET /api/documents/patient/:id` |
+| [`PatientDocumentsPage.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/PatientDashboard/PatientDocumentsPage.jsx) | Uploads Prescription / Lab / X-Ray | `uploadMedicalDocument(formData)` | `POST /api/documents/upload` |
+| [`PatientDocumentsPage.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/PatientDashboard/PatientDocumentsPage.jsx) | Asks question about uploaded file | `queryDocumentWithAI(...)` | `POST /api/ai/document-query` |
+| [`PatientConsultationsPage.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/PatientDashboard/PatientConsultationsPage.jsx) | Views past consultations | `getPatientConsultations(id)` | `GET /api/orchestrator/consultations/patient/:id` |
+| [`DoctorReviewTab.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/DoctorDashboard/DoctorReviewTab.jsx) | PHC Doctor views consultation list | `getPatients()` | `GET /api/patients` |
+| [`DoctorReviewTab.jsx`](file:///c:/Users/sayan/Desktop/Aarogya_vaani/client/src/pages/DoctorDashboard/DoctorReviewTab.jsx) | Doctor approves prescription & notes | `submitDoctorReview(id, data)` | `PATCH /api/orchestrator/consultations/:id/review` |
 
 ---
 
