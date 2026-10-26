@@ -14,6 +14,8 @@ from app.api.patients import router as patients_router
 from app.api.orchestrator import router as orchestrator_router
 from app.api.auth import router as auth_router
 from app.api.ai_doctor import router as ai_doctor_router
+from app.api.appointments import router as appointments_router
+from app.api.share import router as share_router
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,8 @@ app.include_router(patients_router, prefix=settings.API_PREFIX)
 app.include_router(orchestrator_router, prefix=settings.API_PREFIX)
 app.include_router(auth_router, prefix=settings.API_PREFIX)
 app.include_router(ai_doctor_router, prefix=settings.API_PREFIX)
+app.include_router(appointments_router, prefix=settings.API_PREFIX)
+app.include_router(share_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/", tags=["Health & Status"])

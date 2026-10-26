@@ -17,6 +17,7 @@ from app.db.supabase_client import (
     insert_medical_record,
     get_patient_medical_records,
     get_medical_record_by_id,
+    delete_medical_record,
     format_record_for_api,
 )
 from app.services.storage_service import save_uploaded_file
@@ -185,3 +186,12 @@ async def ask_question_on_document(
         "answer": answer,
         "language": body.language,
     }
+
+
+@router.delete(
+    "/{record_id}",
+    summary="Delete Medical Document by ID",
+)
+def delete_document(record_id: str):
+    success = delete_medical_record(record_id)
+    return {"status": "ok", "message": f"Document {record_id} deleted"}

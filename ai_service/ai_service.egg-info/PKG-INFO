@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: ai-service
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: livekit-agents[sarvam,silero,turn-detector]~=1.8
+Requires-Dist: livekit-plugins-assemblyai>=1.8.6
+Requires-Dist: livekit-plugins-cartesia>=1.8.6
+Requires-Dist: livekit-plugins-noise-cancellation~=0.2
+Requires-Dist: livekit-plugins-openai>=1.8.6
+Requires-Dist: python-dotenv>=1.2.4
+Requires-Dist: supabase>=2.32.0

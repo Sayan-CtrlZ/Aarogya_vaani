@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* AarogyaVaani Modern Glassmorphic Light Theme Tokens */
 :root {
   --primary-emerald: #0b6651;
@@ -274,4 +276,13 @@ button {
 
 .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 0.65);
+}
+
+/* Hide scrollbar utility while maintaining scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

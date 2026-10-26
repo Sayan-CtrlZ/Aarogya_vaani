@@ -1,332 +1,419 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   Share2,
   KeyRound,
   ShieldCheck,
   Copy,
   Check,
-  Trash2,
+  MessageCircle,
   Clock,
   History,
   Lock,
-  RefreshCw,
-  AlertCircle
+  Trash2,
+  FileText,
+  User,
+  CheckCircle2,
+  Stethoscope,
 } from "lucide-react";
-import { useLanguage } from "../../context/LanguageContext";
+import PatientSidebar from "../../components/PatientSidebar";
+import PatientHeader from "../../components/PatientHeader";
 import { getCurrentPatient } from "../../utils/patientStore";
 import {
   getAccessCodes,
   generateTemporaryCode,
   revokeAccessCode,
-  getAuditLogs
+  getAuditLogs,
 } from "../../utils/accessCodeStore";
-import UniversalNavbar from "../../components/UniversalNavbar";
+import {
+  generateShareCode,
+  fetchShareCodes,
+  revokeShareCode,
+  fetchShareAuditLogs,
+} from "../../services/api";
 
 export default function PatientSharePage() {
   const navigate = useNavigate();
-  const { language, setLanguage } = useLanguage();
-  const [patient] = useState(() => getCurrentPatient());
+  const patient = getCurrentPatient() || {};
+
+  // Sidebar drag & resize state
+  const [leftWidth, setLeftWidth] = useState(240);
+  const [isDraggingLeft, setIsDraggingLeft] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("aarogya_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  // Sharing records scope
+  const [shareScope, setShareScope] = useState({
+    recentConsultation: true,
+    prescriptions: true,
+    labReports: true,
+  });
+
+  const [shareDuration, setShareDuration] = useState(24); // hours
+  const [activeGeneratedCode, setActiveGeneratedCode] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const [accessCodes, setAccessCodes] = useState(() => getAccessCodes());
   const [auditLogs, setAuditLogs] = useState(() => getAuditLogs());
 
-  const [shareScope, setShareScope] = useState({
-    currentVisit: true,
-    selectedReports: true,
-    medicalHistory: false,
-  });
-  const [shareDuration, setShareDuration] = useState(30);
-  const [generatedCode, setGeneratedCode] = useState(null);
-  const [copiedCode, setCopiedCode] = useState(false);
-
+  // Load active share codes and audit logs from FastAPI backend
   useEffect(() => {
-    const timer = setInterval(() => {
-      setAccessCodes(getAccessCodes());
-    }, 10000);
-    return () => clearInterval(timer);
-  }, []);
+    const pId = patient?.patient_ref || patient?.id || "AV-2026-8921";
+    const normalizedPId = pId.startsWith("AV-") && pId.length === 7 ? `AV-2026-${pId.slice(3)}` : pId;
 
-  const handleGenerateCode = () => {
-    const scopesArray = [];
-    if (shareScope.currentVisit) scopesArray.push("Current Consultation Intake");
-    if (shareScope.selectedReports) scopesArray.push("Verified Lab Reports & MCP");
-    if (shareScope.medicalHistory) scopesArray.push("Full Chronic & Antenatal History");
-
-    const codeObj = generateTemporaryCode({
-      patientId: patient.id,
-      patientName: patient.name,
-      durationMinutes: shareDuration,
-      scopes: scopesArray,
+    fetchShareCodes(normalizedPId).then((codes) => {
+      if (Array.isArray(codes) && codes.length > 0) {
+        setAccessCodes(codes);
+      }
     });
 
-    setGeneratedCode(codeObj);
-    setAccessCodes(getAccessCodes());
+    fetchShareAuditLogs(normalizedPId).then((logs) => {
+      if (Array.isArray(logs) && logs.length > 0) {
+        setAuditLogs(logs);
+      }
+    });
+  }, [patient?.patient_ref, patient?.id]);
+
+  // Track sidebar drag
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (isDraggingLeft) {
+        const newWidth = Math.min(420, Math.max(180, e.clientX));
+        setLeftWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingLeft) {
+        setIsDraggingLeft(false);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    };
+
+    if (isDraggingLeft) {
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDraggingLeft]);
+
+  // Generate Doctor Share Passcode & Link
+  const handleGenerateShareCode = async () => {
+    const pId = patient?.patient_ref || patient?.id || "AV-2026-8921";
+    const pName = patient?.name || "Hare Krishna";
+    const durationMins = shareDuration * 60;
+
+    const localCodeObj = generateTemporaryCode({
+      patientId: pId,
+      patientName: pName,
+      durationMinutes: durationMins,
+      scope: shareScope,
+    });
+
+    try {
+      const remoteCode = await generateShareCode({
+        patientId: pId,
+        patientName: pName,
+        durationHours: shareDuration,
+        scope: shareScope,
+      });
+      const activeObj = remoteCode || localCodeObj;
+      setActiveGeneratedCode(activeObj);
+      setAccessCodes((prev) => [activeObj, ...prev.filter((c) => c.code !== activeObj.code)]);
+    } catch {
+      setActiveGeneratedCode(localCodeObj);
+      setAccessCodes(getAccessCodes());
+    }
+
     setAuditLogs(getAuditLogs());
   };
 
-  const handleRevoke = (codeId) => {
-    revokeAccessCode(codeId, "Revoked by patient from dashboard");
-    setAccessCodes(getAccessCodes());
+  // Revoke Share Code
+  const handleRevokeShare = async (codeStr) => {
+    try {
+      await revokeShareCode(codeStr);
+    } catch {}
+    revokeAccessCode(codeStr);
+    setAccessCodes((prev) => prev.filter((c) => c.code !== codeStr && c.id !== codeStr));
     setAuditLogs(getAuditLogs());
-    if (generatedCode && generatedCode.id === codeId) {
-      setGeneratedCode(null);
+    if (activeGeneratedCode && (activeGeneratedCode.code === codeStr || activeGeneratedCode.id === codeStr)) {
+      setActiveGeneratedCode(null);
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard?.writeText(text);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+  // Share via WhatsApp
+  const handleShareWhatsApp = (codeStr) => {
+    const pName = patient?.name || "Hare Krishna";
+    const shareUrl = `${window.location.origin}/doctor?access_code=${encodeURIComponent(codeStr)}`;
+    const msg = `Namaskar Doctor. This is ${pName}'s health records link from AarogyaVaani (National Health Mission).\n\nAccess Link: ${shareUrl}\nTemporary Doctor Code: ${codeStr}\nValid for: ${shareDuration} hours.`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  const activeCodesList = accessCodes.filter((c) => c.status === "active");
+  const copyToClipboard = (text, type = "code") => {
+    navigator.clipboard?.writeText?.(text);
+    if (type === "link") {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } else {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
-      <UniversalNavbar showBack backPath="/patient" />
+    <div className="h-screen w-screen bg-[#f8fafc] dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden font-sans antialiased select-none">
+      {/* 1. UNIVERSAL TOP HEADER */}
+      <PatientHeader />
 
-      {/* 3. Main Content Workspace */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        
-        {/* Passcode Generator Card */}
-        <section className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <KeyRound className="w-5 h-5 text-amber-600" />
-              <div>
-                <h2 className="text-sm sm:text-base font-black text-slate-900">
-                  Generate Doctor Access Code
-                </h2>
-                <span className="text-[11px] text-slate-400 font-medium block">
-                  Doctors enter this single-use code to temporarily view authorized records
-                </span>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Encrypted</span>
-            </span>
-          </div>
+      {/* 2. BODY CONTAINER */}
+      <div className="flex-1 flex flex-row min-h-0 overflow-hidden gap-0">
+        {/* UNIVERSAL LEFT SIDEBAR */}
+        <PatientSidebar
+          activeNav="share"
+          width={leftWidth}
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+        />
 
-          {/* Granular Scope Selector */}
-          <div className="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
-            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-              1. Select What Records the Doctor Can View:
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 cursor-pointer text-xs font-bold text-slate-800 hover:border-amber-400 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={shareScope.currentVisit}
-                  onChange={(e) =>
-                    setShareScope((prev) => ({ ...prev, currentVisit: e.target.checked }))
-                  }
-                  className="mt-0.5 rounded text-amber-600"
-                />
-                <div>
-                  <span className="block">Current Visit</span>
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    Symptoms & complaints
-                  </span>
-                </div>
-              </label>
+      {/* 2. RESIZER HANDLE */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={() => setIsDraggingLeft(true)}
+          onDoubleClick={() => setLeftWidth(240)}
+          className="w-1 cursor-col-resize hover:w-1.5 hover:bg-emerald-500/25 transition-all relative z-20 select-none"
+          title="Drag to resize sidebar (Double-click to reset)"
+        />
+      )}
 
-              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 cursor-pointer text-xs font-bold text-slate-800 hover:border-amber-400 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={shareScope.selectedReports}
-                  onChange={(e) =>
-                    setShareScope((prev) => ({ ...prev, selectedReports: e.target.checked }))
-                  }
-                  className="mt-0.5 rounded text-amber-600"
-                />
-                <div>
-                  <span className="block">Uploaded Reports</span>
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    Blood tests, MCP card
-                  </span>
-                </div>
-              </label>
+      {/* 3. MAIN WORKSPACE CONTAINER */}
+      <main className="flex-1 h-full bg-white dark:bg-slate-900 overflow-y-auto flex flex-col">
+        <div className="p-6 sm:p-8 w-full space-y-6">
 
-              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-slate-200 cursor-pointer text-xs font-bold text-slate-800 hover:border-amber-400 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={shareScope.medicalHistory}
-                  onChange={(e) =>
-                    setShareScope((prev) => ({ ...prev, medicalHistory: e.target.checked }))
-                  }
-                  className="mt-0.5 rounded text-amber-600"
-                />
-                <div>
-                  <span className="block">Medical History</span>
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    Allergies & past visits
-                  </span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Duration Selector */}
-          <div className="space-y-3 bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
-            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-              2. Select How Long Access Stays Valid:
-            </h3>
-            <div className="grid grid-cols-4 gap-2 text-xs font-bold">
-              {[
-                { label: "15 Min", val: 15 },
-                { label: "30 Min", val: 30 },
-                { label: "1 Hour", val: 60 },
-                { label: "24 Hours", val: 1440 }
-              ].map((opt) => (
-                <button
-                  key={opt.val}
-                  type="button"
-                  onClick={() => setShareDuration(opt.val)}
-                  className={`py-2.5 rounded-xl border transition-all cursor-pointer ${
-                    shareDuration === opt.val
-                      ? "bg-amber-500 text-white border-amber-600 shadow-sm"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGenerateCode}
-            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95"
-          >
-            <KeyRound className="w-4 h-4 text-white" />
-            <span>Generate New Access Code</span>
-          </button>
-
-          {/* Generated Code Display Card */}
-          {generatedCode && (
-            <div className="p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 space-y-3 text-center animate-fade-in shadow-inner">
-              <span className="text-xs font-bold text-amber-900 uppercase tracking-wider block">
-                Active Temporary Passcode
-              </span>
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-3xl sm:text-4xl font-mono font-black tracking-widest text-amber-950 bg-white px-5 py-2 rounded-2xl border border-amber-300 shadow-sm">
-                  {generatedCode.code}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(generatedCode.code)}
-                  className="p-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white transition-all cursor-pointer shadow-md"
-                  title="Copy code"
-                >
-                  {copiedCode ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                </button>
-              </div>
-              <p className="text-xs text-amber-900 font-medium">
-                Expires at {generatedCode.expiresAt} • Single-use doctor authorization
+          {/* PAGE TITLE BAR */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-100">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                Share Records with Doctor
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Generate a secure, time-bound link or 6-digit access code for your doctor
               </p>
             </div>
-          )}
-        </section>
 
-        {/* Currently Active Codes List */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-500" />
-              <span>Active Authorized Sessions</span>
-            </h3>
-            <span className="text-xs text-slate-500 font-bold">
-              {activeCodesList.length} Active Code(s)
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Patient-Controlled Access</span>
+              </span>
+            </div>
           </div>
 
-          {activeCodesList.length === 0 ? (
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 text-center text-xs text-slate-400 font-medium">
-              No active doctor access codes. Generate a code above when you need to consult a doctor.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activeCodesList.map((codeItem) => (
-                <div
-                  key={codeItem.id}
-                  className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
+          {/* 1. SHARE GENERATOR CARD (Flat & Clean) */}
+          <div className="p-5 rounded-xl border border-slate-200 space-y-5">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider pb-1 border-b border-slate-100 flex items-center gap-2">
+              <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+              <span>Create Doctor Access Code</span>
+            </h3>
+
+            {/* Select Records */}
+            <div className="space-y-2 text-xs">
+              <span className="font-semibold text-slate-700 block">
+                1. Select records to include:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100/60">
+                  <input
+                    type="checkbox"
+                    checked={shareScope.recentConsultation}
+                    onChange={(e) => setShareScope({ ...shareScope, recentConsultation: e.target.checked })}
+                    className="w-4 h-4 text-emerald-600 accent-[#059669]"
+                  />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-black text-base text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200">
-                        {codeItem.code}
-                      </span>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        Active
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                      Scopes: {codeItem.scopes.join(", ")}
-                    </p>
-                    <span className="text-[11px] text-slate-400 font-medium">
-                      Expires: {codeItem.expiresAt}
-                    </span>
+                    <p className="font-semibold text-slate-800">Voice Consultations</p>
+                    <p className="text-[11px] text-slate-500">Summary & symptoms</p>
                   </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100/60">
+                  <input
+                    type="checkbox"
+                    checked={shareScope.prescriptions}
+                    onChange={(e) => setShareScope({ ...shareScope, prescriptions: e.target.checked })}
+                    className="w-4 h-4 text-emerald-600 accent-[#059669]"
+                  />
+                  <div>
+                    <p className="font-semibold text-slate-800">Prescriptions</p>
+                    <p className="text-[11px] text-slate-500">Active medicines & dosage</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100/60">
+                  <input
+                    type="checkbox"
+                    checked={shareScope.labReports}
+                    onChange={(e) => setShareScope({ ...shareScope, labReports: e.target.checked })}
+                    className="w-4 h-4 text-emerald-600 accent-[#059669]"
+                  />
+                  <div>
+                    <p className="font-semibold text-slate-800">Medical Reports</p>
+                    <p className="text-[11px] text-slate-500">Uploaded lab tests & files</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Select Duration */}
+            <div className="space-y-2 text-xs">
+              <span className="font-semibold text-slate-700 block">
+                2. Access duration:
+              </span>
+              <div className="flex items-center gap-2">
+                {[
+                  { hours: 1, label: "1 Hour (Quick Visit)" },
+                  { hours: 24, label: "24 Hours (Today's OPD)" },
+                  { hours: 168, label: "7 Days (Follow-up)" },
+                ].map((dur) => (
+                  <button
+                    key={dur.hours}
+                    type="button"
+                    onClick={() => setShareDuration(dur.hours)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
+                      shareDuration === dur.hours
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {dur.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Generate Button */}
+            <button
+              type="button"
+              onClick={handleGenerateShareCode}
+              className="w-full py-2.5 rounded-lg bg-[#059669] hover:bg-[#047857] text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Generate Doctor Access Passcode & Link</span>
+            </button>
+          </div>
+
+          {/* 2. ACTIVE GENERATED PASSCODE CARD */}
+          {activeGeneratedCode && (
+            <div className="p-5 rounded-xl border border-slate-300 bg-slate-50/70 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-slate-600" />
+                  Active Doctor Passcode
+                </span>
+                <span className="text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded">
+                  Valid for {shareDuration} hours
+                </span>
+              </div>
+
+              {/* Big Readable Passcode */}
+              <div className="p-4 rounded-lg bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Doctor Passcode:</span>
+                  <p className="font-mono text-2xl sm:text-3xl font-bold text-slate-900 tracking-wider">
+                    {activeGeneratedCode.code}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(activeGeneratedCode.code, "code")}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode ? "Copied" : "Copy Code"}</span>
+                  </button>
 
                   <button
                     type="button"
-                    onClick={() => handleRevoke(codeItem.id)}
-                    className="self-end sm:self-center px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    onClick={() => handleShareWhatsApp(activeGeneratedCode.code)}
+                    className="px-3 py-1.5 rounded-lg bg-[#059669] hover:bg-[#047857] text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Revoke Immediately</span>
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Share on WhatsApp</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Link */}
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] truncate text-slate-500">
+                  {window.location.origin}/doctor?access_code={activeGeneratedCode.code}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(`${window.location.origin}/doctor?access_code=${activeGeneratedCode.code}`, "link")
+                  }
+                  className="text-emerald-700 font-semibold hover:underline shrink-0 text-xs cursor-pointer"
+                >
+                  {copiedLink ? "Copied Link!" : "Copy Link"}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 text-xs">
+                <span className="text-[11px] text-slate-500">
+                  Doctor gets read-only access. You can stop sharing at any second.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRevokeShare(activeGeneratedCode.code)}
+                  className="text-red-600 hover:text-red-800 font-semibold cursor-pointer underline text-xs"
+                >
+                  Stop Sharing Now
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 3. DOCTOR ACCESS AUDIT LOG */}
+          <div className="p-5 rounded-xl border border-slate-200 space-y-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <History className="w-3.5 h-3.5 text-slate-500" />
+              <span>Doctor Access History</span>
+            </h3>
+
+            <div className="divide-y divide-slate-100 text-xs">
+              {auditLogs.slice(0, 4).map((log, idx) => (
+                <div key={idx} className="py-2 flex items-center justify-between text-slate-600">
+                  <div>
+                    <span className="font-semibold text-slate-800">{log.accessorName || "Dr. S. Roy"}</span>
+                    <span className="text-slate-400 mx-1.5">·</span>
+                    <span className="text-slate-500">{log.facility || "Bishalgarh CHC"}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {new Date(log.timestamp).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                  </span>
                 </div>
               ))}
             </div>
-          )}
-        </section>
-
-        {/* Security Audit Access Logs Table */}
-        <section className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <History className="w-4 h-4 text-slate-500" />
-              <span>DPDP Compliance Security Access Logs</span>
-            </h3>
-            <span className="text-[11px] text-emerald-700 font-bold">
-              Immutable Audit Trail
-            </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                  <th className="py-2.5 px-3">Timestamp</th>
-                  <th className="py-2.5 px-3">Accessor / Doctor</th>
-                  <th className="py-2.5 px-3">Facility / Terminal</th>
-                  <th className="py-2.5 px-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {auditLogs.slice(0, 5).map((log, i) => (
-                  <tr key={i} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{log.timestamp}</td>
-                    <td className="py-3 px-3 font-bold text-slate-800">{log.accessor}</td>
-                    <td className="py-3 px-3 text-slate-500">{log.facility}</td>
-                    <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-700 text-[10px]">
-                        {log.action}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
+        </div>
       </main>
+      </div>
+
     </div>
   );
 }
