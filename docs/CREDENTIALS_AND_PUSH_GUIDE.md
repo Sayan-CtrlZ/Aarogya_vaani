@@ -151,10 +151,27 @@ git add .
 git commit -m "feat: complete live voice assistant fix, unified clinical intake, and API documentation"
 ```
 
-### Step 5: Push to Remote Repository
+### Step 5: Push to Remote Repository (Feature Branch & Pull Request)
+
+> 💡 **Important (GitHub Protected Branch Rule)**:  
+> Direct pushes to `main` are blocked on this repository by GitHub's branch protection rule:  
+> `GH006: Protected branch update failed for refs/heads/main. Changes must be made through a pull request.`  
+> Therefore, push via a feature branch and open a Pull Request.
+
+Run:
 ```bash
-git push origin main
+# Push the feature branch to GitHub
+git push -u origin feature/voice-assistant-and-docs
 ```
+
+### Step 6: Create & Merge the Pull Request on GitHub
+1. Open your browser and navigate to:  
+   👉 **https://github.com/Sayan-CtrlZ/Aarogya_vaani**
+2. GitHub will automatically display a banner:  
+   **`feature/voice-assistant-and-docs had recent pushes`** with a green **`Compare & pull request`** button.
+3. Click **Compare & pull request**.
+4. Review the diff and click **Create pull request**.
+5. Click **Merge pull request** (or request your repository maintainer to merge it).
 
 > **Note on GitHub Authentication**:
 > If prompted for your username and password:
