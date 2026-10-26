@@ -1,0 +1,272 @@
+[
+  {
+    "id": "q_primary_symptom",
+    "step": 1,
+    "title": "Primary Symptom",
+    "question": "Namaste! I am your AarogyaVaani AI Doctor Assistant. What primary health trouble or discomfort are you experiencing right now?",
+    "question_hi": "नमस्ते! मैं आपका आरोग्यवाणी एआई डॉक्टर सहायक हूं। इस समय आपको मुख्य रूप से क्या स्वास्थ्य समस्या या परेशानी हो रही है?",
+    "question_bn": "নমস্কার! আমি আপনার আরোগ্যবাণী এআই ডাক্তার সহকারী। বর্তমানে আপনার প্রধান কী স্বাস্থ্য সমস্যা বা অস্বস্তি হচ্ছে?",
+    "options": [
+      {
+        "id": "opt_headache",
+        "title": "Headache & Dizziness",
+        "title_hi": "सिरदर्द और चक्कर",
+        "title_bn": "মাথাব্যথা ও মাথা ঘোরা",
+        "detail": "Throbbing frontal ache, tension, or heaviness in head",
+        "detail_hi": "माथे में तेज दर्द या सिर में भारीपन",
+        "detail_bn": "কপালে তীব্র যন্ত্রণা বা মাথায় ভারি অনুভূতি",
+        "icon": "Brain",
+        "danger": false
+      },
+      {
+        "id": "opt_fever",
+        "title": "Fever & Chills",
+        "title_hi": "बुखार और कंपकंपी",
+        "title_bn": "জ্বর ও কাঁপুনি",
+        "detail": "High body temperature, shivering, or generalized weakness",
+        "detail_hi": "तेज तापमान, कंपकंपी या शारीरिक कमजोरी",
+        "detail_bn": "উচ্চ তাপমাত্রা, কাঁপুনি বা শরীরে দুর্বলতা",
+        "icon": "Thermometer",
+        "danger": false
+      },
+      {
+        "id": "opt_stomach",
+        "title": "Stomach Ache & Nausea",
+        "title_hi": "पेट दर्द और उल्टी जैसा लगना",
+        "title_bn": "পেট ব্যথা ও বমি ভাব",
+        "detail": "Abdominal cramping, acidity, loose stool, or vomiting",
+        "detail_hi": "पेट में मरोड़, गैस, या अपच की परेशानी",
+        "detail_bn": "পেটে খিঁচুনি, অম্বল বা বমির ভাব",
+        "icon": "Activity",
+        "danger": false
+      },
+      {
+        "id": "opt_respiratory",
+        "title": "Cough & Chest Discomfort",
+        "title_hi": "खांसी और सीने में भारीपन",
+        "title_bn": "কাশি ও বুকে অস্বস্তি",
+        "detail": "Persistent cough, sore throat, or shallow breath",
+        "detail_hi": "लगातार खांसी, गले में खराश या सांस लेने में परेशानी",
+        "detail_bn": "ক্রমাগত কাশি, গলা ব্যথা বা শ্বাস নিতে কষ্ট",
+        "icon": "HeartPulse",
+        "danger": true
+      }
+    ]
+  },
+  {
+    "id": "q_duration",
+    "step": 2,
+    "title": "Onset & Duration",
+    "question": "Understood. When did these symptoms start, and how long have you been noticing this condition?",
+    "question_hi": "समझा। ये लक्षण कब शुरू हुए और आपको यह परेशानी कितने समय से हो रही है?",
+    "question_bn": "বুঝতে পারলাম। এই লক্ষণগুলো কখন শুরু হয়েছিল এবং আপনি কতদিন ধরে এটি লক্ষ্য করছেন?",
+    "options": [
+      {
+        "id": "opt_today",
+        "title": "Started Today",
+        "title_hi": "आज ही शुरू हुआ",
+        "title_bn": "আজকেই শুরু হয়েছে",
+        "detail": "Sudden onset within the last few hours",
+        "detail_hi": "पिछले कुछ घंटों में अचानक शुरू हुआ",
+        "detail_bn": "গত কয়েক ঘণ্টার মধ্যে হঠাৎ শুরু হয়েছে",
+        "icon": "Clock",
+        "danger": false
+      },
+      {
+        "id": "opt_1_2_days",
+        "title": "1 to 2 Days Ago",
+        "title_hi": "1 से 2 दिन पहले",
+        "title_bn": "১ থেকে ২ দিন আগে",
+        "detail": "Gradually building up over the past 48 hours",
+        "detail_hi": "पिछले 2 दिनों में धीरे-धीरे बढ़ रहा है",
+        "detail_bn": "গত ৪৮ ঘণ্টায় ধীরে ধীরে বাড়ছে",
+        "icon": "Calendar",
+        "danger": false
+      },
+      {
+        "id": "opt_3_5_days",
+        "title": "3 to 5 Days",
+        "title_hi": "3 से 5 दिन",
+        "title_bn": "৩ থেকে ৫ দিন",
+        "detail": "Persistent discomfort lasting nearly a week",
+        "detail_hi": "लगातार कई दिनों से आराम नहीं मिल रहा",
+        "detail_bn": "টানা কয়েক দিন ধরে কোনো উপশম নেই",
+        "icon": "CalendarRange",
+        "danger": false
+      },
+      {
+        "id": "opt_chronic",
+        "title": "More Than a Week",
+        "title_hi": "एक सप्ताह से अधिक",
+        "title_bn": "এক সপ্তাহেরও বেশি",
+        "detail": "Ongoing issue that keeps recurring or worsening",
+        "detail_hi": "पुरानी परेशानी जो बार-बार लौट रही है",
+        "detail_bn": "দীর্ঘদিনের সমস্যা যা বারবার ফিরে আসছে",
+        "icon": "AlertCircle",
+        "danger": false
+      }
+    ]
+  },
+  {
+    "id": "q_severity",
+    "step": 3,
+    "title": "Severity Level",
+    "question": "On a scale of 1 to 10, how severe is your discomfort or pain at this moment?",
+    "question_hi": "1 से 10 के पैमाने पर, इस समय आपकी तकलीफ या दर्द कितना गंभीर है?",
+    "question_bn": "১ থেকে ১০ এর স্কেলে, এই মুহূর্তে আপনার অস্বস্তি বা যন্ত্রণা কতটা তীব্র?",
+    "options": [
+      {
+        "id": "opt_mild",
+        "title": "Mild (Level 1 - 3)",
+        "title_hi": "हल्का (स्तर 1 - 3)",
+        "title_bn": "মৃদু (স্তর ১ - ৩)",
+        "detail": "Easily manageable, slight annoyance during the day",
+        "detail_hi": "सहन करने योग्य, दिन के कामों में मामूली परेशानी",
+        "detail_bn": "সহজেই সহ্য করা যায়, স্বাভাবিক কাজে সামান্য বাধা",
+        "icon": "Smile",
+        "danger": false
+      },
+      {
+        "id": "opt_moderate",
+        "title": "Moderate (Level 4 - 6)",
+        "title_hi": "मध्यम (स्तर 4 - 6)",
+        "title_bn": "মাঝারি (স্তর ৪ - ৬)",
+        "detail": "Uncomfortable and disrupting daily routine or sleep",
+        "detail_hi": "असहज, दैनिक काम और नींद में बाधा डाल रहा है",
+        "detail_bn": "অস্বস্তিকর এবং দৈনন্দিন কাজ বা ঘুমে ব্যাঘাত ঘটাচ্ছে",
+        "icon": "Meh",
+        "danger": false
+      },
+      {
+        "id": "opt_severe",
+        "title": "Severe (Level 7 - 8)",
+        "title_hi": "गंभीर (स्तर 7 - 8)",
+        "title_bn": "তীব্র (স্তর ৭ - ৮)",
+        "detail": "Sharp intense pain, weakness, and hard to concentrate",
+        "detail_hi": "तेज दर्द, कमजोरी और ध्यान केंद्रित करने में असमर्थ",
+        "detail_bn": "তীব্র যন্ত্রণা, দুর্বলতা এবং কাজে মন দেওয়া অসম্ভব",
+        "icon": "Frown",
+        "danger": true
+      },
+      {
+        "id": "opt_emergency",
+        "title": "Unbearable (Level 9 - 10)",
+        "title_hi": "असहनीय (स्तर 9 - 10)",
+        "title_bn": "অসহ্য (স্তর ৯ - ১০)",
+        "detail": "Extreme unbearable distress requiring immediate attention",
+        "detail_hi": "अत्यधिक दर्द, तुरंत आपातकालीन देखभाल की आवश्यकता",
+        "detail_bn": "চরম অসহ্য কষ্ট, অবিলম্বে জরুরি চিকিৎসার প্রয়োজন",
+        "icon": "AlertTriangle",
+        "danger": true
+      }
+    ]
+  },
+  {
+    "id": "q_associated",
+    "step": 4,
+    "title": "Associated Symptoms",
+    "question": "Are you experiencing any other accompanying signs such as vomiting, shivering, or blurred vision?",
+    "question_hi": "क्या आपको कोई अन्य लक्षण जैसे उल्टी, कंपकंपी या धुंधला दिखाई देना भी हो रहा है?",
+    "question_bn": "আপনার কি অন্য কোনো সম্পর্কিত লক্ষণ যেমন বমি, কাঁপুনি বা চোখে ঝাপসা দেখা হচ্ছে?",
+    "options": [
+      {
+        "id": "opt_no_assoc",
+        "title": "No Other Symptoms",
+        "title_hi": "कोई अन्य लक्षण नहीं",
+        "title_bn": "অন্য কোনো লক্ষণ নেই",
+        "detail": "Just the primary issue described earlier",
+        "detail_hi": "केवल वही मुख्य समस्या जो पहले बताई गई",
+        "detail_bn": "শুধুমাত্র আগেই উল্লেখ করা প্রধান সমস্যাটি",
+        "icon": "CheckCircle2",
+        "danger": false
+      },
+      {
+        "id": "opt_fatigue",
+        "title": "Fatigue & Body Aches",
+        "title_hi": "थकान और बदन दर्द",
+        "title_bn": "ক্লান্তি ও শরীরে ব্যথা",
+        "detail": "Generalized muscle soreness and low energy",
+        "detail_hi": "मांसपेशियों में दर्द और ऊर्जा की भारी कमी",
+        "detail_bn": "পেশীতে ব্যথা এবং চরম শক্তির অভাব",
+        "icon": "BatteryLow",
+        "danger": false
+      },
+      {
+        "id": "opt_nausea",
+        "title": "Nausea & Loss of Appetite",
+        "title_hi": "मतली और भूख न लगना",
+        "title_bn": "বমি বমি ভাব ও ক্ষুধামান্দ্য",
+        "detail": "Queasy stomach and inability to eat proper food",
+        "detail_hi": "खाने की इच्छा न होना और जी मिचलाना",
+        "detail_bn": "খাবারের অনিচ্ছা এবং পেট খারাপ অনুভূতি",
+        "icon": "UtensilsCrossed",
+        "danger": false
+      },
+      {
+        "id": "opt_danger_flag",
+        "title": "Shortness of Breath / Vision Blur",
+        "title_hi": "सांस फूलना या धुंधला दिखना",
+        "title_bn": "শ্বাসকষ্ট বা চোখে ঝাপসা দেখা",
+        "detail": "Difficulty breathing comfortably or visual disturbance",
+        "detail_hi": "सांस लेने में भारी कठिनाई या आंखों के आगे अंधेरा",
+        "detail_bn": "স্বাচ্ছন্দ্যে শ্বাস নিতে না পারা বা দৃষ্টিতে বিভ্রান্তি",
+        "icon": "AlertOctagon",
+        "danger": true
+      }
+    ]
+  },
+  {
+    "id": "q_medications",
+    "step": 5,
+    "title": "Medical History",
+    "question": "Finally, are you taking any daily medicines or do you have pre-existing conditions like Blood Pressure or Diabetes?",
+    "question_hi": "अंत में, क्या आप कोई दैनिक दवाएं ले रहे हैं या आपको बीपी या शुगर जैसी कोई पुरानी बीमारी है?",
+    "question_bn": "সর্বশেষে, আপনি কি কোনো নিয়মিত ওষুধ নিচ্ছেন বা রক্তচাপ ও ডায়াবেটিসের মতো কোনো পুরোনো রোগ আছে?",
+    "options": [
+      {
+        "id": "opt_no_meds",
+        "title": "No Regular Medications",
+        "title_hi": "कोई नियमित दवा नहीं",
+        "title_bn": "কোনো নিয়মিত ওষুধ নেই",
+        "detail": "No diagnosed chronic conditions or daily prescriptions",
+        "detail_hi": "कोई पुरानी बीमारी या नियमित गोलियां नहीं",
+        "detail_bn": "কোনো দীর্ঘস্থায়ী রোগ বা প্রাত্যহিক প্রেসক্রিপশন নেই",
+        "icon": "ShieldCheck",
+        "danger": false
+      },
+      {
+        "id": "opt_bp",
+        "title": "Hypertension / BP Tablets",
+        "title_hi": "उच्च रक्तचाप / बीपी की दवा",
+        "title_bn": "উচ্চ রক্তচাপ / বিপি ট্যাবলেট",
+        "detail": "Diagnosed with blood pressure and taking prescription",
+        "detail_hi": "बीपी की समस्या के लिए नियमित दवा ले रहे हैं",
+        "detail_bn": "রক্তচাপের জন্য নিয়মিত প্রেসক্রিপশন মেনে চলছেন",
+        "icon": "Heart",
+        "danger": false
+      },
+      {
+        "id": "opt_diabetes",
+        "title": "Diabetes / Blood Sugar",
+        "title_hi": "मधुमेह / शुगर की दवा",
+        "title_bn": "ডায়াবেটিস / রক্তের শর্করা",
+        "detail": "On oral glycemic medication or insulin therapy",
+        "detail_hi": "शुगर के नियंत्रण के लिए दवा या इंसुलिन",
+        "detail_bn": "রক্তের শর্করা নিয়ন্ত্রণের ওষুধ বা ইনসুলিন গ্রহণ করছেন",
+        "icon": "Activity",
+        "danger": false
+      },
+      {
+        "id": "opt_supplements",
+        "title": "Iron, Folic Acid or Antenatal",
+        "title_hi": "आयरन, फोलिक एसिड या प्रसवपूर्व",
+        "title_bn": "আয়রন, ফলিক অ্যাসিড বা প্রসবপূর্ব",
+        "detail": "Taking nutritional supplements or pregnancy care tablets",
+        "detail_hi": "गर्भावस्था या पोषण सप्लीमेंट्स ले रहे हैं",
+        "detail_bn": "পুষ্টিকর সম্পূরক বা গর্ভাবস্থার যত্নের ওষুধ নিচ্ছেন",
+        "icon": "Pill",
+        "danger": false
+      }
+    ]
+  }
+]

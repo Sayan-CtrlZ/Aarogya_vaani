@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@animateicons/react": "^0.12.0",
+    "@supabase/server": "^1.9.1",
+    "@supabase/supabase-js": "^2.117.3",
     "framer-motion": "^14.0.0",
+    "livekit-client": "^2.22.4",
     "lucide-react": "^1.50.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

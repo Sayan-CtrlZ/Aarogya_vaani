@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* AarogyaVaani Modern Glassmorphic Light Theme Tokens */
+:root {
+  --primary-emerald: #0b6651;
+  --primary-emerald-light: #ecfdf5;
+  --accent-blue: #2563eb;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -11,16 +24,167 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-
   font-family:
+    "Figtree",
+    "Noto Sans",
     Inter,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  color: var(--text-main);
+  background-color: #f8fafc;
+  /* Luminous Ambient Light Mesh Background */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(245, 158, 11, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+  background-size: cover;
+  -webkit-font-smoothing: antialiased;
+}
 
-  background: #f7faf8;
+/* Glassmorphism & Colorful Card System */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 30px 0 rgba(15, 23, 42, 0.04);
+}
+
+.gov-card,
+.glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gov-card:hover,
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.08);
+}
+
+/* Colored Glassmorphic Card Variants */
+.glass-card-emerald {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.88), rgba(209, 250, 229, 0.62));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 8px 24px -2px rgba(16, 185, 129, 0.08);
+}
+
+.glass-card-blue {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.88), rgba(219, 234, 254, 0.62));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  box-shadow: 0 8px 24px -2px rgba(59, 130, 246, 0.08);
+}
+
+.glass-card-amber {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.88), rgba(253, 230, 138, 0.62));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  box-shadow: 0 8px 24px -2px rgba(245, 158, 11, 0.08);
+}
+
+.glass-card-red {
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.9), rgba(254, 202, 202, 0.62));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 8px 24px -2px rgba(239, 68, 68, 0.1);
+}
+
+.glass-card-purple {
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.88), rgba(237, 233, 254, 0.62));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  box-shadow: 0 8px 24px -2px rgba(139, 92, 246, 0.08);
+}
+
+/* Subtle Government Tricolor Ribbon */
+.gov-tricolor-bar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(
+    to right,
+    #ff9933 0%,
+    #ff9933 33.33%,
+    #ffffff 33.33%,
+    #ffffff 66.66%,
+    #138808 66.66%,
+    #138808 100%
+  );
+}
+
+/* ========================================================
+   RESPONSIVE MEDIA QUERIES: MOBILE COMPACT VS DESKTOP FULL
+   ======================================================== */
+
+/* Mobile Devices: Cards are smaller, compact to fit within the viewport */
+@media (max-width: 640px) {
+  .front-card-compact {
+    padding: 0.65rem !important;
+    border-radius: 0.875rem !important;
+  }
+  .front-card-compact h3,
+  .front-card-compact h4 {
+    font-size: 0.8rem !important;
+    line-height: 1.15 !important;
+  }
+  .front-card-compact p {
+    font-size: 0.68rem !important;
+    line-height: 1.2 !important;
+  }
+  .front-card-compact .card-icon {
+    width: 2rem !important;
+    height: 2rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+
+  /* The 4 Assessment Option Cards: Sized to fit on screen without vertical overflow */
+  .four-cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+  }
+  .option-card-compact {
+    padding: 0.55rem 0.65rem !important;
+    min-height: 4rem !important;
+    border-radius: 0.75rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+  }
+}
+
+/* Desktop & Large Screens: Take full length, height and breadth */
+@media (min-width: 1024px) {
+  .desktop-full-layout {
+    max-width: 100% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+  .desktop-card-expanded {
+    padding: 1.5rem !important;
+    border-radius: 1.25rem !important;
+  }
+  .four-cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
 }
 
 button,
@@ -32,4 +196,93 @@ select {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Accessible focus ring */
+.focus-accessible:focus-visible {
+  outline: 3px solid #0b6651;
+  outline-offset: 2px;
+}
+
+/* ========================================================
+   MODERN MINIMAL SCROLLBAR SYSTEM
+   ======================================================== */
+
+/* Global standard scrollbar for all browsers */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
+}
+
+/* WebKit (Chrome, Edge, Safari, Opera) */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.38);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
+}
+
+/* Dedicated minimal scrollbar utility class */
+.minimal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.38);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.65);
+}
+
+/* Hide scrollbar utility while maintaining scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

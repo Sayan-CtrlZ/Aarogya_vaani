@@ -1,451 +1,1221 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import UniversalNavbar from "../../components/UniversalNavbar";
 import {
   Activity,
-  ArrowLeft,
-  ArrowRight,
-  AudioLines,
+  Stethoscope,
+  User,
+  KeyRound,
+  Check,
   CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  Phone,
+  MapPin,
+  Building2,
+  IdCard,
+  ShieldCheck,
   Eye,
   EyeOff,
-  LockKeyhole,
-  Mail,
-  MapPin,
-  ShieldCheck,
-  Stethoscope,
-  UserRound,
-  UsersRound,
-  WifiOff,
-  Leaf,
+  AlertCircle,
+  UserPlus,
+  LogIn,
+  Calendar,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { registerUser, loginUser } from "../../services/api";
+import { savePatient } from "../../utils/patientStore";
 
-const TRIPURA_MAP_URL =
-  "https://upload.wikimedia.org/wikipedia/commons/7/7c/Tripura_map_for_WLM-IN.svg";
+const DISTRICTS = [
+  "Sepahijala District",
+  "West District",
+  "Gomati District",
+  "South District",
+  "Khowai District",
+  "Dhalai District",
+  "Unakoti District",
+  "North District",
+];
 
-function Logo({ isMobile = false }) {
+const HEALTH_CENTRES = {
+  "Sepahijala District": ["Bishalgarh CHC", "Boxanagar PHC", "Charilam PHC", "Kathalia PHC"],
+  "West District": ["Mohanpur PHC", "Jirania CHC", "Ranirbazar PHC", "Mandwi PHC"],
+  "Gomati District": ["Udaipur District Hospital", "Amarpur SDH", "Kakraban CHC", "Killa PHC"],
+  "South District": ["Belonia SDH", "Santirbazar CHC", "Hrishyamukh PHC", "Jolaibari CHC"],
+  "Khowai District": ["Teliamura SDH", "Khowai District Hospital", "Padmabil PHC", "Baijalbari PHC"],
+  "Dhalai District": ["Ambassa District Hospital", "Kamalpur SDH", "Manu PHC", "Chawmanu PHC"],
+  "Unakoti District": ["Kailashahar District Hospital", "Kumarghat CHC", "Pecharthal PHC"],
+  "North District": ["Dharmanagar District Hospital", "Panisagar CHC", "Kanchanpur SDH", "Damchera PHC"],
+};
+
+export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Read URL query parameters if present
+  const searchParams = new URLSearchParams(location.search);
+  const paramRole = searchParams.get("role"); // "doctor" | "patient"
+  const paramMode = searchParams.get("mode"); // "signup" | "signin"
+
+  // Primary Role: "patient" vs "doctor"
+  const [activeRole, setActiveRole] = useState(
+    paramRole === "doctor" ? "doctor" : "patient"
+  );
+
+  // Auth Mode for Patient: "register" (Sign Up / New Account) vs "login" (Sign In / Existing Account)
+  const [authMode, setAuthMode] = useState(
+    paramMode === "signup" ? "register" : "login"
+  );
+
+  // Multi-step form step tracking (1: Identity, 2: Facility, 3: Security PIN)
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Common credentials
+  const [pin, setPin] = useState(paramMode === "signup" ? "" : "1234");
+  const [confirmPin, setConfirmPin] = useState(paramMode === "signup" ? "" : "1234");
+  const [showPin, setShowPin] = useState(false);
+  const [district, setDistrict] = useState("West District");
+  const [facility, setFacility] = useState("Mohanpur PHC");
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Patient credentials
+  const [patientPhone, setPatientPhone] = useState(paramMode === "signup" ? "" : "9862100000");
+  const [patientName, setPatientName] = useState(paramMode === "signup" ? "" : "Mamta Debbarma");
+  const [patientAge, setPatientAge] = useState(paramMode === "signup" ? "" : "27");
+  const [patientGender, setPatientGender] = useState("Female");
+  const [preferredLanguage, setPreferredLanguage] = useState("bn-IN");
+
+  // Doctor credentials
+  const [doctorId, setDoctorId] = useState("MO-8841");
+  const [doctorName, setDoctorName] = useState("Dr. S. Roy");
+
+  // Sync initial parameters
+  useEffect(() => {
+    if (paramRole === "doctor") {
+      setActiveRole("doctor");
+    } else {
+      setActiveRole("patient");
+    }
+
+    if (paramMode === "signup") {
+      setAuthMode("register");
+      setPatientPhone("");
+      setPatientName("");
+      setPatientAge("28");
+      setPin("");
+      setConfirmPin("");
+    } else if (paramMode === "signin") {
+      setAuthMode("login");
+      setPatientPhone("9862100000");
+      setPatientName("Mamta Debbarma");
+      setPin("1234");
+    }
+
+    setCurrentStep(1);
+    setError("");
+    setSuccessMsg("");
+  }, [paramRole, paramMode]);
+
+  const handleRoleSwitch = (role) => {
+    setActiveRole(role);
+    setCurrentStep(1);
+    setError("");
+    setSuccessMsg("");
+  };
+
+  const handleAuthModeSwitch = (mode) => {
+    setAuthMode(mode);
+    setCurrentStep(1);
+    setError("");
+    setSuccessMsg("");
+    if (mode === "register") {
+      setPatientPhone("");
+      setPatientName("");
+      setPatientAge("28");
+      setPin("");
+      setConfirmPin("");
+    } else {
+      setPatientPhone("9862100000");
+      setPatientName("Mamta Debbarma");
+      setPin("1234");
+    }
+  };
+
+  const fillDemoProfile = () => {
+    setPatientPhone("9862100000");
+    setPatientName("Mamta Debbarma");
+    setPatientAge("27");
+    setPatientGender("Female");
+    setDistrict("Sepahijala District");
+    setFacility("Bishalgarh CHC");
+    setPin("1234");
+    setConfirmPin("1234");
+    setError("");
+  };
+
+  const handleDistrictChange = (e) => {
+    const newDist = e.target.value;
+    setDistrict(newDist);
+    setFacility(HEALTH_CENTRES[newDist] ? HEALTH_CENTRES[newDist][0] : "Bishalgarh CHC");
+  };
+
+  // Step 1 Validation -> Proceed to Step 2
+  const handleNextStep1 = () => {
+    setError("");
+    if (activeRole === "patient") {
+      if (!patientPhone.trim()) {
+        setError("Please enter your mobile number.");
+        return;
+      }
+      if (!patientName.trim()) {
+        setError("Please enter patient full name.");
+        return;
+      }
+    } else {
+      if (!doctorId.trim()) {
+        setError("Please enter Doctor ID or Medical Registration Number.");
+        return;
+      }
+      if (!doctorName.trim()) {
+        setError("Please enter doctor name.");
+        return;
+      }
+    }
+    setCurrentStep(2);
+  };
+
+  // Step 2 Validation -> Proceed to Step 3
+  const handleNextStep2 = () => {
+    setError("");
+    if (!district.trim()) {
+      setError("Please select a district.");
+      return;
+    }
+    if (!facility.trim()) {
+      setError("Please select a health facility.");
+      return;
+    }
+    setCurrentStep(3);
+  };
+
+  // Sign In Submission (Existing Account)
+  const handleSignInSubmit = async () => {
+    setError("");
+    if (!patientPhone.trim()) {
+      setError("Please enter your registered mobile number.");
+      return;
+    }
+    if (!pin || pin.length < 4) {
+      setError("Please enter your 4-digit security PIN.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const data = await loginUser({ phone: patientPhone.trim(), pin: pin.trim() });
+      const userProfile = {
+        role: "patient",
+        userName: data.name,
+        name: data.name,
+        phone: data.phone,
+        patient_ref: data.patient_ref,
+        id: data.patient_ref,
+        patientId: data.patient_ref,
+        district: data.village || district,
+        village: data.village || "",
+        facility: facility,
+        age: data.age || "27",
+        gender: data.gender || "Female",
+        category: data.category || "General",
+        bloodGroup: data.blood_group || "B Positive",
+        allergies: data.allergies || [],
+        chronicConditions: data.chronic_conditions || [],
+        isDoctor: false,
+        isPatient: true,
+        isNewAccount: false,
+        loggedInAt: new Date().toISOString(),
+      };
+
+      sessionStorage.setItem("aarogyaVaaniRole", "patient");
+      sessionStorage.setItem("aarogyaVaaniUserName", data.name);
+      sessionStorage.setItem("aarogyaVaaniFacility", facility);
+      sessionStorage.setItem("aarogyaVaaniDistrict", data.village || district);
+      sessionStorage.setItem("aarogyaVaaniWorkerId", data.phone);
+      sessionStorage.setItem("aarogyaVaaniUserProfile", JSON.stringify(userProfile));
+      localStorage.setItem("aarogyaVaaniActiveUser", JSON.stringify(userProfile));
+
+      localStorage.setItem(
+        "aarogyaVaaniCurrentPatient",
+        JSON.stringify({
+          patient: userProfile,
+          assistedMode: false,
+          assistedBy: null,
+          patientCondition: "direct",
+        })
+      );
+
+      savePatient(userProfile);
+
+      if (data.preferred_language) {
+        const shortLang = data.preferred_language.split("-")[0];
+        localStorage.setItem("aarogyaVaaniLanguage", shortLang);
+        window.dispatchEvent(new Event("languageChange"));
+      }
+
+      setSuccessMsg(`Welcome back, ${data.name}! Opening your health dashboard...`);
+      setTimeout(() => {
+        setIsSubmitting(false);
+        navigate("/patient");
+      }, 700);
+    } catch (err) {
+      console.error("[LOGIN_ERROR]", err);
+      // Fallback for demo phone 9862100000 with PIN 1234 if offline
+      if (patientPhone.replace(/\D/g, "").includes("9862100000") && pin === "1234") {
+        const demoUser = {
+          role: "patient",
+          userName: "Mamta Debbarma",
+          name: "Mamta Debbarma",
+          phone: "9862100000",
+          patient_ref: "AV-2026-8921",
+          id: "AV-2026-8921",
+          patientId: "AV-2026-8921",
+          district: "Sepahijala District",
+          facility: "Bishalgarh CHC",
+          age: "27",
+          gender: "Female",
+          category: "Maternal & Antenatal (ANC)",
+          isDoctor: false,
+          isPatient: true,
+          isNewAccount: false,
+          loggedInAt: new Date().toISOString(),
+        };
+        sessionStorage.setItem("aarogyaVaaniRole", "patient");
+        sessionStorage.setItem("aarogyaVaaniUserName", "Mamta Debbarma");
+        sessionStorage.setItem("aarogyaVaaniUserProfile", JSON.stringify(demoUser));
+        localStorage.setItem("aarogyaVaaniActiveUser", JSON.stringify(demoUser));
+        savePatient(demoUser);
+        setSuccessMsg("Welcome back, Mamta Debbarma! Opening portal...");
+        setTimeout(() => {
+          setIsSubmitting(false);
+          navigate("/patient");
+        }, 700);
+      } else {
+        setIsSubmitting(false);
+        setError(err.message || "Sign-in failed. Please check your phone number and PIN.");
+      }
+    }
+  };
+
+  // Register Submission (New Account)
+  const handleRegisterSubmit = async () => {
+    setError("");
+    if (!pin || pin.length < 4) {
+      setError("Please choose a 4-digit security PIN.");
+      return;
+    }
+    if (confirmPin && confirmPin !== pin) {
+      setError("Security PIN and confirmation PIN do not match.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const data = await registerUser({
+        name: patientName.trim(),
+        phone: patientPhone.trim(),
+        pin: pin.trim(),
+        district: district.trim(),
+        age: patientAge.trim() || "28",
+        gender: patientGender || "Female",
+        preferred_language: preferredLanguage,
+      });
+
+      const userProfile = {
+        role: "patient",
+        userName: data.name,
+        name: data.name,
+        phone: data.phone,
+        patient_ref: data.patient_ref,
+        id: data.patient_ref,
+        patientId: data.patient_ref,
+        district: data.village || district,
+        village: data.village || district,
+        facility: facility,
+        age: data.age || patientAge || "28",
+        gender: data.gender || patientGender || "Female",
+        category: "General",
+        bloodGroup: "Not Recorded",
+        allergies: [],
+        chronicConditions: [],
+        status: "Active",
+        isDoctor: false,
+        isPatient: true,
+        isNewAccount: true,
+        loggedInAt: new Date().toISOString(),
+      };
+
+      sessionStorage.setItem("aarogyaVaaniRole", "patient");
+      sessionStorage.setItem("aarogyaVaaniUserName", data.name);
+      sessionStorage.setItem("aarogyaVaaniFacility", facility);
+      sessionStorage.setItem("aarogyaVaaniDistrict", district);
+      sessionStorage.setItem("aarogyaVaaniWorkerId", data.phone);
+      sessionStorage.setItem("aarogyaVaaniUserProfile", JSON.stringify(userProfile));
+      localStorage.setItem("aarogyaVaaniActiveUser", JSON.stringify(userProfile));
+
+      localStorage.setItem(
+        "aarogyaVaaniCurrentPatient",
+        JSON.stringify({
+          patient: userProfile,
+          assistedMode: false,
+          assistedBy: null,
+          patientCondition: "direct",
+        })
+      );
+
+      savePatient(userProfile);
+
+      const shortLang = preferredLanguage.split("-")[0];
+      localStorage.setItem("aarogyaVaaniLanguage", shortLang);
+      window.dispatchEvent(new Event("languageChange"));
+
+      setSuccessMsg(
+        `Account successfully registered for ${data.name}! Patient ID: ${data.patient_ref}. Opening workspace...`
+      );
+
+      setTimeout(() => {
+        setIsSubmitting(false);
+        navigate("/patient");
+      }, 900);
+    } catch (err) {
+      console.error("[REGISTER_ERROR]", err);
+      setIsSubmitting(false);
+      setError(err.message || "Failed to register account. Please try again.");
+    }
+  };
+
+  // Doctor Sign-In Submission
+  const handleDoctorSubmit = () => {
+    setError("");
+    if (!pin || pin.length < 4) {
+      setError("Please enter a valid 4-digit security PIN.");
+      return;
+    }
+    if (!doctorId.trim()) {
+      setError("Please enter your Doctor ID or Medical Registration Number.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const userName = doctorName || "Dr. S. Roy (Medical Officer)";
+    const userProfile = {
+      role: "doctor",
+      userName,
+      name: userName,
+      phone: "9436123456",
+      facility,
+      district,
+      workerId: doctorId,
+      isDoctor: true,
+      isPatient: false,
+      loggedInAt: new Date().toISOString(),
+    };
+
+    sessionStorage.setItem("aarogyaVaaniRole", "doctor");
+    sessionStorage.setItem("aarogyaVaaniUserName", userName);
+    sessionStorage.setItem("aarogyaVaaniFacility", facility);
+    sessionStorage.setItem("aarogyaVaaniDistrict", district);
+    sessionStorage.setItem("aarogyaVaaniWorkerId", doctorId);
+    sessionStorage.setItem("aarogyaVaaniUserProfile", JSON.stringify(userProfile));
+    localStorage.setItem("aarogyaVaaniActiveUser", JSON.stringify(userProfile));
+
+    setSuccessMsg(`Authenticated as ${userName}. Redirecting to Doctor Portal...`);
+
+    setTimeout(() => {
+      setIsSubmitting(false);
+      navigate("/doctor/review");
+    }, 600);
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (activeRole === "doctor") {
+      if (currentStep === 1) handleNextStep1();
+      else if (currentStep === 2) handleNextStep2();
+      else handleDoctorSubmit();
+    } else {
+      if (authMode === "login") {
+        handleSignInSubmit();
+      } else {
+        if (currentStep === 1) handleNextStep1();
+        else if (currentStep === 2) handleNextStep2();
+        else handleRegisterSubmit();
+      }
+    }
+  };
+
   return (
-    <div className={`inline-flex items-center gap-[11px] ${isMobile ? "" : "max-[650px]:hidden"}`}>
-      <div className="w-[43px] h-[43px] rounded-[13px] grid place-items-center relative text-[#e7f7e9] bg-[linear-gradient(135deg,rgba(106,181,134,0.9),rgba(37,119,97,0.9))] shadow-[0_10px_30px_rgba(53,150,112,0.2),inset_0_0_0_1px_rgba(255,255,255,0.18)]">
-        <Leaf size={20} strokeWidth={2.4} />
-        <AudioLines className="-ml-[5px]" size={17} strokeWidth={2.5} />
-      </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 antialiased selection:bg-emerald-100 selection:text-emerald-900">
+      <UniversalNavbar showBack backPath="/" />
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* ========================================================
+            LEFT IMAGE SHOWCASE PANEL (Desktop & Tablet)
+            ======================================================== */}
+        <aside className="hidden lg:flex lg:w-5/12 xl:w-5/12 relative overflow-hidden bg-emerald-950 text-white flex-col justify-start p-8 xl:p-10 shadow-2xl z-10">
+          {!imageLoaded && (
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 animate-pulse flex flex-col items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
+                <Activity className="w-6 h-6 text-emerald-400 animate-spin" />
+              </div>
+              <span className="text-xs font-semibold text-emerald-200/70 tracking-wide">
+                Loading illustration...
+              </span>
+            </div>
+          )}
 
-      <div className="flex flex-col leading-[1.05]">
-        <strong className="text-[17px] tracking-[-0.4px]">AarogyaVaani</strong>
-        <span className="mt-[5px] text-[10px] uppercase tracking-[1.5px] text-[rgba(232,242,235,0.55)]">Tripura Health</span>
+          <img
+            src="/auth_showcase_banner.jpg"
+            alt="AarogyaVaani Clinical Consultation"
+            onLoad={() => setImageLoaded(true)}
+            className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-700 ${
+              imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"
+            }`}
+          />
+
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/10 to-transparent pointer-events-none" />
+
+          <div className="relative z-10">
+            <div
+              onClick={() => navigate("/")}
+              className="inline-flex items-center gap-3 cursor-pointer group mb-3 backdrop-blur-md bg-black/40 border border-white/20 px-4 py-2.5 rounded-2xl shadow-lg hover:bg-black/55 transition-all"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="text-lg font-black tracking-tight text-white block">
+                  Aarogya<span className="text-emerald-400">Vaani</span>
+                </span>
+                <span className="text-[10px] tracking-wider uppercase text-emerald-200/90 font-bold block">
+                  National Health Portal
+                </span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* ========================================================
+            RIGHT AUTHENTICATION FORM AREA
+            ======================================================== */}
+        <main className="w-full lg:w-7/12 xl:w-7/12 flex flex-col justify-between p-5 sm:p-8 lg:p-12 xl:p-16 relative">
+          <div className="max-w-md mx-auto w-full my-auto py-4">
+            {/* Mobile Brand Badge */}
+            <div
+              onClick={() => navigate("/")}
+              className="lg:hidden flex items-center justify-center gap-2.5 mb-6 text-center cursor-pointer"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0b6651] to-teal-500 text-white flex items-center justify-center shadow-xs">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <span className="text-lg font-black text-slate-900 tracking-tight block">
+                  Aarogya<span className="text-emerald-700">Vaani</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-semibold block">
+                  National Health Portal
+                </span>
+              </div>
+            </div>
+
+            {/* Elevated Auth Card */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm">
+              {/* TOP ROLE TOGGLE: PATIENT vs DOCTOR */}
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-5 border border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => handleRoleSwitch("patient")}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    activeRole === "patient"
+                      ? "bg-white text-emerald-950 shadow-sm border border-emerald-600/20"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  <User
+                    className={`w-4 h-4 ${
+                      activeRole === "patient" ? "text-[#0b6651]" : "text-slate-400"
+                    }`}
+                  />
+                  <span>Login for Patients</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRoleSwitch("doctor")}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    activeRole === "doctor"
+                      ? "bg-white text-blue-950 shadow-sm border border-blue-600/20"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  <Stethoscope
+                    className={`w-4 h-4 ${
+                      activeRole === "doctor" ? "text-blue-600" : "text-slate-400"
+                    }`}
+                  />
+                  <span>Login for Doctors</span>
+                </button>
+              </div>
+
+              {/* PATIENT SUB-TOGGLE: NEW REGISTRATION vs SIGN IN (EXISTING) */}
+              {activeRole === "patient" && (
+                <div className="flex bg-slate-100 p-1 rounded-xl mb-6 border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => handleAuthModeSwitch("register")}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      authMode === "register"
+                        ? "bg-white text-emerald-950 shadow-xs border border-emerald-600/20 font-black"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    <UserPlus className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>New Registration</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAuthModeSwitch("login")}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      authMode === "login"
+                        ? "bg-white text-emerald-950 shadow-xs border border-emerald-600/20 font-black"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Sign In (Existing)</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Stepper Progress Bar (Only for Registration or Doctor) */}
+              {(activeRole === "doctor" || authMode === "register") && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between relative px-2">
+                    <div className="absolute top-4 left-6 right-6 h-0.5 bg-slate-200 -translate-y-1/2 z-0" />
+                    <div
+                      className={`absolute top-4 left-6 h-0.5 -translate-y-1/2 z-0 transition-all duration-300 ${
+                        activeRole === "doctor" ? "bg-blue-600" : "bg-[#0b6651]"
+                      }`}
+                      style={{
+                        width:
+                          currentStep === 1
+                            ? "0%"
+                            : currentStep === 2
+                            ? "calc(50% - 12px)"
+                            : "calc(100% - 24px)",
+                      }}
+                    />
+
+                    {[
+                      { num: 1, label: "Identity" },
+                      { num: 2, label: "Address" },
+                      { num: 3, label: "PIN" },
+                    ].map((s) => {
+                      const isCompleted = currentStep > s.num;
+                      const isActive = currentStep === s.num;
+                      return (
+                        <button
+                          key={s.num}
+                          type="button"
+                          onClick={() => {
+                            if (s.num < currentStep) {
+                              setError("");
+                              setCurrentStep(s.num);
+                            }
+                          }}
+                          disabled={s.num > currentStep}
+                          className={`relative z-10 flex flex-col items-center group ${
+                            s.num < currentStep ? "cursor-pointer" : "cursor-default"
+                          }`}
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                              isCompleted
+                                ? activeRole === "doctor"
+                                ? "bg-blue-600 text-white shadow-xs"
+                                : "bg-[#0b6651] text-white shadow-xs"
+                                : isActive
+                                ? activeRole === "doctor"
+                                ? "bg-white border-2 border-blue-600 text-blue-700 shadow-sm ring-4 ring-blue-50"
+                                : "bg-white border-2 border-[#0b6651] text-emerald-800 shadow-sm ring-4 ring-emerald-50"
+                                : "bg-white border border-slate-300 text-slate-400"
+                            }`}
+                          >
+                            {isCompleted ? <Check className="w-4 h-4 text-white" /> : s.num}
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold tracking-tight mt-1.5 transition-colors ${
+                              isActive
+                                ? activeRole === "doctor"
+                                  ? "text-blue-800"
+                                  : "text-emerald-800"
+                                : isCompleted
+                                ? "text-slate-700"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {s.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Form Title & Subtitle */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    {activeRole === "patient"
+                      ? authMode === "login"
+                        ? "Patient Sign In"
+                        : currentStep === 1
+                        ? "Patient Identity"
+                        : currentStep === 2
+                        ? "Patient Address"
+                        : "Security PIN"
+                      : currentStep === 1
+                      ? "Doctor Identity"
+                      : currentStep === 2
+                      ? "Clinic Posting"
+                      : "Security PIN"}
+                  </h1>
+                </div>
+
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {activeRole === "patient"
+                    ? authMode === "login"
+                      ? "Enter your registered mobile number and 4-digit PIN"
+                      : currentStep === 1
+                      ? "Enter your mobile number and full name"
+                      : currentStep === 2
+                      ? "Select your district and health center"
+                      : "Create your 4-digit PIN to secure your account"
+                    : currentStep === 1
+                    ? "Enter your Doctor ID and clinician name"
+                    : currentStep === 2
+                    ? "Select your district and health facility"
+                    : "Enter your 4-digit PIN to sign in"}
+                </p>
+
+                {/* Quick Demo Fill Helper Link */}
+                {activeRole === "patient" && (
+                  <div className="mt-2 text-right">
+                    <button
+                      type="button"
+                      onClick={fillDemoProfile}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline transition-colors cursor-pointer"
+                    >
+                      Fill demo profile (Mamta Debbarma)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                {/* ========================================================
+                    CASE 1: PATIENT SIGN IN (STREAMLINED 1-STEP LOGIN)
+                    ======================================================== */}
+                {activeRole === "patient" && authMode === "login" && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="tel"
+                          value={patientPhone}
+                          onChange={(e) => setPatientPhone(e.target.value)}
+                          placeholder="9862100000"
+                          className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                        4-Digit Security PIN <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showPin ? "text" : "password"}
+                          maxLength={4}
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value)}
+                          placeholder="••••"
+                          className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold tracking-widest text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPin(!showPin)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                          {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-bold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+
+                    {successMsg && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                        <span>{successMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full text-white font-bold text-xs sm:text-sm py-3 px-5 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-[0.99] disabled:opacity-75 bg-[#0b6651] hover:bg-[#084e3e] shadow-emerald-900/20"
+                      >
+                        {isSubmitting ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Verifying credentials...</span>
+                          </span>
+                        ) : (
+                          <>
+                            <span>Sign In to AarogyaVaani</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="text-center pt-2">
+                      <span className="text-xs text-slate-500">Don't have an account yet? </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAuthModeSwitch("register")}
+                        className="text-xs font-bold text-[#0b6651] hover:underline cursor-pointer"
+                      >
+                        Create new account
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ========================================================
+                    CASE 2: REGISTRATION (PATIENT) OR DOCTOR STEP 1
+                    ======================================================== */}
+                {((activeRole === "patient" && authMode === "register") || activeRole === "doctor") && currentStep === 1 && (
+                  <div className="space-y-4">
+                    {activeRole === "patient" ? (
+                      <>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                            Mobile Number <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="tel"
+                              value={patientPhone}
+                              onChange={(e) => setPatientPhone(e.target.value)}
+                              placeholder="9862100000"
+                              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                            Full Name <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={patientName}
+                              onChange={(e) => setPatientName(e.target.value)}
+                              placeholder="e.g. Bappaditya Paul"
+                              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                              Age (Years)
+                            </label>
+                            <input
+                              type="number"
+                              value={patientAge}
+                              onChange={(e) => setPatientAge(e.target.value)}
+                              placeholder="28"
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                              Gender
+                            </label>
+                            <select
+                              value={patientGender}
+                              onChange={(e) => setPatientGender(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                            >
+                              <option value="Female">Female</option>
+                              <option value="Male">Male</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {authMode === "register" && (
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5 flex items-center justify-between">
+                              <span>Preferred Language <span className="text-red-500">*</span></span>
+                              <span className="text-[10px] text-emerald-700 font-semibold">পছন্দের ভাষা / भाषा</span>
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { code: "bn-IN", label: "বাংলা", sub: "Bengali" },
+                                { code: "hi-IN", label: "हिंदी", sub: "Hindi" },
+                                { code: "en-IN", label: "English", sub: "English" },
+                              ].map((item) => (
+                                <button
+                                  key={item.code}
+                                  type="button"
+                                  onClick={() => setPreferredLanguage(item.code)}
+                                  className={`py-2 px-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                                    preferredLanguage === item.code
+                                      ? "border-[#0b6651] bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-500/20"
+                                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-medium"
+                                  }`}
+                                >
+                                  <div className="text-xs font-bold">{item.label}</div>
+                                  <div className="text-[10px] text-slate-500">{item.sub}</div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                            Doctor ID / Reg. No. <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <IdCard className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={doctorId}
+                              onChange={(e) => setDoctorId(e.target.value)}
+                              placeholder="MO-8841"
+                              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                            Doctor Name <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <Stethoscope className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={doctorName}
+                              onChange={(e) => setDoctorName(e.target.value)}
+                              placeholder="Dr. S. Roy"
+                              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {error && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-bold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleNextStep1}
+                        className={`w-full text-white font-bold text-xs sm:text-sm py-3 px-5 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-[0.99] ${
+                          activeRole === "doctor"
+                            ? "bg-blue-700 hover:bg-blue-800 shadow-blue-700/20"
+                            : "bg-[#0b6651] hover:bg-[#084e3e] shadow-emerald-900/20"
+                        }`}
+                      >
+                        <span>Continue</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {activeRole === "patient" && (
+                      <div className="text-center pt-1">
+                        <span className="text-xs text-slate-500">Already registered? </span>
+                        <button
+                          type="button"
+                          onClick={() => handleAuthModeSwitch("login")}
+                          className="text-xs font-bold text-[#0b6651] hover:underline cursor-pointer"
+                        >
+                          Sign In here
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ========================================================
+                    STEP 2: DISTRICT & FACILITY (FOR REGISTRATION & DOCTOR)
+                    ======================================================== */}
+                {((activeRole === "patient" && authMode === "register") || activeRole === "doctor") && currentStep === 2 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        <span>District <span className="text-red-500">*</span></span>
+                      </label>
+                      <select
+                        value={district}
+                        onChange={handleDistrictChange}
+                        className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 transition-all ${
+                          activeRole === "doctor"
+                            ? "focus:border-blue-600 focus:ring-blue-500/20"
+                            : "focus:border-[#0b6651] focus:ring-emerald-500/20"
+                        }`}
+                      >
+                        {DISTRICTS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5 flex items-center gap-1">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Health Facility <span className="text-red-500">*</span></span>
+                      </label>
+                      <select
+                        value={facility}
+                        onChange={(e) => setFacility(e.target.value)}
+                        className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 transition-all ${
+                          activeRole === "doctor"
+                            ? "focus:border-blue-600 focus:ring-blue-500/20"
+                            : "focus:border-[#0b6651] focus:ring-emerald-500/20"
+                        }`}
+                      >
+                        {(HEALTH_CENTRES[district] || []).map((h) => (
+                          <option key={h} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {error && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-bold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError("");
+                          setCurrentStep(1);
+                        }}
+                        className="flex-1 py-3 px-4 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-2xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleNextStep2}
+                        className={`flex-2 text-white font-bold text-xs sm:text-sm py-3 px-5 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-[0.99] ${
+                          activeRole === "doctor"
+                            ? "bg-blue-700 hover:bg-blue-800 shadow-blue-700/20"
+                            : "bg-[#0b6651] hover:bg-[#084e3e] shadow-emerald-900/20"
+                        }`}
+                      >
+                        <span>Continue</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ========================================================
+                    STEP 3: SECURITY PIN (FOR REGISTRATION & DOCTOR)
+                    ======================================================== */}
+                {((activeRole === "patient" && authMode === "register") || activeRole === "doctor") && currentStep === 3 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                        {authMode === "register" ? "Create 4-Digit Security PIN" : "4-Digit Security PIN"}{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showPin ? "text" : "password"}
+                          maxLength={4}
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value)}
+                          placeholder="••••"
+                          className={`w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold tracking-widest text-slate-900 focus:outline-none focus:ring-2 transition-all ${
+                            activeRole === "doctor"
+                              ? "focus:border-blue-600 focus:ring-blue-500/20"
+                              : "focus:border-[#0b6651] focus:ring-emerald-500/20"
+                          }`}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPin(!showPin)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                          {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {authMode === "register" && activeRole === "patient" && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                          Confirm 4-Digit PIN <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type={showPin ? "text" : "password"}
+                            maxLength={4}
+                            value={confirmPin}
+                            onChange={(e) => setConfirmPin(e.target.value)}
+                            placeholder="••••"
+                            className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold tracking-widest text-slate-900 focus:outline-none focus:border-[#0b6651] focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-bold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+
+                    {successMsg && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                        <span>{successMsg}</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError("");
+                          setCurrentStep(2);
+                        }}
+                        className="flex-1 py-3 px-4 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-2xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back</span>
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className={`flex-2 text-white font-bold text-xs sm:text-sm py-3 px-5 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer hover:shadow-md active:scale-[0.99] disabled:opacity-75 ${
+                          activeRole === "doctor"
+                            ? "bg-blue-700 hover:bg-blue-800 shadow-blue-700/20"
+                            : "bg-[#0b6651] hover:bg-[#084e3e] shadow-emerald-900/20"
+                        }`}
+                      >
+                        {isSubmitting ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>{authMode === "register" ? "Creating Account..." : "Signing in..."}</span>
+                          </span>
+                        ) : (
+                          <>
+                            <span>
+                              {activeRole === "doctor"
+                                ? "Sign In to Doctor Review Portal"
+                                : "Create Account & Register"}
+                            </span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Discreet Return to Home Link */}
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/")}
+                    className="text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Return to Home</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          {/* Bottom Security Compliance Note */}
+          <div className="mt-6 pt-4 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-500 text-center sm:text-left">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <span>256-Bit Secure Health Encryption</span>
+            </div>
+            <span>Ayushman Bharat Digital Mission (ABDM) • DPDP Act 2023 Compliant</span>
+          </div>
+        </main>
       </div>
     </div>
   );
 }
-
-const roles = [
-  {
-    id: "health-worker",
-    title: "Health Worker",
-    subtitle: "ASHA / ANM",
-    icon: UsersRound,
-  },
-  {
-    id: "doctor",
-    title: "Doctor",
-    subtitle: "Clinical review",
-    icon: Stethoscope,
-  },
-];
-
-function Login() {
-  const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState("health-worker");
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-
-    if (!identifier || !password) {
-      setMessage("Please enter your login details.");
-      return;
-    }
-
-    sessionStorage.setItem("aarogyaVaaniRole", selectedRole);
-
-    sessionStorage.setItem(
-      "aarogyaVaaniUserName",
-      selectedRole === "doctor"
-        ? "Dr. Aarogya"
-        : "Health Worker"
-    );
-
-    navigate("/dashboard");
-  };
-
-  const handleBack = () => {
-    navigate("/");
-  };
-
-  return (
-    <main className="min-h-screen relative overflow-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(61,126,99,0.18),transparent_30%),radial-gradient(circle_at_90%_80%,rgba(32,116,102,0.15),transparent_30%),#071713] text-[#f4f7f3] font-sans">
-      <style>{`
-        @keyframes mapPulse {
-          0% { box-shadow: 0 0 0 0 rgba(164, 223, 177, 0.35); }
-          70% { box-shadow: 0 0 0 14px rgba(164, 223, 177, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(164, 223, 177, 0); }
-        }
-      `}</style>
-      
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-[380px] h-[380px] rounded-full blur-[70px] opacity-18 top-[-180px] left-[-100px] bg-[#62b18b]" />
-        <div className="absolute w-[380px] h-[380px] rounded-full blur-[70px] opacity-18 right-[-170px] top-[25%] bg-[#3a9c94]" />
-        <div className="absolute w-[380px] h-[380px] rounded-full blur-[70px] opacity-18 bottom-[-200px] left-[40%] bg-[#9dbb75]" />
-        <div className="absolute inset-0 opacity-[0.045] bg-[linear-gradient(rgba(255,255,255,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.8)_1px,transparent_1px)] bg-[length:48px_48px]" />
-      </div>
-
-      <div className="relative z-10 w-[min(1440px,100%)] min-h-screen mx-auto grid grid-cols-[1.08fr_0.92fr] max-[1050px]:grid-cols-1">
-        {/* LEFT SIDE */}
-        <motion.section
-          className="min-h-screen px-[clamp(30px,5vw,72px)] py-[32px] flex flex-col justify-between border-r border-[rgba(255,255,255,0.08)] relative max-[1050px]:min-h-auto max-[1050px]:border-r-0 max-[1050px]:border-b max-[1050px]:pb-[35px] max-[650px]:p-[20px]"
-          initial={{ opacity: 0, x: -35 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <div className="flex items-center justify-between gap-[20px] max-[650px]:items-start">
-            <button className="border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.045)] text-[rgba(245,248,245,0.76)] rounded-full px-[14px] py-[9px] inline-flex items-center gap-[8px] cursor-pointer text-[12px] transition-[0.25s_ease] hover:text-white hover:border-[rgba(151,213,172,0.35)] hover:bg-[rgba(255,255,255,0.08)] hover:-translate-x-[2px] max-[650px]:text-[10px] max-[650px]:px-[11px] max-[650px]:py-[8px]" onClick={handleBack}>
-              <ArrowLeft size={17} />
-              Back to home
-            </button>
-
-            <Logo />
-          </div>
-
-          <div className="w-[min(680px,100%)] my-auto py-[50px] pb-[34px] max-[1050px]:m-0 max-[650px]:pt-[40px] max-[650px]:pb-[10px]">
-            <div className="inline-flex items-center gap-[7px] px-[11px] py-[7px] rounded-full text-[#b8dec1] bg-[rgba(97,169,124,0.08)] border border-[rgba(111,189,140,0.16)] text-[11px] tracking-[0.4px]">
-              <MapPin size={15} />
-              <span>Tripura • Primary Healthcare</span>
-            </div>
-
-            <motion.h1
-              className="my-[22px] mb-[15px] max-w-[650px] text-[clamp(42px,5vw,72px)] leading-[0.98] tracking-[-3px] font-bold max-[650px]:text-[44px] max-[650px]:tracking-[-2px] max-[390px]:text-[38px]"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.6 }}
-            >
-              Healthcare that
-              <span className="text-[#9ed2a9]"> listens.</span>
-            </motion.h1>
-
-            <motion.p
-              className="max-w-[570px] text-[rgba(237,245,239,0.64)] leading-[1.75] text-[15px] m-0 mb-[30px] max-[650px]:text-[13px]"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.6 }}
-            >
-              AarogyaVaani helps health workers capture patient histories
-              through voice and simple interactions, even when connectivity is
-              limited.
-            </motion.p>
-
-            {/* Tripura map */}
-            <motion.div
-              className="h-[230px] rounded-[25px] relative overflow-hidden bg-[radial-gradient(circle_at_center,rgba(73,152,111,0.12),transparent_60%),rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.09)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_25px_70px_rgba(0,0,0,0.16)] max-[650px]:h-[190px] before:absolute before:inset-0 before:bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] before:bg-[length:30px_30px]"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.35, duration: 0.7 }}
-            >
-              <div className="absolute w-[230px] h-[230px] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(86,176,119,0.14)] blur-[45px]" />
-
-              <img
-                src={TRIPURA_MAP_URL}
-                alt="Map of Tripura"
-                className="absolute h-[185px] w-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.82] filter brightness-[0.95] saturate-[0.8] drop-shadow-[0_15px_20px_rgba(0,0,0,0.25)] max-[650px]:h-[155px]"
-              />
-
-              <div className="absolute left-[18px] bottom-[17px] flex items-center gap-[7px] px-[10px] py-[7px] rounded-[8px] text-[11px] text-[#c9e6cf] bg-[rgba(4,19,15,0.68)] border border-[rgba(139,205,157,0.17)] backdrop-blur-[10px]">
-                <MapPin size={14} />
-                <span>Tripura</span>
-              </div>
-
-              <div className="absolute w-[9px] h-[9px] rounded-full bg-[#a4dfb1] shadow-[0_0_0_5px_rgba(164,223,177,0.08)] animate-[mapPulse_2.5s_infinite_ease-out] left-[47%] top-[28%]" />
-              <div className="absolute w-[9px] h-[9px] rounded-full bg-[#a4dfb1] shadow-[0_0_0_5px_rgba(164,223,177,0.08)] animate-[mapPulse_2.5s_infinite_ease-out] left-[55%] top-[56%] [animation-delay:0.8s]" />
-              <div className="absolute w-[9px] h-[9px] rounded-full bg-[#a4dfb1] shadow-[0_0_0_5px_rgba(164,223,177,0.08)] animate-[mapPulse_2.5s_infinite_ease-out] left-[43%] top-[72%] [animation-delay:1.5s]" />
-            </motion.div>
-
-            {/* Feature strip */}
-            <div className="grid grid-cols-3 gap-[10px] mt-[13px] max-[650px]:grid-cols-1">
-              <div className="flex items-center gap-[9px] p-[12px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)] rounded-[13px]">
-                <div className="w-[32px] h-[32px] shrink-0 grid place-items-center rounded-[9px] text-[#bde8c7] bg-[rgba(96,180,123,0.1)]">
-                  <AudioLines size={17} />
-                </div>
-
-                <div>
-                  <strong className="block text-[11px]">Voice-first</strong>
-                  <span className="block mt-[3px] text-[rgba(238,244,239,0.45)] text-[9px]">Speak naturally</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-[9px] p-[12px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)] rounded-[13px]">
-                <div className="w-[32px] h-[32px] shrink-0 grid place-items-center rounded-[9px] text-[#bde8c7] bg-[rgba(96,180,123,0.1)]">
-                  <WifiOff size={17} />
-                </div>
-
-                <div>
-                  <strong className="block text-[11px]">Offline-ready</strong>
-                  <span className="block mt-[3px] text-[rgba(238,244,239,0.45)] text-[9px]">Works without internet</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-[9px] p-[12px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)] rounded-[13px]">
-                <div className="w-[32px] h-[32px] shrink-0 grid place-items-center rounded-[9px] text-[#bde8c7] bg-[rgba(96,180,123,0.1)]">
-                  <ShieldCheck size={17} />
-                </div>
-
-                <div>
-                  <strong className="block text-[11px]">Consent-first</strong>
-                  <span className="block mt-[3px] text-[rgba(238,244,239,0.45)] text-[9px]">Patient-controlled</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-[8px] text-[rgba(239,247,241,0.4)] text-[10px] pt-[15px] max-[650px]:hidden">
-            <Activity size={15} />
-
-            <span>
-              Designed for public healthcare delivery in Tripura
-            </span>
-          </div>
-        </motion.section>
-
-        {/* RIGHT SIDE */}
-        <motion.section
-          className="min-h-screen px-[clamp(25px,5vw,72px)] py-[32px] flex flex-col justify-center items-center max-[1050px]:min-h-auto max-[1050px]:py-[50px] max-[650px]:px-[20px] max-[650px]:pt-[30px] max-[650px]:pb-[35px]"
-          initial={{ opacity: 0, x: 35 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <div className="hidden max-[650px]:block max-[650px]:w-full max-[650px]:mb-[22px]">
-            <Logo isMobile={true} />
-          </div>
-
-          <div className="w-[min(500px,100%)] p-[clamp(25px,4vw,42px)] rounded-[27px] bg-[rgba(10,30,24,0.72)] border border-[rgba(255,255,255,0.09)] shadow-[0_35px_100px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.045)] backdrop-blur-[24px] max-[1050px]:w-[min(560px,100%)] max-[650px]:p-[22px] max-[650px]:rounded-[21px] max-[390px]:p-[18px]">
-            <div className="flex items-center gap-[13px]">
-              <div className="w-[43px] h-[43px] grid place-items-center rounded-[13px] text-[#bde8c7] bg-[rgba(95,177,120,0.1)] border border-[rgba(127,200,148,0.12)]">
-                <LockKeyhole size={20} />
-              </div>
-
-              <div>
-                <span className="block mb-[5px] text-[9px] tracking-[1.7px] text-[#86bd94] font-bold">SECURE ACCESS</span>
-                <h2 className="m-0 text-[29px] tracking-[-1px] max-[650px]:text-[25px]">Welcome back</h2>
-              </div>
-            </div>
-
-            <p className="text-[rgba(237,244,239,0.56)] text-[13px] leading-[1.6] my-[13px] mb-[25px]">
-              Sign in to access the AarogyaVaani healthcare workspace.
-            </p>
-
-            {/* Role selection */}
-            <div>
-              <div className="mb-[9px] text-[rgba(237,244,239,0.52)] text-[10px] uppercase tracking-[1px]">
-                <span>Continue as</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-[10px] max-[650px]:grid-cols-1">
-                {roles.map((role) => {
-                  const Icon = role.icon;
-                  const isActive = selectedRole === role.id;
-
-                  return (
-                    <button
-                      type="button"
-                      key={role.id}
-                      className={`relative min-h-[75px] rounded-[14px] p-[12px] flex items-center gap-[10px] text-left cursor-pointer text-white border transition-[0.25s_ease] hover:-translate-y-[1px] max-[650px]:min-h-[66px] ${
-                        isActive ? "border-[rgba(128,207,151,0.42)] bg-[rgba(88,169,111,0.1)] shadow-[0_10px_30px_rgba(56,143,87,0.08)]" : "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.025)] hover:border-[rgba(137,205,154,0.25)] hover:bg-[rgba(255,255,255,0.045)]"
-                      }`}
-                      onClick={() => setSelectedRole(role.id)}
-                    >
-                      <div className="w-[38px] h-[38px] shrink-0 grid place-items-center rounded-[11px] text-[#acdcb8] bg-[rgba(95,177,120,0.09)]">
-                        <Icon size={21} />
-                      </div>
-
-                      <div>
-                        <strong className="block text-[12px]">{role.title}</strong>
-                        <span className="block mt-[4px] text-[rgba(237,244,239,0.42)] text-[9px]">{role.subtitle}</span>
-                      </div>
-
-                      {isActive && (
-                        <motion.div
-                          className="absolute top-[8px] right-[8px] text-[#a5ddb1]"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                        >
-                          <CheckCircle2 size={17} />
-                        </motion.div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Login form */}
-            <form className="mt-[24px]" onSubmit={handleSubmit}>
-              <div className="mb-[17px]">
-                <label htmlFor="identifier" className="block mb-[7px] text-[rgba(243,248,244,0.68)] text-[11px] font-medium">
-                  Mobile number or email
-                </label>
-
-                <div className="h-[48px] flex items-center gap-[9px] px-[14px] rounded-[12px] text-[rgba(203,232,210,0.55)] border border-[rgba(255,255,255,0.09)] bg-[rgba(0,0,0,0.12)] transition-[0.25s_ease] focus-within:border-[rgba(124,202,148,0.45)] focus-within:shadow-[0_0_0_3px_rgba(105,181,128,0.07)]">
-                  <Mail size={18} />
-
-                  <input
-                    id="identifier"
-                    type="text"
-                    className="min-w-0 w-full h-full border-0 outline-0 text-white bg-transparent font-inherit text-[12px] placeholder:text-[rgba(237,244,239,0.28)]"
-                    value={identifier}
-                    onChange={(event) =>
-                      setIdentifier(event.target.value)
-                    }
-                    placeholder="Enter your mobile or email"
-                    autoComplete="username"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-[17px]">
-                <div className="flex items-center justify-between mb-[7px]">
-                  <label htmlFor="password" className="block text-[rgba(243,248,244,0.68)] text-[11px] font-medium mb-0">Password</label>
-
-                  <button
-                    type="button"
-                    className="border-0 bg-transparent text-[#91c69e] cursor-pointer text-[10px] p-0 hover:text-[#b4e3be]"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-
-                <div className="h-[48px] flex items-center gap-[9px] px-[14px] rounded-[12px] text-[rgba(203,232,210,0.55)] border border-[rgba(255,255,255,0.09)] bg-[rgba(0,0,0,0.12)] transition-[0.25s_ease] focus-within:border-[rgba(124,202,148,0.45)] focus-within:shadow-[0_0_0_3px_rgba(105,181,128,0.07)]">
-                  <LockKeyhole size={18} />
-
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    className="min-w-0 w-full h-full border-0 outline-0 text-white bg-transparent font-inherit text-[12px] placeholder:text-[rgba(237,244,239,0.28)]"
-                    value={password}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                  />
-
-                  <button
-                    type="button"
-                    className="border-0 bg-transparent text-[rgba(230,242,233,0.48)] cursor-pointer grid place-items-center p-[4px] hover:text-white"
-                    onClick={() =>
-                      setShowPassword((current) => !current)
-                    }
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <label className="relative inline-flex items-center gap-[8px] text-[rgba(235,244,237,0.5)] text-[10px] cursor-pointer select-none group">
-                <input
-                  type="checkbox"
-                  className="absolute opacity-0 pointer-events-none peer"
-                  checked={remember}
-                  onChange={(event) =>
-                    setRemember(event.target.checked)
-                  }
-                />
-
-                <span className="w-[16px] h-[16px] rounded-[5px] grid place-items-center text-[#0a1b15] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.03)] peer-checked:border-[#9dd3a8] peer-checked:bg-[#9dd3a8]">
-                  {remember && <CheckCircle2 size={13} />}
-                </span>
-
-                <span>Keep me signed in</span>
-              </label>
-
-              <button className="w-full h-[51px] mt-[21px] border-0 rounded-[13px] flex justify-center items-center gap-[9px] cursor-pointer text-[#082017] bg-[linear-gradient(135deg,#a6d9ae,#72b986)] text-[12px] font-bold shadow-[0_14px_30px_rgba(83,173,109,0.16)] transition-[0.25s_ease] hover:-translate-y-[2px] hover:shadow-[0_18px_35px_rgba(83,173,109,0.23)] active:translate-y-0" type="submit">
-                Sign in
-                <ArrowRight size={18} />
-              </button>
-
-              <AnimatePresence>
-                {message && (
-                  <motion.div
-                    className="mt-[13px] flex items-start gap-[8px] px-[12px] py-[11px] rounded-[10px] text-[#c7e6cd] bg-[rgba(92,172,112,0.08)] border border-[rgba(92,172,112,0.14)] text-[10px] leading-[1.5]"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                  >
-                    <Activity size={16} />
-                    <span>{message}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </form>
-
-            {/* Registration explanation */}
-            <div className="flex gap-[11px] mt-[20px] p-[13px] rounded-[13px] bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.06)]">
-              <div className="w-[31px] h-[31px] shrink-0 grid place-items-center rounded-[9px] text-[#b3ddb9] bg-[rgba(92,172,112,0.08)]">
-                <ShieldCheck size={18} />
-              </div>
-
-              <div>
-                <strong className="block text-[10px]">Authorized healthcare access</strong>
-
-                <p className="block m-0 mt-[4px] text-[rgba(236,244,238,0.43)] text-[9px] leading-[1.5]">
-                  Health workers and doctors use accounts provided through
-                  the healthcare system. Patient accounts are not required
-                  for the AarogyaVaani health-centre workflow.
-                </p>
-              </div>
-            </div>
-
-            {/* Patient workflow explanation */}
-            <div className="flex gap-[11px] mt-[10px] p-[13px] rounded-[13px] bg-[rgba(71,139,101,0.06)] border border-[rgba(105,181,128,0.1)]">
-              <div className="w-[31px] h-[31px] shrink-0 grid place-items-center rounded-[9px] text-[#acdcb7] bg-[rgba(95,177,120,0.09)]">
-                <UserRound size={20} />
-              </div>
-
-              <div>
-                <strong className="block text-[10px]">What about the patient?</strong>
-
-                <p className="block m-0 mt-[4px] text-[rgba(236,244,238,0.43)] text-[9px] leading-[1.5]">
-                  Patients use the health-centre device during their visit.
-                  They can speak or tap answers, while an ASHA or ANM can
-                  operate the same flow in Assist Mode.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-[20px] flex items-center gap-[9px] text-[rgba(235,243,237,0.3)] text-[9px]">
-            <span>© AarogyaVaani</span>
-
-            <span className="w-[3px] h-[3px] rounded-full bg-[rgba(235,243,237,0.25)]" />
-
-            <span>Tripura Health</span>
-          </div>
-        </motion.section>
-      </div>
-    </main>
-  );
-}
-
-export default Login;

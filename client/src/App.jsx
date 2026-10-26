@@ -1,53 +1,128 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { Component, lazy, Suspense } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import DoctorGuard from "./pages/DoctorDashboard/DoctorGuard";
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 text-slate-800">
+          <div className="max-w-md w-full bg-white rounded-3xl p-6 border border-slate-200 shadow-xl space-y-4 text-center">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xl">
+              !
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Portal View Recovered</h2>
+            <p className="text-xs text-slate-500">
+              {this.state.error?.message || "An unexpected error occurred."}
+            </p>
+            <div className="flex gap-2 justify-center pt-2">
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false });
+                  window.location.href = "/";
+                }}
+                className="px-4 py-2 bg-[#0b6651] text-white text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Go to Home
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Reload
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const Landing = lazy(() => import("./pages/Landing/Landing"));
 const Login = lazy(() => import("./pages/Login/Login"));
-const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
-const NewPatient = lazy(() => import("./pages/NewPatient/NewPatient"));
-const Consent = lazy(() => import("./pages/Consent/Consent"));
-const Interview = lazy(() => import("./pages/Interview/Interview"));
-const DangerCheck = lazy(() => import("./pages/DangerCheck/DangerCheck"));
-const Summary = lazy(() => import("./pages/Summary/Summary"));
-const ActiveSessions = lazy(() => import("./pages/ActiveSessions/ActiveSessions"));
-const Patients = lazy(() => import("./pages/Patients/Patients"));
-const PatientDetails = lazy(() => import("./pages/PatientDetails/PatientDetails"));
-const DangerAlerts = lazy(() => import("./pages/DangerAlerts/DangerAlerts"));
-const DoctorReview = lazy(() => import("./pages/DoctorReview/DoctorReview"));
-const Reports = lazy(() => import("./pages/Reports/Reports"));
-const SyncStatus = lazy(() => import("./pages/SyncStatus/SyncStatus"));
-const SignupStatus = lazy(() => import("./pages/SignupStatus/SignupStatus"));
-const Settings = lazy(() => import("./pages/Settings/Settings"));
+const PatientDashboard = lazy(() => import("./pages/PatientDashboard/PatientDashboard"));
+const PatientAIDoctorPage = lazy(() => import("./pages/PatientDashboard/PatientAIDoctorPage"));
+const PatientConsultationsPage = lazy(() => import("./pages/PatientDashboard/PatientConsultationsPage"));
+const PatientSharePage = lazy(() => import("./pages/PatientDashboard/PatientSharePage"));
+const PatientDocumentsPage = lazy(() => import("./pages/PatientDashboard/PatientDocumentsPage"));
+const PatientAppointmentsPage = lazy(() => import("./pages/PatientDashboard/PatientAppointmentsPage"));
+const PatientProfilePage = lazy(() => import("./pages/PatientDashboard/PatientProfilePage"));
+const PatientSettingsPage = lazy(() => import("./pages/PatientDashboard/PatientSettingsPage"));
+
+// Doctor Portal Layout & Subpages
+const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard/DoctorDashboard"));
+const DoctorReviewTab = lazy(() => import("./pages/DoctorDashboard/DoctorReviewTab"));
+const DoctorEmergencyTab = lazy(() => import("./pages/DoctorDashboard/DoctorEmergencyTab"));
+const DoctorPatientsTab = lazy(() => import("./pages/DoctorDashboard/DoctorPatientsTab"));
+const DoctorAnalyticsTab = lazy(() => import("./pages/DoctorDashboard/DoctorAnalyticsTab"));
 
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-[#f5f9f8]">
-    <div className="w-[40px] h-[40px] border-4 border-[#e2ece9] border-t-[#159b80] rounded-full animate-spin"></div>
+  <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+    <div className="w-[42px] h-[42px] border-4 border-[#e2ece9] border-t-[#0b6651] rounded-full animate-spin"></div>
   </div>
 );
 
 function App() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
       <Routes>
+        {/* Public Landing & Login */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/new-patient" element={<NewPatient />} />
-        <Route path="/consent" element={<Consent />} />
-        <Route path="/interview" element={<Interview />} />
-        <Route path="/danger-check" element={<DangerCheck />} />
-        <Route path="/summary" element={<Summary />} />
-        <Route path="/active-sessions" element={<ActiveSessions />} />
-        <Route path="/patients" element={<Patients />} />
-        <Route path="/patient-details" element={<PatientDetails />} />
-        <Route path="/danger-alerts" element={<DangerAlerts />} />
-        <Route path="/doctor-review" element={<DoctorReview />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/sync-status" element={<SyncStatus />} />
-        <Route path="/signup-status" element={<SignupStatus />} />
-        <Route path="/settings" element={<Settings />} />
+
+        {/* Patient Dashboard and Dedicated Feature Pages */}
+        <Route path="/patient" element={<PatientDashboard />} />
+        <Route path="/patient/dashboard" element={<PatientDashboard />} />
+        <Route path="/patient/ai-doctor" element={<PatientAIDoctorPage />} />
+        <Route path="/patient/overview" element={<PatientDashboard />} />
+        <Route path="/patient/consultations" element={<PatientConsultationsPage />} />
+        <Route path="/patient/share" element={<PatientSharePage />} />
+        <Route path="/patient/documents" element={<PatientDocumentsPage />} />
+        <Route path="/patient/appointments" element={<PatientAppointmentsPage />} />
+        <Route path="/patient/profile" element={<PatientProfilePage />} />
+        <Route path="/patient/settings" element={<PatientSettingsPage />} />
+        <Route path="/dashboard" element={<Navigate to="/patient" replace />} />
+        <Route path="/new-patient" element={<Navigate to="/patient" replace />} />
+        <Route path="/patients" element={<Navigate to="/patient" replace />} />
+
+        {/* Doctor Portal: Role-guarded at parent route, with subpages */}
+        <Route
+          path="/doctor"
+          element={
+            <DoctorGuard>
+              <DoctorDashboard />
+            </DoctorGuard>
+          }
+        >
+          <Route index element={<Navigate to="review" replace />} />
+          <Route path="review" element={<DoctorReviewTab />} />
+          <Route path="emergency" element={<DoctorEmergencyTab />} />
+          <Route path="patients" element={<DoctorPatientsTab />} />
+          <Route path="analytics" element={<DoctorAnalyticsTab />} />
+        </Route>
+
+        {/* Doctor route aliases / backward-compatibility */}
+        <Route path="/doctor-review" element={<Navigate to="/doctor/review" replace />} />
+        <Route path="/doctor-dashboard" element={<Navigate to="/doctor/review" replace />} />
+
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </ErrorBoundary>
   );
 }
 
