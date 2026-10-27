@@ -13,6 +13,8 @@ from livekit.agents import (
     AgentSession,
     AgentStateChangedEvent,
     JobContext,
+    JobProcess,
+    JobRequest,
     MetricsCollectedEvent,
     llm,
     metrics,
@@ -410,10 +412,33 @@ class AarogyaVaaniAssistant(Agent):
                 asyncio.create_task(self.sync_turn_to_backend())
 
 
-server = AgentServer()
+def setup_fnc(proc: JobProcess):
+    """Prewarm heavy inference models (Silero VAD) outside the event loop."""
+    try:
+        proc.userdata["vad"] = silero.VAD.load()
+        logging.info("[PREWARM] Successfully prewarmed Silero VAD model.")
+    except Exception as e:
+        logging.warning(f"[PREWARM_NOTICE] Model prewarming notice: {e}")
 
 
-@server.rtc_session()
+active_room_jobs: dict[str, str] = {}
+
+
+async def on_job_request(job_request: JobRequest):
+    """Accept incoming job requests for consultation rooms."""
+    room_name = job_request.room.name
+    active_room_jobs[room_name] = job_request.id
+    logging.info(f"[JOB_REQUEST_ACCEPT] Accepted job {job_request.id} for room '{room_name}'")
+    await job_request.accept(
+        name="AarogyaVaani AI Doctor",
+        identity="aarogyavaani_agent",
+    )
+
+
+server = AgentServer(setup_fnc=setup_fnc)
+
+
+@server.rtc_session(on_request=on_job_request)
 async def entrypoint(ctx: JobContext):
     await ctx.connect()
 
@@ -432,6 +457,10 @@ async def entrypoint(ctx: JobContext):
         if "consultation_" in ctx.room.name:
             cand = ctx.room.name.split("consultation_")[-1]
             if cand:
+                # Strip trailing timestamp if present (e.g. AV_2026_8921_1729868123456)
+                parts = cand.split("_")
+                if len(parts) >= 2 and parts[-1].isdigit() and len(parts[-1]) >= 10:
+                    cand = "_".join(parts[:-1])
                 patient_id = cand.replace("_", "-")
 
     # Check job metadata (from agent dispatch) or room metadata
@@ -477,19 +506,31 @@ async def entrypoint(ctx: JobContext):
     llm_provider = openai.LLM(model="openai/gpt-oss-120b")
 
     # 3. TTS initialized with preferred initial language and matched speaker
-    initial_speaker = LANGUAGE_SPEAKERS.get(init_lang, "roopa")
+    initial_speaker = LANGUAGE_SPEAKERS.get(init_lang, "aditya")
     tts_provider = sarvam.TTS(
         target_language_code=init_lang,
         speaker=initial_speaker,
     )
+
+    # Retrieve prewarmed VAD and Turn Detector models from proc userdata to prevent event loop blocking
+    vad_model = None
+    turn_detector_model = None
+    if hasattr(ctx, "proc") and hasattr(ctx.proc, "userdata"):
+        vad_model = ctx.proc.userdata.get("vad")
+        turn_detector_model = ctx.proc.userdata.get("turn_detector")
+
+    if not vad_model:
+        vad_model = silero.VAD.load()
+    if not turn_detector_model:
+        turn_detector_model = MultilingualModel()
 
     # Configure the voice pipeline with STT, LLM, TTS, VAD, and Turn Detection
     session = AgentSession(
         stt=stt_provider,
         llm=llm_provider,
         tts=tts_provider,
-        vad=silero.VAD.load(),
-        turn_detection=MultilingualModel(),
+        vad=vad_model,
+        turn_detection=turn_detector_model,
         preemptive_generation=False,  # Disabled to eliminate audio race conditions during dynamic language changes
     )
 
@@ -603,7 +644,25 @@ async def entrypoint(ctx: JobContext):
         logging.info("[ROOM_DISCONNECTED] LiveKit room disconnected. Triggering consultation save...")
         asyncio.create_task(log_usage_and_save_consultation())
 
+    def cleanup_room_job():
+        if ctx.room and ctx.room.name in active_room_jobs:
+            active_room_jobs.pop(ctx.room.name, None)
+            logging.info(f"[JOB_CLEANUP] Released active job slot for room '{ctx.room.name}'")
+
     ctx.add_shutdown_callback(log_usage_and_save_consultation)
+    ctx.add_shutdown_callback(cleanup_room_job)
+
+    # 1. Wait for human participant to connect so greeting is heard by the user
+    try:
+        remote_participant = await ctx.wait_for_participant()
+        if remote_participant and remote_participant.name and (not assistant.patient_name or assistant.patient_name in ["Patient", "New Patient"]):
+            assistant.patient_name = remote_participant.name
+            logging.info(f"[PARTICIPANT_READY] Human participant connected: '{remote_participant.name}' ({remote_participant.identity})")
+    except Exception as wait_e:
+        logging.warning(f"[WAIT_FOR_PARTICIPANT_NOTICE] Proceeding with greeting: {wait_e}")
+
+    # Brief delay for client WebRTC audio subscription to mount
+    await asyncio.sleep(0.4)
 
     # 1. Begin session with greeting in the user's preferred language (Bengali, Hindi, or English)
     clean_pname = assistant.patient_name if (assistant.patient_name and assistant.patient_name not in ["Patient", "New Patient"]) else ""

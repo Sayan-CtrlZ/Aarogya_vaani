@@ -12,6 +12,9 @@ from app.db.supabase_client import (
     revoke_share_code_by_id,
     get_patient_audit_logs,
     get_patient_dossier,
+    get_doctor_recent_access_logs,
+    record_doctor_access_event,
+    get_supabase_client,
 )
 
 router = APIRouter(prefix="/share", tags=["ABDM Record Sharing & Doctor Passcode"])
@@ -31,9 +34,9 @@ class GenerateShareCodeRequest(BaseModel):
 
 
 class VerifyShareCodeRequest(BaseModel):
-    code: str = Field(description="6-digit passcode")
-    doctor_name: str | None = "Attending Clinician"
-    facility: str | None = "Community Health Centre"
+    code: str = Field(description="6-digit passcode or sharing token")
+    doctor_name: str | None = "Dr. S. Roy"
+    facility: str | None = "Bishalgarh Community Health Centre"
 
 
 @router.post("/generate-code", summary="Generate a 6-digit Doctor Access Passcode")
@@ -75,30 +78,82 @@ def list_audit_logs(patient_id: str):
     return get_patient_audit_logs(patient_id)
 
 
+@router.get("/doctor-history", summary="Doctor dashboard recent access history")
+def doctor_recent_access():
+    return get_doctor_recent_access_logs()
+
+
 @router.post("/verify", summary="Doctor unlocks patient record using 6-digit passcode")
 def verify_share_code(body: VerifyShareCodeRequest):
     clean_code = body.code.strip()
-    # Check in share codes
-    # If valid, return dossier according to scope
-    from app.db.supabase_client import _LOCAL_SHARE_CODES
+    norm_code = clean_code.replace(" ", "").upper()
+    
     matched = None
-    for c in _LOCAL_SHARE_CODES:
-        if c.get("code") == clean_code and c.get("status") == "ACTIVE":
-            matched = c
-            break
+    # 1. Try Supabase
+    try:
+        client = get_supabase_client()
+        res = client.table("share_codes").select("*").eq("code", clean_code).eq("status", "ACTIVE").execute()
+        if res.data and len(res.data) > 0:
+            matched = res.data[0]
+        else:
+            # Try normalized uppercase (e.g. AV-7K4P-92)
+            res2 = client.table("share_codes").select("*").eq("code", norm_code).eq("status", "ACTIVE").execute()
+            if res2.data and len(res2.data) > 0:
+                matched = res2.data[0]
+    except Exception:
+        pass
+
+    # 2. Try Local fallback share codes
+    if not matched:
+        from app.db.supabase_client import _LOCAL_SHARE_CODES
+        for c in _LOCAL_SHARE_CODES:
+            c_code = str(c.get("code", "")).strip()
+            if (c_code == clean_code or c_code.upper() == norm_code) and c.get("status") == "ACTIVE":
+                matched = c
+                break
+
+    # 3. Allow direct fallback matching if code matches patient ID format
+    if not matched:
+        from app.db.supabase_client import _LOCAL_SHARE_CODES
+        for c in _LOCAL_SHARE_CODES:
+            if c.get("patient_id") == clean_code and c.get("status") == "ACTIVE":
+                matched = c
+                break
 
     if not matched:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invalid or expired 6-digit doctor passcode",
+            detail="Invalid or expired 6-digit doctor access code",
         )
 
     p_id = matched.get("patient_id")
     dossier = get_patient_dossier(p_id)
+    patient_name = matched.get("patient_name") or dossier.get("patient", {}).get("name", "Patient")
+
+    # Record doctor access audit entry
+    now = datetime.now(timezone.utc)
+    audit_entry = {
+        "id": f"aud-{int(now.timestamp())}",
+        "patient_id": p_id,
+        "patient_name": patient_name,
+        "doctor_name": body.doctor_name or "Dr. S. Roy",
+        "facility": body.facility or "Bishalgarh Community Health Centre",
+        "access_type": "Doctor Access Passcode",
+        "scope": "Voice Consultations, Prescriptions & Lab Reports",
+        "time": "Just now",
+        "accessed_at": now.strftime("%d %b %Y, %I:%M %p"),
+        "status": "APPROVED",
+        "active": True,
+    }
+    record_doctor_access_event(audit_entry)
+
     return {
         "status": "AUTHORIZED",
         "patient_id": p_id,
+        "patient_name": patient_name,
         "scope": matched.get("scope"),
         "expires_at": matched.get("expires_at"),
+        "formatted_expiry": matched.get("formatted_expiry"),
         "dossier": dossier,
     }
+

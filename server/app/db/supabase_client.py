@@ -8,6 +8,7 @@ import random
 import re
 import string
 from typing import Any
+from datetime import datetime, timezone, timedelta
 import bcrypt
 from supabase import create_client, Client
 from app.core.config import settings
@@ -800,18 +801,97 @@ def delete_appointment_by_id(appointment_id: str) -> bool:
 # Share Access Codes & Audit Logs Operations (ABDM Standards)
 # ==============================================================================
 
-_LOCAL_SHARE_CODES: list[dict[str, Any]] = []
+_LOCAL_SHARE_CODES: list[dict[str, Any]] = [
+    {
+        "id": "code-seed-1",
+        "patient_id": "AV-2026-8921",
+        "patient_name": "Mamta Debbarma",
+        "code": "749201",
+        "duration_hours": 24,
+        "scope": {"recentConsultation": True, "prescriptions": True, "labReports": True},
+        "status": "ACTIVE",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+        "formatted_expiry": (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%d %b %Y, %I:%M %p"),
+    },
+    {
+        "id": "code-seed-2",
+        "patient_id": "AV-2026-8921",
+        "patient_name": "Mamta Debbarma",
+        "code": "AV-7K4P-92",
+        "duration_hours": 24,
+        "scope": {"recentConsultation": True, "prescriptions": True, "labReports": True},
+        "status": "ACTIVE",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+        "formatted_expiry": (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%d %b %Y, %I:%M %p"),
+    },
+    {
+        "id": "code-seed-3",
+        "patient_id": "AV-2026-7316",
+        "patient_name": "Hare Krishna",
+        "code": "384912",
+        "duration_hours": 24,
+        "scope": {"recentConsultation": True, "prescriptions": True, "labReports": True},
+        "status": "ACTIVE",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+        "formatted_expiry": (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%d %b %Y, %I:%M %p"),
+    },
+    {
+        "id": "code-seed-4",
+        "patient_id": "AV-2026-4454",
+        "patient_name": "Bappaditya Paul",
+        "code": "592014",
+        "duration_hours": 24,
+        "scope": {"recentConsultation": True, "prescriptions": True, "labReports": True},
+        "status": "ACTIVE",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+        "formatted_expiry": (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%d %b %Y, %I:%M %p"),
+    },
+]
+
 _LOCAL_AUDIT_LOGS: list[dict[str, Any]] = [
     {
         "id": "aud-1",
         "patient_id": "AV-2026-8921",
+        "patient_name": "Mamta Debbarma",
         "doctor_name": "Dr. S. Roy",
-        "facility": "Bishalgarh CHC",
+        "facility": "Bishalgarh Community Health Centre",
         "access_type": "Temporary Doctor Passcode",
-        "scope": "Prescriptions & Lab Reports",
-        "accessed_at": "12 Oct 2024, 04:30 PM",
+        "scope": "Voice Consultations, Prescriptions & Lab Reports",
+        "time": "Today, 10:45 AM",
+        "accessed_at": "Today, 10:45 AM",
         "status": "APPROVED",
-    }
+        "active": True,
+    },
+    {
+        "id": "aud-2",
+        "patient_id": "AV-2026-4454",
+        "patient_name": "Bappaditya Paul",
+        "doctor_name": "Dr. S. Roy",
+        "facility": "Bishalgarh Community Health Centre",
+        "access_type": "Temporary Doctor Passcode",
+        "scope": "General OPD Medical History",
+        "time": "25 Oct, 09:15 AM",
+        "accessed_at": "25 Oct 2026, 09:15 AM",
+        "status": "APPROVED",
+        "active": False,
+    },
+    {
+        "id": "aud-3",
+        "patient_id": "AV-2026-7316",
+        "patient_name": "Hare Krishna",
+        "doctor_name": "Dr. S. Roy",
+        "facility": "Bishalgarh Community Health Centre",
+        "access_type": "Temporary Doctor Passcode",
+        "scope": "Hypertension NCD Follow-up & Prescriptions",
+        "time": "24 Oct, 11:30 AM",
+        "accessed_at": "24 Oct 2026, 11:30 AM",
+        "status": "APPROVED",
+        "active": False,
+    },
 ]
 
 def insert_share_code(code_data: dict[str, Any]) -> dict[str, Any]:
@@ -864,6 +944,32 @@ def get_patient_audit_logs(patient_id: str) -> list[dict[str, Any]]:
     except Exception:
         pass
     return _LOCAL_AUDIT_LOGS
+
+
+def get_doctor_recent_access_logs() -> list[dict[str, Any]]:
+    """Fetch recent access history for doctor dashboard."""
+    try:
+        client = get_supabase_client()
+        res = client.table("share_audit_logs").select("*").order("created_at", desc=True).limit(20).execute()
+        if res.data and len(res.data) > 0:
+            return res.data
+    except Exception:
+        pass
+    return _LOCAL_AUDIT_LOGS
+
+
+def record_doctor_access_event(event_data: dict[str, Any]) -> dict[str, Any]:
+    """Record consent access event for doctor reviewing patient."""
+    _LOCAL_AUDIT_LOGS.insert(0, event_data)
+    try:
+        client = get_supabase_client()
+        res = client.table("share_audit_logs").insert(event_data).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return event_data
+
 
 
 

@@ -32,7 +32,7 @@ export default function DoctorDashboard() {
     setPatients(getAllPatients());
   }, [location.pathname]);
 
-  // Mouse drag tracking for resizing sidebar (identical to PatientDashboard)
+  // Mouse drag tracking for resizing sidebar
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (isDraggingLeft) {
@@ -66,17 +66,17 @@ export default function DoctorDashboard() {
 
   // Handle shared access code from URL parameters
   useEffect(() => {
-    if (accessCodeParam) {
+    if (accessCodeParam && !location.pathname.includes("/doctor/access")) {
       const codeCheck = verifyAccessCode(accessCodeParam.trim().toUpperCase());
       if (codeCheck?.valid && codeCheck.codeData) {
         navigate(`/doctor/review?id=${codeCheck.codeData.patientId}&code=${accessCodeParam.trim().toUpperCase()}`, { replace: true });
       }
     }
-  }, [accessCodeParam, navigate]);
+  }, [accessCodeParam, location.pathname, navigate]);
 
   return (
-    <div className="h-screen w-screen bg-[#f8fafc] dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col overflow-hidden font-sans antialiased select-none">
-      {/* 1. UNIVERSAL TOP HEADER (Height, length, logo and styling identical to PatientHeader) */}
+    <div className="h-screen w-screen bg-[#F7F9FC] dark:bg-slate-950 text-[#172033] dark:text-slate-100 flex flex-col overflow-hidden font-sans antialiased selection:bg-[#059669]/20 selection:text-[#047857]">
+      {/* 1. UNIVERSAL TOP HEADER */}
       <DoctorHeader />
 
       {/* 2. BODY CONTAINER: SIDEBAR + MAIN */}
@@ -94,13 +94,13 @@ export default function DoctorDashboard() {
           <div
             onMouseDown={() => setIsDraggingLeft(true)}
             onDoubleClick={() => setLeftWidth(240)}
-            className="w-1 cursor-col-resize hover:w-1.5 hover:bg-emerald-500/25 transition-all relative z-20 select-none"
+            className="w-1 cursor-col-resize hover:w-1.5 hover:bg-[#059669]/30 transition-all relative z-20 select-none bg-transparent"
             title="Drag to resize sidebar (Double-click to reset)"
           />
         )}
 
         {/* 3. MAIN WORKSPACE */}
-        <main className="flex-1 h-full bg-[#f8fafc] dark:bg-slate-900 overflow-y-auto p-3 sm:p-5 lg:p-6 overflow-x-hidden">
+        <main className="flex-1 h-full bg-[#F7F9FC] dark:bg-slate-950 overflow-hidden p-4 md:p-6">
           <Outlet />
         </main>
       </div>

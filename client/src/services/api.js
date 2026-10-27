@@ -3,7 +3,19 @@
  * Connects React Vite UI to FastAPI (:8001) and Supabase Cloud.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+
+/**
+ * Universal Patient ID Normalizer (converts short demo IDs 'AV-8921' to official Supabase format 'AV-2026-8921')
+ */
+export function normalizePatientId(id) {
+  if (!id) return "AV-2026-8921";
+  const str = String(id).trim();
+  if (str.startsWith("AV-") && str.length === 7) {
+    return `AV-2026-${str.slice(3)}`;
+  }
+  return str;
+}
 
 /**
  * 0. Authentication APIs (Phone + 4-digit PIN)
@@ -78,7 +90,8 @@ export async function updatePatient(patientId, updates) {
 
 export async function fetchPatientDossier(patientId) {
   try {
-    const res = await fetch(`${API_BASE}/orchestrator/patient/${patientId}/dossier`);
+    const pId = normalizePatientId(patientId);
+    const res = await fetch(`${API_BASE}/orchestrator/patient/${pId}/dossier`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -135,7 +148,7 @@ export async function sendAIDoctorVoiceTurn(params) {
     const res = await fetch(`${API_BASE}/ai/voice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
+      signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined,
       body: JSON.stringify({
         consultation_id: consultationId,
         patient_id: patientId,
@@ -150,6 +163,43 @@ export async function sendAIDoctorVoiceTurn(params) {
     return await res.json();
   } catch (err) {
     console.warn("[API] Failed sendAIDoctorVoiceTurn:", err);
+    throw err;
+  }
+}
+
+export async function transcribeAudio(audioBlob, language = "en-IN") {
+  try {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "recording.webm");
+    formData.append("language", language);
+
+    const res = await fetch(`${API_BASE}/ai/transcribe`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed transcribeAudio:", err);
+    throw err;
+  }
+}
+
+export async function synthesizeSpeech({ text, language = "bn-IN", speaker = "aditya" }) {
+  try {
+    const res = await fetch(`${API_BASE}/ai/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language,
+        speaker,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed synthesizeSpeech:", err);
     throw err;
   }
 }
@@ -201,7 +251,8 @@ export const sendVoiceChatTurn = sendAIDoctorChatTurn;
 
 export async function getPatientConsultations(patientId) {
   try {
-    const res = await fetch(`${API_BASE}/orchestrator/consultations/patient/${patientId}`);
+    const pId = normalizePatientId(patientId);
+    const res = await fetch(`${API_BASE}/orchestrator/consultations/patient/${pId}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -264,12 +315,13 @@ export async function fetchLiveKitToken(patientId, patientName, roomName, langua
  */
 export async function fetchPatientDocuments(patientId, category = null, query = null) {
   try {
+    const pId = normalizePatientId(patientId);
     const params = new URLSearchParams();
     if (category && category !== "All") params.append("category", category);
     if (query) params.append("title", query);
 
     const qs = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`${API_BASE}/documents/patient/${patientId}${qs}`);
+    const res = await fetch(`${API_BASE}/documents/patient/${pId}${qs}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -428,4 +480,38 @@ export async function fetchShareAuditLogs(patientId) {
     return [];
   }
 }
+
+export async function verifyShareCode({ code, doctorName = "Dr. S. Roy", facility = "Bishalgarh Community Health Centre" }) {
+  try {
+    const res = await fetch(`${API_BASE}/share/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: code,
+        doctor_name: doctorName,
+        facility: facility,
+      }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Access denied (HTTP ${res.status})`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error("[API_ERROR] verifyShareCode failed:", err);
+    throw err;
+  }
+}
+
+export async function fetchDoctorRecentAccessHistory() {
+  try {
+    const res = await fetch(`${API_BASE}/share/doctor-history`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed to fetch doctor recent access history:", err);
+    return [];
+  }
+}
+
 

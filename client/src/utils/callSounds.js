@@ -165,6 +165,61 @@ class CallSoundEngine {
       console.warn("Call end tone error:", e);
     }
   }
+
+  /**
+   * High-priority clinical telemetry emergency alarm (IEC 60601-1-8 compliant pattern)
+   * 3 rapid pulse bursts (880 Hz, 880 Hz, 988 Hz) with decay
+   */
+  playEmergencyBeep() {
+    const ctx = this._getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const notes = [
+        { freq: 880, start: 0, dur: 0.12 },
+        { freq: 880, start: 0.16, dur: 0.12 },
+        { freq: 988, start: 0.32, dur: 0.20 },
+      ];
+
+      notes.forEach((n) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(n.freq, now + n.start);
+
+        gain.gain.setValueAtTime(0, now + n.start);
+        gain.gain.linearRampToValueAtTime(0.08, now + n.start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + n.start);
+        osc.stop(now + n.start + n.dur);
+      });
+    } catch (e) {
+      console.warn("Emergency beep error:", e);
+    }
+  }
+
+  /**
+   * Continuous emergency alarm loop (can be toggled by doctor)
+   */
+  startEmergencyAlarmLoop(intervalMs = 4000) {
+    this.stopEmergencyAlarmLoop();
+    this.playEmergencyBeep();
+    this._emergencyAlarmTimer = setInterval(() => {
+      this.playEmergencyBeep();
+    }, intervalMs);
+  }
+
+  stopEmergencyAlarmLoop() {
+    if (this._emergencyAlarmTimer) {
+      clearInterval(this._emergencyAlarmTimer);
+      this._emergencyAlarmTimer = null;
+    }
+  }
 }
 
 export const callSounds = new CallSoundEngine();

@@ -62,26 +62,40 @@ def detect_utterance_language(user_message: str, fallback_lang: str = "bn-IN") -
     Detect the communication language of the user's message:
     - Bengali script (0x0980-0x09FF) -> 'bn-IN'
     - Devanagari script (0x0900-0x097F) -> 'hi-IN'
-    - Standard English / Latin script with English keywords -> 'en-IN'
-    - Hinglish keywords -> 'hi-IN'
-    - Banglish keywords -> 'bn-IN'
-    - Ambiguous or neutral inputs -> fallback_lang
+    - If user explicitly set fallback_lang to 'bn-IN' or 'hi-IN', honor that choice!
+      Only switch to English if the user explicitly asks to speak in English.
+    - If fallback_lang is 'en-IN' (or neutral):
+      - Check for Bengali/Devanagari script or Banglish/Hinglish keywords.
+      - Default to 'en-IN'.
     """
     if not user_message or not user_message.strip():
         return fallback_lang or "bn-IN"
 
     text = user_message.strip()
 
-    # 1. Script checks
+    # 1. Script checks (highest priority and unambiguous)
     if re.search(r"[\u0980-\u09FF]", text):
         return "bn-IN"
     if re.search(r"[\u0900-\u097F]", text):
         return "hi-IN"
 
     text_lower = text.lower()
+
+    # Check if user explicitly asked to speak/switch to English
+    if any(p in text_lower for p in ["speak in english", "talk in english", "in english", "switch to english", "change to english"]):
+        return "en-IN"
+
+    # If the user or UI explicitly chose Bengali or Hindi as active language, respect that!
+    clean_fb = (fallback_lang or "").lower()
+    if "bn" in clean_fb:
+        return "bn-IN"
+    if "hi" in clean_fb:
+        return "hi-IN"
+
+    # If fallback is en-IN (or neutral), check for Romanized Banglish or Hinglish
     words = re.findall(r"\b[a-z]+\b", text_lower)
     if not words:
-        return fallback_lang or "bn-IN"
+        return fallback_lang or "en-IN"
 
     # Hinglish keywords
     hinglish_words = {
@@ -100,26 +114,12 @@ def detect_utterance_language(user_message: str, fallback_lang: str = "bn-IN") -
     hinglish_count = sum(1 for w in words if w in hinglish_words)
     banglish_count = sum(1 for w in words if w in banglish_words)
 
-    if hinglish_count >= 2 or (hinglish_count >= 1 and len(words) <= 3):
-        return "hi-IN"
-    if banglish_count >= 2 or (banglish_count >= 1 and len(words) <= 3):
+    if banglish_count >= 1:
         return "bn-IN"
+    if hinglish_count >= 1:
+        return "hi-IN"
 
-    # English words
-    english_words = {
-        "i", "have", "my", "me", "am", "is", "are", "feeling", "feel", "fever", "pain",
-        "headache", "stomach", "ache", "cough", "cold", "body", "days", "day", "yesterday",
-        "today", "since", "high", "low", "severe", "mild", "doctor", "medicine", "tablet",
-        "help", "what", "how", "can", "should", "do", "please", "vomiting", "weakness",
-        "chest", "throat", "blood", "bleed", "pregnant", "pregnancy", "test", "report",
-        "hello", "hi", "hey", "good", "morning", "afternoon", "evening"
-    }
-    english_count = sum(1 for w in words if w in english_words)
-
-    if english_count >= 1 or len(words) >= 2:
-        return "en-IN"
-
-    return fallback_lang or "bn-IN"
+    return "en-IN"
 
 
 def _extract_json_from_text(raw_text: str) -> dict[str, Any] | None:
@@ -487,9 +487,9 @@ async def generate_ai_doctor_chat_turn(
         for t in history_turns[-25:]
     ])
 
-    lang_instruction = "Bengali (বাংলা)"
+    lang_instruction = "Bengali (বাংলা script)"
     if "hi" in lang_code:
-        lang_instruction = "Hindi (हिंदी)"
+        lang_instruction = "Hindi (हिंदी in Devanagari script)"
     elif "en" in lang_code:
         lang_instruction = "English"
 
@@ -542,7 +542,7 @@ PATIENT STATUS: RETURNING PATIENT (Verified medical records exist in Supabase).
 """
 
     prompt = f"""
-You are AarogyaVaani AI Doctor Assistant (Dr. Preeti Sharma), an empathetic primary healthcare AI clinical officer in India.
+You are AarogyaVaani AI Doctor Assistant (Dr. Aditya Sharma), an empathetic male primary healthcare AI clinical officer in India.
 You provide comprehensive care for all illnesses, diseases, medications, and general health concerns across all age groups and genders.
 Maternal/pregnancy care is solely a conditional add-on for expectant mothers, not a default for general patients.
 
@@ -565,8 +565,8 @@ CRITICAL CONSULTATION FLOW & RULES (STRICTLY ENFORCE):
    - Explore onset, duration, severity, and ask if the patient has any blood test report, X-ray, or doctor's prescription for this issue.
    - If you ask for a medical test/report/prescription, OR if the patient mentions having one, set "request_document": true in the output JSON.
    - If an attached medical document is present above, acknowledge it warmly and cite its specific lab findings/prescriptions to guide the patient.
-4. Target Language: {lang_instruction}. Respond strictly and naturally in {lang_instruction}.
-5. Tone: Warm, reassuring, clinically safe, empathetic. {voice_instruction}
+4. Target Language: {lang_instruction}. Respond strictly, fluently, and naturally in {lang_instruction}. If Bengali, write in authentic Bengali script (বাংলা হরফ). If Hindi, write in authentic Devanagari script (हिंदी देवनागरी). Do NOT use English unless naming a specific medication or laboratory unit.
+5. Tone: Warm, reassuring, clinically safe, empathetic male doctor voice. {voice_instruction}
 6. Red Flag Detection: If patient reports acute chest pain, severe breathlessness, stroke signs, massive hemorrhage, or severe preeclampsia symptoms in pregnancy, mark triage_level as "EMERGENCY" and recommend visiting nearest PHC/Hospital immediately.
 7. Provide 3 to 4 short, relevant follow-up options for the patient to easily select or say in {lang_instruction}.
 8. Return ONLY valid JSON matching this schema:
@@ -583,7 +583,7 @@ CRITICAL CONSULTATION FLOW & RULES (STRICTLY ENFORCE):
     # 1. Ultra-Low Latency Groq LLM with full persistent conversation context
     groq_key = settings.OPENAI_API_KEY
     if groq_key:
-        groq_system_prompt = f"""You are AarogyaVaani AI Doctor Assistant (Dr. Preeti Sharma), an empathetic primary healthcare clinical officer.
+        groq_system_prompt = f"""You are AarogyaVaani AI Doctor Assistant (Dr. Aditya Sharma), an empathetic male primary healthcare clinical officer.
 You treat all diseases, infections, aches, chronic conditions, and general health concerns for patients of all ages and genders.
 Maternal/pregnancy care is solely a conditional add-on for expectant mothers, not a default for general patients.
 
@@ -595,7 +595,7 @@ Maternal/pregnancy care is solely a conditional add-on for expectant mothers, no
 
 CRITICAL CLINICAL RULES:
 1. GENERAL MEDICINE FOCUS: Address the patient's specific health issue (fever, cough, digestive, pain, blood pressure, etc.). Do NOT mention pregnancy unless the patient explicitly brings it up or has an active pregnancy on file.
-2. Target Language: {lang_instruction}. Respond strictly and naturally in {lang_instruction}.
+2. Target Language: {lang_instruction}. Respond strictly, fluently, and naturally in {lang_instruction}. If Bengali, write in authentic Bengali script (বাংলা হরফ). If Hindi, write in authentic Devanagari script (हिंदी देवनागरी).
 3. Tone: Warm, reassuring, clinically safe, empathetic. {voice_instruction}
 4. Ask ONE single focused question per turn.
 5. If asking for medical tests/prescriptions or if patient mentions having one, set "request_document": true.
@@ -626,7 +626,7 @@ You MUST output strictly valid JSON matching this schema:
 
         groq_conversation.append({"role": "user", "content": user_message})
 
-        groq_models = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+        groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
         for g_model in groq_models:
             try:
                 async with httpx.AsyncClient(timeout=8.0) as client:

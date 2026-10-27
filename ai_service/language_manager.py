@@ -17,7 +17,7 @@ SUPPORTED_LANGUAGES = {
         "name": "Bengali",
         "native_name": "বাংলা",
         "style": "Benglish",
-        "default_speaker": "roopa",  # Sarvam recommended Bengali voice
+        "default_speaker": "aditya",  # Sarvam recommended natural Indic male voice
         "prompt_desc": "conversational Bengali in Bengali script mixed with common English medical terms (Benglish)",
         "example": "নমস্কার, আমি Aarogya AI, আপনার clinical assistant. আপনার fever কবে থেকে start হলো?",
     },
@@ -25,15 +25,15 @@ SUPPORTED_LANGUAGES = {
         "name": "Hindi",
         "native_name": "हिन्दी",
         "style": "Hinglish",
-        "default_speaker": "priya",  # Tier 1 Excellent voice (0.13% CER), warm and empathetic
+        "default_speaker": "aditya",  # Sarvam natural and clear male doctor voice
         "prompt_desc": "conversational Hindi in Devanagari script mixed with common English medical terms (Hinglish)",
-        "example": "नमस्कार, मैं Aarogya AI हूँ, आपकी clinical assistant. आपको exactly क्या symptoms feel हो रहे हैं?",
+        "example": "नमस्कार, मैं Aarogya AI हूँ, आपका clinical assistant. आपको exactly क्या symptoms feel हो रहे हैं?",
     },
     "en-IN": {
         "name": "English",
         "native_name": "English",
         "style": "English",
-        "default_speaker": "ishita",  # Tier 1 Excellent voice (0.13% CER), articulate and clear
+        "default_speaker": "aditya",  # Sarvam articulate and clear male voice
         "prompt_desc": "clear, compassionate Indian English with simple medical explanations",
         "example": "Hello, I am Aarogya AI, your clinical assistant. When did your symptoms first start?",
     },

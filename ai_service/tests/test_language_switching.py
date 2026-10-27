@@ -262,38 +262,38 @@ class TestProviderTTSOutput:
     """Verify spoken audio synthesis across all supported languages using Sarvam TTS with Option B speakers."""
 
     def test_language_speakers_option_b_mapping(self):
-        """Verify Option B natural speaker pairings."""
-        assert LANGUAGE_SPEAKERS["bn-IN"] == "roopa"
-        assert LANGUAGE_SPEAKERS["hi-IN"] == "priya"
-        assert LANGUAGE_SPEAKERS["en-IN"] == "ishita"
+        """Verify natural male speaker pairings (Sarvam 'aditya')."""
+        assert LANGUAGE_SPEAKERS["bn-IN"] == "aditya"
+        assert LANGUAGE_SPEAKERS["hi-IN"] == "aditya"
+        assert LANGUAGE_SPEAKERS["en-IN"] == "aditya"
 
     @pytest.mark.asyncio
     async def test_tts_synthesis_all_languages(self):
         async with http_context.open():
-            # 1. Bengali synthesis with Option B speaker 'roopa'
+            # 1. Bengali synthesis with male speaker 'aditya'
             bn_speaker = LANGUAGE_SPEAKERS["bn-IN"]
             tts = sarvam.TTS(target_language_code="bn-IN", speaker=bn_speaker)
-            assert tts._opts.speaker == "roopa"
+            assert tts._opts.speaker == "aditya"
 
             bn_frames = []
             async for frame in tts.synthesize(INITIAL_GREETING_TEXT):
                 bn_frames.append(frame)
             assert len(bn_frames) > 0, "Bengali TTS failed to synthesize audio frames"
 
-            # 2. Hindi synthesis with Option B speaker 'priya'
+            # 2. Hindi synthesis with male speaker 'aditya'
             hi_speaker = LANGUAGE_SPEAKERS["hi-IN"]
             tts.update_options(target_language_code="hi-IN", speaker=hi_speaker)
-            assert tts._opts.speaker == "priya"
+            assert tts._opts.speaker == "aditya"
             hi_text = "नमस्कार, मैं Aarogya AI हूँ। आपको क्या समस्या हो रही है?"
             hi_frames = []
             async for frame in tts.synthesize(hi_text):
                 hi_frames.append(frame)
             assert len(hi_frames) > 0, "Hindi TTS failed to synthesize audio frames"
 
-            # 3. English synthesis with Option B speaker 'ishita'
+            # 3. English synthesis with male speaker 'aditya'
             en_speaker = LANGUAGE_SPEAKERS["en-IN"]
             tts.update_options(target_language_code="en-IN", speaker=en_speaker)
-            assert tts._opts.speaker == "ishita"
+            assert tts._opts.speaker == "aditya"
             en_text = "Hello, I am Aarogya AI, your clinical assistant. How can I help you today?"
             en_frames = []
             async for frame in tts.synthesize(en_text):
