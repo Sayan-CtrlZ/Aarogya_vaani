@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     LIVEKIT_API_KEY: str | None = None
     LIVEKIT_API_SECRET: str | None = None
     
+    # Sarvam AI Indic Speech (TTS & STT)
+    SARVAM_API_KEY: str | None = "sk_nfgpqj54_RV0yGdkHMlZHRMjqsEuDwcY4"
+    SARVAM_DEFAULT_SPEAKER: str = "aditya"
+    SARVAM_TTS_URL: str = "https://api.sarvam.ai/text-to-speech"
+    
     # Server Host / Port
     HOST: str = "0.0.0.0"
     PORT: int = 8000

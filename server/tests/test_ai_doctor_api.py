@@ -113,3 +113,25 @@ def test_save_ai_consultation_endpoint():
     assert data["id"] == unique_id
     assert data.get("user_name") == "Pooja Debbarma"
     assert data["patient_id"] == "AV-2026-8921"
+
+
+def test_ai_doctor_transcribe_endpoint():
+    """Test audio speech-to-text transcribe endpoint."""
+    import io, wave
+    bio = io.BytesIO()
+    with wave.open(bio, 'wb') as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(b'\x00\x00' * 8000)
+    bio.seek(0)
+
+    files = {"file": ("test_voice.wav", bio.read(), "audio/wav")}
+    data = {"language": "en-IN"}
+
+    response = client.post("/api/ai/transcribe", files=files, data=data)
+    assert response.status_code == 200, f"Error: {response.text}"
+    result = response.json()
+    assert "text" in result
+    assert result["language"] == "en-IN"
+

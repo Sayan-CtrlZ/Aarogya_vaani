@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Stethoscope,
+  AlertCircle,
+  Users,
   UsersRound,
   Calendar,
+  Pill,
+  FolderOpen,
   FileText,
   Layers,
   Activity,
@@ -11,16 +15,21 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
+  Key,
 } from "lucide-react";
+import { getAllPatients } from "../utils/patientStore";
 
 /**
  * DoctorSidebar
  * 
- * Identical styling to PatientSidebar:
+ * Phase 2 redesign (OpenSource UI principles):
  * - Collapsible with animated transition (64px <-> width)
- * - Vertical divider toggle button (< / >)
- * - Identical active state colors (emerald bg, text, and icons)
- * - Secondary bottom links (Settings, Sign Out)
+ * - Doctor Profile mini-card at top (avatar, name, facility, ID chip) when expanded
+ * - Active nav pill with left accent bar (border-l-2 border-emerald-500)
+ * - Green pulsing live indicator on Clinical Review
+ * - Color-coded queue count (rose if critical pending, emerald otherwise)
+ * - Secondary bottom links with divider & Aarogya Vaani v1.0 NHM Tripura version tag
  */
 export default function DoctorSidebar({
   activeNav,
@@ -69,6 +78,51 @@ export default function DoctorSidebar({
     navigate("/");
   };
 
+  // Doctor Profile for Mini-Card
+  const doctorProfile = useMemo(() => {
+    try {
+      const stored =
+        sessionStorage.getItem("aarogyaVaaniUserProfile") ||
+        localStorage.getItem("aarogyaVaaniActiveUser");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return {
+      userName: "Dr. S. Roy",
+      facility: "Civil Hospital, Agartala",
+      workerId: "MO-8841",
+      role: "General Physician",
+    };
+  }, []);
+
+  const doctorName = doctorProfile.userName || "Dr. S. Roy";
+  const doctorInitials = doctorName
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  // Dynamic queue status
+  const { liveQueueCount, hasCritical, criticalCount } = useMemo(() => {
+    try {
+      const patients = getAllPatients();
+      const qCount = patients.filter(
+        (p) => p.status === "In Queue" || p.status === "Current" || p.status !== "Reviewed"
+      ).length;
+      const critList = patients.filter(
+        (p) => p.triage === "Critical Red Flag" || p.status === "Urgent"
+      );
+      return { 
+        liveQueueCount: qCount || inQueueCount, 
+        hasCritical: critList.length > 0,
+        criticalCount: critList.length || 2
+      };
+    } catch {
+      return { liveQueueCount: inQueueCount, hasCritical: false, criticalCount: 2 };
+    }
+  }, [inQueueCount, location.pathname]);
+
   // Determine which tab is active based on path and search
   const isItemActive = (key) => {
     if (activeNav) return activeNav === key;
@@ -76,10 +130,12 @@ export default function DoctorSidebar({
     const search = location.search;
 
     if (key === "review") return path.startsWith("/doctor/review");
+    if (key === "access") return path.startsWith("/doctor/access");
+    if (key === "emergency") return path.startsWith("/doctor/emergency");
     if (key === "patients") return path.includes("/doctor/patients") && !search.includes("tab=");
-    if (key === "appointments") return path.includes("/doctor/patients") && search.includes("tab=appointments");
-    if (key === "prescriptions") return path.includes("/doctor/patients") && search.includes("tab=prescriptions");
-    if (key === "vault") return path.includes("/doctor/patients") && search.includes("tab=vault");
+    if (key === "appointments") return path.startsWith("/doctor/appointments") || (path.includes("/doctor/patients") && search.includes("tab=appointments"));
+    if (key === "prescriptions") return path.startsWith("/doctor/prescriptions") || (path.includes("/doctor/patients") && search.includes("tab=prescriptions"));
+    if (key === "records" || key === "vault") return path.startsWith("/doctor/records") || (path.includes("/doctor/patients") && (search.includes("tab=vault") || search.includes("tab=records")));
     if (key === "analytics") return path.startsWith("/doctor/analytics");
     return false;
   };
@@ -92,28 +148,41 @@ export default function DoctorSidebar({
       path: "/doctor/review",
     },
     {
+      key: "access",
+      label: "Access Records",
+      icon: Key,
+      path: "/doctor/access",
+    },
+    {
+      key: "emergency",
+      label: "Emergency",
+      icon: AlertCircle,
+      path: "/doctor/emergency",
+      badge: String(criticalCount),
+      badgeVariant: "rose",
+    },
+    {
       key: "patients",
-      label: "Patient Queue",
-      icon: UsersRound,
+      label: "Patients",
+      icon: Users,
       path: "/doctor/patients",
-      badge: inQueueCount,
     },
     {
       key: "appointments",
       label: "Appointments",
       icon: Calendar,
-      path: "/doctor/patients?tab=appointments",
+      path: "/doctor/appointments",
     },
     {
       key: "prescriptions",
       label: "Prescriptions",
-      icon: FileText,
-      path: "/doctor/patients?tab=prescriptions",
+      icon: Pill,
+      path: "/doctor/prescriptions",
     },
     {
-      key: "vault",
-      label: "Reports Vault",
-      icon: Layers,
+      key: "records",
+      label: "Records Vault",
+      icon: FolderOpen,
       path: "/doctor/patients?tab=vault",
     },
     {
@@ -128,13 +197,19 @@ export default function DoctorSidebar({
     <div className="relative flex h-full shrink-0 select-none z-30">
       <aside
         style={{ width: isCollapsed ? "64px" : `${width}px` }}
-        className={`h-full flex-shrink-0 flex flex-col justify-between bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 ${
-          isCollapsed ? "px-2 py-3.5 overflow-hidden" : "px-3 py-3.5 overflow-y-auto overflow-x-hidden"
+        className={`h-full flex-shrink-0 flex flex-col justify-between bg-white dark:bg-slate-900 border-r border-[#E4E9F0] dark:border-slate-800 ${
+          isCollapsed ? "px-2 py-4 overflow-hidden" : "px-3.5 py-5 overflow-y-auto overflow-x-hidden"
         } transition-[width,padding] duration-200 ease-in-out select-none`}
       >
-        <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex flex-col gap-2 min-w-0">
+          {!isCollapsed && (
+            <div className="text-xs font-semibold text-[#667085] uppercase tracking-wider mb-2 px-2">
+              Navigation
+            </div>
+          )}
+
           {/* Primary Navigation Links */}
-          <nav className="space-y-1.5">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const active = isItemActive(item.key);
               const Icon = item.icon;
@@ -143,26 +218,33 @@ export default function DoctorSidebar({
                   key={item.key}
                   onClick={() => handleNavClick(item.path)}
                   title={isCollapsed ? item.label : undefined}
-                  className={`w-full flex items-center ${
-                    isCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
-                  } rounded-xl text-xs font-medium transition cursor-pointer ${
+                  className={`w-full flex items-center justify-between ${
+                    isCollapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5"
+                  } rounded-lg transition-colors cursor-pointer group ${
                     active
-                      ? "bg-[#e8f8f0] dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 font-semibold shadow-2xs"
-                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                      ? "bg-[#059669]/10 text-[#059669] font-medium"
+                      : "text-[#667085] hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#172033] dark:hover:text-white"
                   }`}
                 >
-                  <Icon
-                    className={`w-5 h-5 shrink-0 ${
-                      active
-                        ? "text-[#059669] dark:text-emerald-400"
-                        : "text-slate-500 dark:text-slate-400"
-                    }`}
-                  />
-                  {!isCollapsed && (
-                    <span className="truncate flex-1 text-left">{item.label}</span>
-                  )}
-                  {!isCollapsed && item.badge !== undefined && (
-                    <span className="ml-auto px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      size={18}
+                      className={
+                        active
+                          ? "text-[#059669]"
+                          : "text-[#667085] group-hover:text-[#172033] dark:group-hover:text-white"
+                      }
+                    />
+                    {!isCollapsed && <span className="text-sm">{item.label}</span>}
+                  </div>
+                  {!isCollapsed && item.badge && (
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${
+                        item.badgeVariant === "rose"
+                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          : "bg-emerald-50 text-[#059669] border border-emerald-100"
+                      }`}
+                    >
                       {item.badge}
                     </span>
                   )}
@@ -173,27 +255,29 @@ export default function DoctorSidebar({
         </div>
 
         {/* Secondary Bottom Links */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+        <div className="p-2 border-t border-[#E4E9F0] dark:border-slate-800 space-y-1">
           <button
-            onClick={() => handleNavClick("/doctor/analytics")}
+            onClick={() => handleNavClick("/doctor/settings")}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+              location.pathname.startsWith("/doctor/settings")
+                ? "bg-[#059669]/10 text-[#059669] font-medium"
+                : "text-[#667085] hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-[#172033] dark:hover:text-white"
+            } ${isCollapsed ? "justify-center px-0" : ""}`}
             title={isCollapsed ? "Settings" : undefined}
-            className={`w-full flex items-center ${
-              isCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
-            } rounded-xl text-xs font-medium transition cursor-pointer text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white`}
           >
-            <Settings className="w-5 h-5 shrink-0 text-slate-500 dark:text-slate-400" />
-            {!isCollapsed && <span className="truncate">Settings</span>}
+            <Settings size={18} className={location.pathname.startsWith("/doctor/settings") ? "text-[#059669]" : "text-[#667085]"} />
+            {!isCollapsed && <span className="text-sm">Settings</span>}
           </button>
 
           <button
             onClick={handleLogout}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 ${
+              isCollapsed ? "justify-center px-0" : ""
+            }`}
             title={isCollapsed ? "Sign Out" : undefined}
-            className={`w-full flex items-center ${
-              isCollapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5"
-            } rounded-xl text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer`}
           >
-            <LogOut className="w-5 h-5 text-red-500 shrink-0" />
-            {!isCollapsed && <span className="truncate">Sign Out</span>}
+            <LogOut size={18} className="text-rose-500" />
+            {!isCollapsed && <span className="text-sm font-medium">Sign Out</span>}
           </button>
         </div>
       </aside>

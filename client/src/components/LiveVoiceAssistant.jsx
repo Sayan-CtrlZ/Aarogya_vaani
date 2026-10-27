@@ -56,6 +56,7 @@ import {
   fetchPatientDocuments,
   uploadMedicalDocument,
   fetchLiveKitToken,
+  synthesizeSpeech,
 } from "../services/api";
 
 // Icon lookup map for JSON assessment options
@@ -247,6 +248,7 @@ export default function LiveVoiceAssistant({
   const chatScrollRef = useRef(null);
   const speechTimeoutRef = useRef(null);
   const synthesisRef = useRef(null);
+  const activeAudioRef = useRef(null);
   const isSpeakingRef = useRef(false);
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
@@ -300,34 +302,29 @@ export default function LiveVoiceAssistant({
     }
   }, [showDocModal, loadDocuments]);
 
-  // Text-To-Speech with word streaming
+  // Text-To-Speech with word streaming & Sarvam AI Bulbul v3 Male Voice
   const speakAndStreamAiResponse = useCallback(
-    (fullText, onComplete) => {
-      if (!("speechSynthesis" in window) || !soundEnabled) {
+    async (fullText, onComplete, preferredAudioBase64 = null) => {
+      if (!soundEnabled) {
         setIsSpeaking(false);
         if (onComplete) onComplete();
         return;
       }
 
       try {
-        window.speechSynthesis.cancel();
+        if (activeAudioRef.current) {
+          activeAudioRef.current.pause();
+          activeAudioRef.current.currentTime = 0;
+          activeAudioRef.current = null;
+        }
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
       } catch {}
 
       setIsSpeaking(true);
       isSpeakingRef.current = true;
       setStreamingAiText("");
-
-      const utterance = new SpeechSynthesisUtterance(fullText);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.05;
-
-      if (language === "hi") {
-        utterance.lang = "hi-IN";
-      } else if (language === "bn") {
-        utterance.lang = "bn-IN";
-      } else {
-        utterance.lang = "en-IN";
-      }
 
       const words = fullText.split(" ");
       let currentWordIndex = 0;
@@ -341,7 +338,7 @@ export default function LiveVoiceAssistant({
         }
       }, 105);
 
-      utterance.onend = () => {
+      const finish = () => {
         clearInterval(wordInterval);
         setStreamingAiText("");
         setIsSpeaking(false);
@@ -349,23 +346,70 @@ export default function LiveVoiceAssistant({
         if (onComplete) onComplete();
       };
 
-      utterance.onerror = (err) => {
-        console.warn("Speech synthesis notice:", err);
-        clearInterval(wordInterval);
-        setStreamingAiText("");
-        setIsSpeaking(false);
-        isSpeakingRef.current = false;
-        if (onComplete) onComplete();
-      };
+      // 1. Play returned Sarvam WAV audio directly if available
+      let audioB64 = preferredAudioBase64;
 
-      synthesisRef.current = utterance;
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn("Speech synthesis trigger failed:", err);
-        clearInterval(wordInterval);
-        setIsSpeaking(false);
-        isSpeakingRef.current = false;
+      // 2. Otherwise request Sarvam AI TTS from backend with male doctor voice ('aditya')
+      if (!audioB64) {
+        try {
+          let langCode = language === "hi" ? "hi-IN" : language === "bn" ? "bn-IN" : "en-IN";
+          if (/[\u0980-\u09FF]/.test(fullText)) {
+            langCode = "bn-IN";
+          } else if (/[\u0900-\u097F]/.test(fullText)) {
+            langCode = "hi-IN";
+          }
+          const res = await synthesizeSpeech({
+            text: fullText,
+            language: langCode,
+            speaker: "aditya",
+          });
+          if (res && res.audio_base64) {
+            audioB64 = res.audio_base64;
+          }
+        } catch (err) {
+          console.warn("[LiveVoiceAssistant] Sarvam TTS fallback:", err);
+        }
+      }
+
+      if (audioB64) {
+        try {
+          const audio = new Audio(`data:audio/wav;base64,${audioB64}`);
+          activeAudioRef.current = audio;
+          audio.onended = () => {
+            activeAudioRef.current = null;
+            finish();
+          };
+          audio.onerror = () => {
+            activeAudioRef.current = null;
+            finish();
+          };
+          const p = audio.play();
+          if (p && p.catch) {
+            p.catch(() => finish());
+          }
+          return;
+        } catch (_) {
+          finish();
+          return;
+        }
+      }
+
+      // 3. Fallback to browser SpeechSynthesis
+      if ("speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance(fullText);
+        utterance.rate = 1.0;
+        utterance.pitch = 0.98;
+        utterance.lang = language === "hi" ? "hi-IN" : language === "bn" ? "bn-IN" : "en-IN";
+        utterance.onend = finish;
+        utterance.onerror = finish;
+        synthesisRef.current = utterance;
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch (_) {
+          finish();
+        }
+      } else {
+        finish();
       }
     },
     [soundEnabled, language]
@@ -483,12 +527,16 @@ export default function LiveVoiceAssistant({
 
         // Speak aloud if in voice room or sound is enabled
         if (activeMode === "voice" || soundEnabled) {
-          speakAndStreamAiResponse(resp.ai_message, () => {
-            // Re-arm speech recognition in voice mode after speaking
-            if (activeMode === "voice") {
-              startSpeechRecognition();
-            }
-          });
+          speakAndStreamAiResponse(
+            resp.ai_message,
+            () => {
+              // Re-arm speech recognition in voice mode after speaking
+              if (activeMode === "voice") {
+                startSpeechRecognition();
+              }
+            },
+            resp.audio_base64 || null
+          );
         }
       } catch (err) {
         console.error("[VOICE_CHAT_ERROR]", err);

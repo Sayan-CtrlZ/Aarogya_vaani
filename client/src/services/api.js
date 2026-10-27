@@ -148,7 +148,7 @@ export async function sendAIDoctorVoiceTurn(params) {
     const res = await fetch(`${API_BASE}/ai/voice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined,
+      signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined,
       body: JSON.stringify({
         consultation_id: consultationId,
         patient_id: patientId,
@@ -163,6 +163,43 @@ export async function sendAIDoctorVoiceTurn(params) {
     return await res.json();
   } catch (err) {
     console.warn("[API] Failed sendAIDoctorVoiceTurn:", err);
+    throw err;
+  }
+}
+
+export async function transcribeAudio(audioBlob, language = "en-IN") {
+  try {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "recording.webm");
+    formData.append("language", language);
+
+    const res = await fetch(`${API_BASE}/ai/transcribe`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed transcribeAudio:", err);
+    throw err;
+  }
+}
+
+export async function synthesizeSpeech({ text, language = "bn-IN", speaker = "aditya" }) {
+  try {
+    const res = await fetch(`${API_BASE}/ai/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language,
+        speaker,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed synthesizeSpeech:", err);
     throw err;
   }
 }
@@ -443,4 +480,38 @@ export async function fetchShareAuditLogs(patientId) {
     return [];
   }
 }
+
+export async function verifyShareCode({ code, doctorName = "Dr. S. Roy", facility = "Bishalgarh Community Health Centre" }) {
+  try {
+    const res = await fetch(`${API_BASE}/share/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: code,
+        doctor_name: doctorName,
+        facility: facility,
+      }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Access denied (HTTP ${res.status})`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error("[API_ERROR] verifyShareCode failed:", err);
+    throw err;
+  }
+}
+
+export async function fetchDoctorRecentAccessHistory() {
+  try {
+    const res = await fetch(`${API_BASE}/share/doctor-history`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[API] Failed to fetch doctor recent access history:", err);
+    return [];
+  }
+}
+
 

@@ -1,11 +1,15 @@
 """AI Doctor Router: Real-time Multi-lingual Voice & Chat Clinical Consultations with Supabase Persistence."""
 
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
-from fastapi import APIRouter, HTTPException, status
+import httpx
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
 from pydantic import BaseModel, Field
+
+from app.core.config import settings
 
 from app.db.supabase_client import (
     insert_consultation,
@@ -61,6 +65,21 @@ class AIDoctorTurnResponse(BaseModel):
     request_document: bool = False
     timestamp: str
     display_time: str
+    audio_base64: str | None = Field(default=None, description="Base64 encoded WAV audio of Dr. Aditya speech")
+    speaker: str | None = Field(default="aditya", description="Sarvam male voice name")
+
+
+class AITTSRequest(BaseModel):
+    text: str = Field(description="Clinical response text to synthesize")
+    language: str = Field(default="bn-IN", description="Language code: 'bn-IN', 'hi-IN', or 'en-IN'")
+    speaker: str = Field(default="aditya", description="Sarvam male voice: 'aditya', 'kabir', 'shubh', or 'ratan'")
+
+
+class AITTSResponse(BaseModel):
+    audio_base64: str
+    format: str = "audio/wav"
+    speaker: str = "aditya"
+    language: str = "bn-IN"
 
 
 class AIConsultationSaveRequest(BaseModel):
@@ -79,6 +98,99 @@ class AIConsultationSaveRequest(BaseModel):
     danger_signs: Any = Field(default_factory=list)
     triage_level: str = "STABLE"
     clinical_summary: str | None = None
+
+
+# ==============================================================================
+# Sarvam AI Male Voice TTS Synthesis Helper
+# ==============================================================================
+
+async def synthesize_sarvam_tts(
+    text: str,
+    language: str = "bn-IN",
+    speaker: str = "aditya",
+) -> str | None:
+    """
+    Synthesize high-fidelity Indic speech using Sarvam Bulbul v3 with male doctor voice.
+    Returns base64 encoded WAV audio string.
+    """
+    sarvam_key = getattr(settings, "SARVAM_API_KEY", None) or "sk_nfgpqj54_RV0yGdkHMlZHRMjqsEuDwcY4"
+    if not sarvam_key:
+        logger.warning("[SARVAM_TTS] No SARVAM_API_KEY configured.")
+        return None
+
+    # Clean text: remove markdown formatting, markdown links, code ticks, asterisks, and emojis
+    clean_text = re.sub(r'[*#_`~]', '', text or '')
+    clean_text = re.sub(r'https?://\S+', '', clean_text)
+    clean_text = re.sub(r'[\U00010000-\U0010ffff]', '', clean_text)
+    clean_text = re.sub(r'[\u2600-\u27bf]', '', clean_text)
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+    if not clean_text:
+        return None
+
+    # Sarvam recommends inputs up to ~500 chars per chunk
+    if len(clean_text) > 500:
+        clean_text = clean_text[:500]
+
+    # Automatic Script-to-Language Detection:
+    # Bengali Unicode characters -> MUST use 'bn-IN'
+    # Devanagari Unicode characters -> MUST use 'hi-IN'
+    # Otherwise check language param, defaulting to 'en-IN'
+    if re.search(r'[\u0980-\u09FF]', clean_text):
+        target_lang = "bn-IN"
+    elif re.search(r'[\u0900-\u097F]', clean_text):
+        target_lang = "hi-IN"
+    else:
+        target_lang = "en-IN"
+        if language:
+            l_lower = language.lower()
+            if "hi" in l_lower:
+                target_lang = "hi-IN"
+            elif "bn" in l_lower:
+                target_lang = "bn-IN"
+            else:
+                target_lang = "en-IN"
+
+    # Default male voice: 'aditya'
+    male_speaker = speaker or getattr(settings, "SARVAM_DEFAULT_SPEAKER", "aditya")
+
+    payload = {
+        "inputs": [clean_text],
+        "target_language_code": target_lang,
+        "speaker": male_speaker,
+        "model": "bulbul:v3",
+        "pitch": 0.0,
+        "pace": 1.0,
+        "loudness": 1.0,
+        "speech_sample_rate": 22050,
+        "enable_preprocessing": True,
+    }
+
+    headers = {
+        "api-subscription-key": sarvam_key,
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.post(
+                getattr(settings, "SARVAM_TTS_URL", "https://api.sarvam.ai/text-to-speech"),
+                headers=headers,
+                json=payload,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                audios = data.get("audios", [])
+                if audios and len(audios) > 0 and audios[0]:
+                    logger.info(f"[SARVAM_TTS] Synthesized {len(audios[0])} base64 chars for {target_lang} with male voice '{male_speaker}'.")
+                    return audios[0]
+                else:
+                    logger.warning(f"[SARVAM_TTS] Response had no audios: {data}")
+            else:
+                logger.warning(f"[SARVAM_TTS_ERROR] HTTP {resp.status_code}: {resp.text}")
+    except Exception as e:
+        logger.error(f"[SARVAM_TTS_EXCEPTION] Failed to synthesize audio: {e}")
+
+    return None
 
 
 # ==============================================================================
@@ -267,6 +379,17 @@ async def ai_doctor_chat_endpoint(body: AIDoctorTurnRequest):
         attached_document=body.attached_document,
     )
 
+    # Synthesize empathetic male doctor voice audio using Sarvam AI Bulbul v3 ('aditya')
+    audio_base64 = None
+    try:
+        audio_base64 = await synthesize_sarvam_tts(
+            text=ai_msg,
+            language=body.language,
+            speaker="aditya",
+        )
+    except Exception as e:
+        logger.warning(f"[CHAT_TURN_TTS_WARN] Failed audio synthesis for chat turn: {e}")
+
     return AIDoctorTurnResponse(
         consultation_id=saved_con_id,
         user_name=user_name,
@@ -280,6 +403,8 @@ async def ai_doctor_chat_endpoint(body: AIDoctorTurnRequest):
         request_document=bool(ai_turn.get("request_document", False)),
         timestamp=now_iso,
         display_time=display_time,
+        audio_base64=audio_base64,
+        speaker="aditya",
     )
 
 
@@ -351,6 +476,17 @@ async def ai_doctor_voice_endpoint(body: AIDoctorTurnRequest):
         attached_document=body.attached_document,
     )
 
+    # Synthesize empathetic male doctor voice audio using Sarvam AI Bulbul v3 ('aditya')
+    audio_base64 = None
+    try:
+        audio_base64 = await synthesize_sarvam_tts(
+            text=ai_msg,
+            language=body.language,
+            speaker="aditya",
+        )
+    except Exception as e:
+        logger.warning(f"[VOICE_TURN_TTS_WARN] Failed audio synthesis for voice turn: {e}")
+
     return AIDoctorTurnResponse(
         consultation_id=saved_con_id,
         user_name=user_name,
@@ -364,6 +500,8 @@ async def ai_doctor_voice_endpoint(body: AIDoctorTurnRequest):
         request_document=bool(ai_turn.get("request_document", False)),
         timestamp=now_iso,
         display_time=display_time,
+        audio_base64=audio_base64,
+        speaker="aditya",
     )
 
 
@@ -521,3 +659,93 @@ async def save_ai_consultation_endpoint(body: AIConsultationSaveRequest):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to persist consultation to Supabase: {str(e)}",
             )
+
+
+@router.post(
+    "/transcribe",
+    summary="Transcribe patient voice audio via Whisper Cloud Engine",
+)
+async def ai_doctor_transcribe_audio(
+    file: UploadFile = File(...),
+    language: str = Form("en-IN"),
+):
+    """
+    High-fidelity speech-to-text fallback:
+    Transcribes audio (wav, webm, mp4, ogg, mp3) using Groq Whisper (whisper-large-v3-turbo).
+    Provides resilient cross-browser STT when Web Speech API is unavailable or blocked.
+    """
+    groq_key = settings.OPENAI_API_KEY
+    if not groq_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Speech-to-text service is not configured with an API key.",
+        )
+
+    try:
+        audio_bytes = await file.read()
+        if not audio_bytes:
+            return {"text": "", "language": language}
+
+        # Map language codes to ISO 639-1 if applicable (e.g. 'bn-IN' -> 'bn', 'hi-IN' -> 'hi')
+        whisper_lang = None
+        if language:
+            code = language.split("-")[0].lower()
+            if code in ["bn", "hi", "en", "ta", "te", "mr", "gu", "ur", "kn", "ml", "pa"]:
+                whisper_lang = code
+
+        filename = file.filename or "recording.webm"
+        content_type = file.content_type or "audio/webm"
+
+        files = {"file": (filename, audio_bytes, content_type)}
+        data = {"model": "whisper-large-v3-turbo"}
+        if whisper_lang:
+            data["language"] = whisper_lang
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{settings.OPENAI_BASE_URL}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {groq_key}"},
+                files=files,
+                data=data,
+            )
+            if resp.status_code == 200:
+                result = resp.json()
+                transcribed = (result.get("text") or "").strip()
+                return {"text": transcribed, "language": language}
+            else:
+                logger.warning(f"[WHISPER_STT_ERROR] {resp.status_code}: {resp.text}")
+                return {"text": "", "language": language, "error": resp.text}
+    except Exception as e:
+        logger.error(f"[WHISPER_EXCEPTION] Failed to transcribe audio: {e}")
+        return {"text": "", "language": language, "error": str(e)}
+
+
+@router.post(
+    "/tts",
+    response_model=AITTSResponse,
+    summary="Synthesize Spoken Audio with Sarvam AI Bulbul v3 Male Voice",
+)
+async def ai_doctor_tts_endpoint(body: AITTSRequest):
+    """
+    On-demand Text-to-Speech synthesis:
+    Converts clinical AI responses into natural, empathetic male doctor audio (WAV) using Sarvam Bulbul v3 ('aditya').
+    """
+    chosen_speaker = body.speaker or getattr(settings, "SARVAM_DEFAULT_SPEAKER", "aditya")
+    audio_b64 = await synthesize_sarvam_tts(
+        text=body.text,
+        language=body.language,
+        speaker=chosen_speaker,
+    )
+    if not audio_b64:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to synthesize speech with Sarvam AI voice engine.",
+        )
+    return AITTSResponse(
+        audio_base64=audio_b64,
+        format="audio/wav",
+        speaker=chosen_speaker,
+        language=body.language,
+    )
+
+

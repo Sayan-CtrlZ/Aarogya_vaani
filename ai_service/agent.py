@@ -506,7 +506,7 @@ async def entrypoint(ctx: JobContext):
     llm_provider = openai.LLM(model="openai/gpt-oss-120b")
 
     # 3. TTS initialized with preferred initial language and matched speaker
-    initial_speaker = LANGUAGE_SPEAKERS.get(init_lang, "roopa")
+    initial_speaker = LANGUAGE_SPEAKERS.get(init_lang, "aditya")
     tts_provider = sarvam.TTS(
         target_language_code=init_lang,
         speaker=initial_speaker,
@@ -517,15 +517,12 @@ async def entrypoint(ctx: JobContext):
     turn_detector_model = None
     if hasattr(ctx, "proc") and hasattr(ctx.proc, "userdata"):
         vad_model = ctx.proc.userdata.get("vad")
+        turn_detector_model = ctx.proc.userdata.get("turn_detector")
+
     if not vad_model:
         vad_model = silero.VAD.load()
-
     if not turn_detector_model:
-        try:
-            turn_detector_model = MultilingualModel()
-        except Exception as td_err:
-            logging.warning(f"[TURN_DETECTOR_FALLBACK] Multilingual turn detector unavailable, using VAD: {td_err}")
-            turn_detector_model = None
+        turn_detector_model = MultilingualModel()
 
     # Configure the voice pipeline with STT, LLM, TTS, VAD, and Turn Detection
     session = AgentSession(
