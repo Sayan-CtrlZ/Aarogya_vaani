@@ -1,0 +1,71 @@
+[
+  {
+    "id": "pat_001_tripura_agartala",
+    "name": "Bikram Debbarma",
+    "vernacular_name": "বিক্রম দেববর্মা",
+    "phone": "+919862100001",
+    "pin": "1234",
+    "age": 42,
+    "gender": "Male",
+    "language_preference": "bn-IN",
+    "abha_id": "91-4829-1029-3841",
+    "district": "West Tripura",
+    "phc_centre": "Mohanpur Community Health Centre",
+    "medical_history": {
+      "chronic_conditions": ["Hypertension (Stage 1)"],
+      "allergies": ["Penicillin (Rash)"],
+      "ongoing_medications": ["Amlodipine 5mg OD"]
+    },
+    "emergency_contact": {
+      "name": "Subhalakshmi Debbarma",
+      "relationship": "Spouse",
+      "phone": "+919862100002"
+    }
+  },
+  {
+    "id": "pat_002_tripura_dhalai",
+    "name": "Anjali Tripura",
+    "vernacular_name": "অঞ্জলি ত্রিপুরা",
+    "phone": "+919862100003",
+    "pin": "4321",
+    "age": 28,
+    "gender": "Female",
+    "language_preference": "bn-IN",
+    "abha_id": "91-7291-8840-1923",
+    "district": "Dhalai",
+    "phc_centre": "Ambassa Primary Health Centre",
+    "medical_history": {
+      "chronic_conditions": ["Iron Deficiency Anaemia"],
+      "allergies": ["None reported"],
+      "ongoing_medications": ["Ferrous Ascorbate + Folic Acid OD"]
+    },
+    "emergency_contact": {
+      "name": "Kishore Tripura",
+      "relationship": "Father",
+      "phone": "+919862100004"
+    }
+  },
+  {
+    "id": "pat_003_tripura_gomati",
+    "name": "Sunil Chandra Roy",
+    "vernacular_name": "সুনীল চন্দ্র রায়",
+    "phone": "+919862100005",
+    "pin": "5678",
+    "age": 61,
+    "gender": "Male",
+    "language_preference": "hi-IN",
+    "abha_id": "91-1029-4720-8472",
+    "district": "Gomati",
+    "phc_centre": "Udaipur Sub-Divisional Hospital OPD",
+    "medical_history": {
+      "chronic_conditions": ["Type 2 Diabetes Mellitus", "Chronic Bronchitis"],
+      "allergies": ["Sulfa drugs"],
+      "ongoing_medications": ["Metformin 500mg BD", "Salbutamol Inhaler PRN"]
+    },
+    "emergency_contact": {
+      "name": "Manashi Roy",
+      "relationship": "Daughter",
+      "phone": "+919862100006"
+    }
+  }
+]
