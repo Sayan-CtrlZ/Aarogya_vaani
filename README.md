@@ -1,6 +1,7 @@
 # AarogyaVaani (आरोग्यवाणी / আরোগ্যবাণী)
 
-<div align="center">
+> **Voice-First Vernacular Clinical Intake & Offline Healthcare Triage Portal for Primary Health Centres (PHCs) in Tripura**  
+> _Built for Hack for Social Good 2026 • Powered by LiveKit, Sarvam AI, Google Gemini, Groq, and Supabase Cloud_
 
 ![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
@@ -27,7 +28,10 @@
 
 **[Features](#-key-features)** • **[Quick Start](#-quick-start)** • **[Architecture](#-architecture)** • **[Environment Variables](#-environment-variables)** • **[Design Doc](docs/TECHNICAL_DESIGN_DOCUMENT.md)** • **[Test Cases](docs/TEST_CASES_AND_VALIDATION.md)**
 
-</div>
+- 📘 **[Complete System Architecture & API Reference Manual](docs/SYSTEM_ARCHITECTURE_AND_API_REFERENCE.md)**  
+  _Detailed guide covering all 18+ REST endpoints, WebRTC Voice Agent internals, Frontend wiring maps, and teammate quick-start instructions._
+- 🔑 **[Credentials, Environment Variables & Git Push Guide](docs/CREDENTIALS_AND_PUSH_GUIDE.md)**  
+  _Full reference for all API keys, `.env.example` setup, security ignore rules, and step-by-step GitHub push instructions._
 
 ---
 
@@ -46,17 +50,11 @@ In rural Primary Health Centres (PHCs) across Tripura and northeastern India, me
 
 ---
 
-## 🌟 Key Features
+This single command boots up:
 
-| Capability | Technology / Provider | Clinical Benefit |
-| :--- | :--- | :--- |
-| **Vernacular Voice Agent** | LiveKit WebRTC + Sarvam AI (`Saarika` STT & `Bulbul` TTS) | Overcomes illiteracy; patients describe symptoms naturally in their native tongue |
-| **High-Speed Clinical Reasoning** | Groq Cloud (`Llama 3.3 70B Versatile`) | Guides diagnostic elicitation, checks emergency red flags with sub-1800ms latency |
-| **Multi-Modal Vision Drive** | Google Gemini `2.5-flash-lite` | Digitizes handwritten doctor prescriptions, CBC blood reports, and Chest X-Rays |
-| **Automated SOAP Notes** | Clinical Entity Normalization Pipeline | Pre-populates diagnosis & vitals before the patient enters the consultation room |
-| **Doctor Triage & Review** | React 19 + Tailwind CSS + Lucide | Color-coded severity triage with 1-click edits and Slide-to-Confirm verification |
-| **Zero-Trust Private Vault** | Supabase Cloud (PostgreSQL + S3 Storage) | End-to-end encrypted storage with temporary 15-minute signed URLs |
-| **ABDM Alignment** | 14-Digit ABHA ID & FHIR Standards | Seamless interoperability with India's Ayushman Bharat Digital Mission |
+1. **FastAPI Backend Server** (`http://localhost:8001`) • Interactive API Docs at `http://localhost:8001/docs`
+2. **LiveKit Voice Agent Worker** (`ai_service`) • Real-time Indic speech (Bengali, Hindi, English) with Sarvam AI & Groq
+3. **React Vite Frontend** (`http://localhost:5173`) • Vernacular clinical intake, Medical Drive, and Doctor Dashboard
 
 ---
 
