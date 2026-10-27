@@ -1,0 +1,44 @@
+[
+  {
+    "document_id": "doc_xray_001_chest_pa",
+    "patient_id": "pat_001_tripura_agartala",
+    "document_type": "RADIOLOGY_CHEST_XRAY",
+    "original_filename": "sample_xray.jpg",
+    "uploaded_at": "2026-10-27T09:40:12Z",
+    "storage_url": "https://supabase-vault.internal/medical-vault/doc_xray_001_chest_pa.jpg",
+    "vision_ai_model": "gemini-2.5-flash-lite",
+    "analysis_summary": {
+      "modality": "Chest Radiograph (PA View)",
+      "technical_adequacy": "Adequate inspiration and penetration. Scapulae rotated clear of lung fields.",
+      "findings": [
+        "Normal cardiac silhouette size (Cardiothoracic ratio < 0.5).",
+        "Clear costophrenic angles bilaterally without effusion.",
+        "Mild increased bronchovascular markings in left lower zone without focal consolidative air bronchogram.",
+        "Bony thorax and soft tissues unremarkable."
+      ],
+      "clinical_impression": "No evidence of acute focal lobar pneumonia, pneumothorax, or cardiomegaly.",
+      "confidence_score": 0.94
+    }
+  },
+  {
+    "document_id": "doc_lab_002_cbc_panel",
+    "patient_id": "pat_001_tripura_agartala",
+    "document_type": "PATHOLOGY_LAB_REPORT",
+    "original_filename": "sample_lab_report.jpg",
+    "uploaded_at": "2026-10-27T10:02:18Z",
+    "storage_url": "https://supabase-vault.internal/medical-vault/doc_lab_002_cbc_panel.jpg",
+    "vision_ai_model": "gemini-2.5-flash-lite",
+    "analysis_summary": {
+      "laboratory": "State Referral Diagnostic Laboratory, Agartala",
+      "test_name": "Complete Hemogram (CBC + Platelets)",
+      "extracted_parameters": [
+        {"parameter": "Hemoglobin", "value": 14.2, "unit": "g/dL", "reference_range": "13.0 - 17.0", "flag": "NORMAL"},
+        {"parameter": "Total Leukocyte Count (TLC)", "value": 4100, "unit": "/cumm", "reference_range": "4000 - 11000", "flag": "LOW_NORMAL"},
+        {"parameter": "Platelet Count", "value": 115000, "unit": "/cumm", "reference_range": "150000 - 450000", "flag": "LOW (Thrombocytopenia Grade 1)"},
+        {"parameter": "Neutrophils", "value": 52, "unit": "%", "reference_range": "40 - 70", "flag": "NORMAL"},
+        {"parameter": "Lymphocytes", "value": 41, "unit": "%", "reference_range": "20 - 40", "flag": "BORDERLINE_HIGH"}
+      ],
+      "clinical_alert": "Mild thrombocytopenia (Platelets 1.15 Lakhs/cumm) with relative lymphocytosis. Correlate clinically with acute viral prodrome / Dengue surveillance."
+    }
+  }
+]

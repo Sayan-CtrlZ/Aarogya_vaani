@@ -1,0 +1,75 @@
+[
+  {
+    "consultation_id": "cns_98124_acute_fever",
+    "patient_id": "pat_001_tripura_agartala",
+    "created_at": "2026-10-27T10:15:30Z",
+    "intake_language": "bn-IN",
+    "triage_urgency": "MODERATE",
+    "triage_color": "YELLOW",
+    "status": "APPROVED",
+    "chief_complaint": "High grade fever with severe body aches and mild unproductive cough for 3 days",
+    "conversation_turns": [
+      {
+        "speaker": "AI_AGENT",
+        "timestamp_ms": 1200,
+        "language": "bn-IN",
+        "text": "নমস্কার বিক্রম বাবু। আরোগ্য বাণীতে আপনাকে স্বাগতম। আজ আপনার কি শারীরিক অসুবিধা হচ্ছে বলুন তো?"
+      },
+      {
+        "speaker": "PATIENT",
+        "timestamp_ms": 5400,
+        "language": "bn-IN",
+        "text": "ডাক্তারবাবু, গত তিন দিন ধরে আমার খুব বেশি জ্বর আসছে। সাথে গা-হাত-পা খুব ব্যথা আর হালকা শুকনো কাশি।"
+      },
+      {
+        "speaker": "AI_AGENT",
+        "timestamp_ms": 11200,
+        "language": "bn-IN",
+        "text": "বুঝতে পেরেছি। জ্বর কি কাপুনি দিয়ে আসছে? আর আপনার কি শ্বাসকষ্ট বা বুকে কোনো ব্যথা আছে?"
+      },
+      {
+        "speaker": "PATIENT",
+        "timestamp_ms": 17800,
+        "language": "bn-IN",
+        "text": "হ্যাঁ, সন্ধ্যার দিকে শীত করে কাঁপুনি দিয়ে জ্বর আসে। কিন্তু শ্বাসকষ্ট নেই, শুধু শরীর খুব দুর্বল লাগছে।"
+      },
+      {
+        "speaker": "AI_AGENT",
+        "timestamp_ms": 23600,
+        "language": "bn-IN",
+        "text": "ধন্যবাদ জানানোর জন্য। আপনার সব তথ্য আমি নোট করে চিকিৎসকের জন্য একটি সংক্ষিপ্ত রিপোর্ট তৈরি করে দিয়েছি।"
+      }
+    ],
+    "extracted_clinical_entities": {
+      "symptoms": [
+        {"name": "High grade fever", "duration": "3 days", "pattern": "Intermittent with chills in evening", "severity": 7},
+        {"name": "Generalized myalgia / body ache", "duration": "3 days", "severity": 8},
+        {"name": "Dry cough", "duration": "2 days", "severity": 3}
+      ],
+      "red_flags": {
+        "shortness_of_breath": false,
+        "chest_pain": false,
+        "altered_sensorium": false,
+        "persistent_vomiting": false
+      },
+      "vitals_reported": {
+        "temperature_f": 102.1,
+        "pulse_bpm": 92,
+        "spo2_percent": 98,
+        "bp_systolic": 126,
+        "bp_diastolic": 82
+      }
+    },
+    "soap_note": {
+      "subjective": "42-year-old male with known hypertension presents with 3-day history of acute high-grade fever associated with chills and rigors in evenings, marked generalized myalgia and dry cough. Denies dyspnoea, chest tightness, or GI symptoms.",
+      "objective": "Alert, febrile (102.1°F), pulse 92 bpm regular, SpO2 98% room air. Chest clear bilaterally on simulated review. No petechiae observed.",
+      "assessment": "1. Acute Febrile Illness — Rule out Dengue / Malaria / Viral Syndrome.\n2. Known Essential Hypertension (under treatment).",
+      "plan": "1. Diagnostic workup: Complete Blood Count (CBC) with Platelet count, Dengue NS1 Ag, MP QBC.\n2. Medications: Paracetamol 650mg TDS PRN (max 3g/24h), Oral Rehydration Solution (ORS) 1-2L daily.\n3. Continue regular Amlodipine 5mg.\n4. Red-flag warning: Return immediately if bleeding gums, persistent vomiting, or breathlessness develops."
+    },
+    "doctor_review": {
+      "reviewed_by": "Dr. S. Deb, MBBS (Medical Officer)",
+      "reviewed_at": "2026-10-27T10:28:45Z",
+      "action": "APPROVED_PRESCRIPTION_DISPATCHED"
+    }
+  }
+]
